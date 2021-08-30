@@ -1,12 +1,9 @@
-import os
 
 # Stackblock folder
-BLOCKPATH = '/home/zhcui/program/libdmet_ZHC/stackblock_bx/' # ZHC add
-#BLOCKPATH = '/home/zhcui/program/libdmet_ZHC/stackblock_bx_pdm_new_git/' # ZHC add
-#BLOCKPATH = '/home/zcui/program/stackblock_bx/' # ZHC add
-#BLOCKPATH = '/home/zcui/program/stackblock_bx_new_pdm/' # ZHC add
+BLOCKPATH = '/home/zhcui/program/stackblock_hc/'
+use_prebuild = False
+BLOCK2PATH = "/home/zhcui/program/block2/pyblock2/driver/"
 
-# Genetic algorithm reorder for dmrgci
-GAOPTEXE = "/home/zhcui/program/libdmet_ZHC/stackblock_bx/genetic/gaopt"
-#GAOPTEXE = "/home/zcui/program/stackblock_bx/genetic/gaopt"
-
+# Genetic algorithm reorder
+GAOPTEXE = "/home/zhcui/program/stackblock_hc/genetic/gaopt"
+GAOPT2 = BLOCK2PATH + "/gaopt"
