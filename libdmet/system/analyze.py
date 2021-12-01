@@ -9,8 +9,8 @@ Author:
 
 from pyscf.lib import logger as pyscf_logger
 from pyscf.scf.hf import mulliken_pop as mulliken_pop_rhf
+from pyscf.data.nist import BOHR
 
-from libdmet.basis_transform import make_basis 
 from libdmet.utils.misc import add_spin_dim
 from libdmet.system.fourier import *
 
@@ -184,6 +184,7 @@ def mulliken_lo(lattice, rdm1, ovlp, C_ao_lo, labels,
     """
     A modified Mulliken population analysis, based on given LO.
     """
+    from libdmet.basis_transform import make_basis 
     cell = lattice.cell.copy()
     log = pyscf_logger.new_logger(cell, verbose)
     C_ao_lo = np.asarray(C_ao_lo)
@@ -370,6 +371,7 @@ def analyze_kmo(kmf, C_ao_lo=None, lo_labels=None, C_lo_mo=None, num_max=4,
         C_lo_mo_abs: (spin, nkpts, nlo_grouped, nmo)
     """
     from libdmet.lo import lowdin
+    from libdmet.basis_transform import make_basis 
     log.info("Analyze k-MO")
     log.info("-" * 79)
     
@@ -587,11 +589,11 @@ def get_symm_orb(mol, idx, perm_idx=None, tol=1e-6, ignore_empty_irep=True):
     assert norb_tot == len(idx)
     return symm_orb
 
-def get_bond_pairs(mol, length_range=[0.0, 2.0], unit='A', allow_pbc=True, nimgs=[1, 1, 1]):
+def get_bond_pairs(mol, length_range=[0.0, 2.0], unit='A', allow_pbc=True,
+                   nimgs=[1, 1, 1], bond_type=None, triu=True):
     """
     Get all bond pairs.
     """
-    from pyscf.data.nist import BOHR
     if (getattr(mol, 'pbc_intor', None) is not None) and allow_pbc:
         coords_0 = mol.atom_coords()
         if unit == 'A':
@@ -610,12 +612,30 @@ def get_bond_pairs(mol, length_range=[0.0, 2.0], unit='A', allow_pbc=True, nimgs
         if unit == 'A':
             coords = coords * BOHR
         diff = la.norm(coords - coords[:, None], axis=2)
-        
-    idx = np.triu_indices(diff.shape[-1], 1)
+    
+    if triu:
+        idx = np.triu_indices(diff.shape[-1], 1)
+    else:
+        idx = tuple(lib.cartesian_prod((np.arange(diff.shape[-1]), 
+                                        np.arange(diff.shape[-1]))).T)
     dis = diff[idx]
     keep = (dis >= length_range[0]) & (dis <= length_range[1])
     pairs = np.asarray(idx).T[keep]
     dis = dis[keep]
+
+    if bond_type is not None:
+        pairs_new = []
+        dis_new   = []
+        for i, (pair, d) in enumerate(zip(pairs, dis)):
+            atom_0 = mol._atom[pair[0]][0]
+            atom_1 = mol._atom[pair[1]][0]
+            if ((atom_0, atom_1) in bond_type) or \
+               ((atom_1, atom_0) in bond_type):
+                pairs_new.append(pair)
+                dis_new.append(d)
+        pairs = pairs_new
+        dis   = dis_new
+
     return pairs, dis
 
 def get_bond_order_all(mol, rdm1, ovlp, length_range=[0.0, 2.0], order_tol=0.01, 
