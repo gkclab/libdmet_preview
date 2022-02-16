@@ -13,9 +13,14 @@ import numpy as np
 import scipy.linalg as la
 
 from scipy.optimize import minimize_scalar, fmin
-from scipy.optimize.optimize import (_check_unknown_options, wrap_function, \
-        _status_message, OptimizeResult)
 from scipy.optimize._trustregion_ncg import CGSteihaugSubproblem 
+from scipy.optimize.optimize import (_check_unknown_options, _status_message,
+                                     OptimizeResult)
+try:
+    # ZHC NOTE scipy change wrap_function -> _wrap_function
+    from scipy.optimize.optimize import _wrap_function as wrap_function
+except ImportError:
+    from scipy.optimize.optimize import wrap_function
 
 from pyscf.soscf import ciah
 from pyscf.lib import logger
@@ -102,21 +107,21 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
         
         def FindStep():
             scale = max(abs(np.average(steps[-2:])), min_step[0])
-            res = minimize_scalar(LineSearchFn, bounds=(0.0, scale), \
-                    method="bounded", options={"maxiter": 100, \
-                    "xatol": xatol[0]})
+            res = minimize_scalar(LineSearchFn, bounds=(0.0, scale), 
+                                  method="bounded", options={"maxiter": 100, 
+                                                             "xatol": xatol[0]})
             if res.fun > old_fval: 
                 # ZHC NOTE line search is not accurate enough
                 # minimize_scalar can give a local minima higher than f(0).
-                xopt, fopt, _, _, _ = fmin(LineSearchFn, 0.0, disp=False, \
-                        xtol=xatol[0]*0.1, full_output=True)
+                xopt, fopt, _, _, _ = fmin(LineSearchFn, 0.0, disp=False, 
+                                           xtol=xatol[0]*0.1, full_output=True)
                 if fopt > old_fval:
                     log.warn("line search fails, resulting value  %20.12f is\n"
-                             "larger than the previous step value %20.12f", \
+                             "larger than the previous step value %20.12f",
                              fopt, old_fval)
                     res = (0.0, old_fval)
                 else:
-                    res = (xopt, fopt)
+                    res = (xopt[0], fopt)
             else:
                 res = (res.x, res.fun)
             return res
@@ -127,13 +132,13 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
         norm_dx = norm(pk) * alpha_k
 
         if abs(norm_dx) < dx_tol:
-            log.debug(0, "CG: dx (%20.12f) = 0 reached.", norm_dx)
+            log.debug(0, "CG: dx (%20.12g) < %15.8g reached.", norm_dx, dx_tol)
             break
         old_fval = new_fval
         
         alpha_k, xk, pk, gfk, gnorm = polak_ribiere_powell_step(alpha_k)
-        log.debug(0, "%4d %20.12f %20.12f %20.12f %15.3e", k, old_fval, \
-                gnorm, norm_dx, alpha_k)
+        log.debug(0, "%4d %20.12f %20.12f %20.12f %15.3e", k, old_fval, gnorm,
+                  norm_dx, alpha_k)
         
         if retall:
             allvecs.append(xk)
@@ -143,7 +148,12 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
         k += 1
 
         # ZHC NOTE it is better to do at least 1 step optimize.
-        if gnorm < gtol and dy < ytol:
+        if gnorm < gtol:
+            log.debug(0, "CG: gnorm (%20.12g) < %15.8g reached.", gnorm, gtol)
+            break
+        
+        if dy < ytol:
+            log.debug(0, "CG: dy (%20.12g) < %15.8g reached.", dy, ytol)
             break
 
     fval = old_fval
@@ -233,19 +243,19 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
         
         def FindStep():
             scale = max(abs(np.average(steps[-2:])), min_step[0])
-            res = minimize_scalar(LineSearchFn, bounds=(0.0, scale), \
-                    method="bounded", options={"maxiter": 100, \
-                    "xatol": xatol[0]})
+            res = minimize_scalar(LineSearchFn, bounds=(0.0, scale), 
+                                  method="bounded", options={"maxiter": 100,
+                                                             "xatol": xatol[0]})
             if res.fun > old_fval: # line search is not accurate enough
-                xopt, fopt, _, _, _ = fmin(LineSearchFn, 0.0, disp=False, \
-                        xtol=xatol[0]*0.1, full_output=True)
+                xopt, fopt, _, _, _ = fmin(LineSearchFn, 0.0, disp=False, 
+                                           xtol=xatol[0]*0.1, full_output=True)
                 if fopt > old_fval:
                     log.warn("line search fails, resulting value  %20.12f is\n"
-                             "larger than the previous step value %20.12f", \
+                             "larger than the previous step value %20.12f",
                              fopt, old_fval)
                     res = (0.0, old_fval)
                 else:
-                    res = (xopt, fopt)
+                    res = (xopt[0], fopt)
             else:
                 res = (res.x, res.fun)
             return res
@@ -270,14 +280,20 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
         
         k += 1
         gnorm = norm(gfk)
-        if (gnorm <= gtol):
+        
+        if gnorm < gtol:
+            log.debug(0, "BFGS: gnorm (%20.12g) < %15.8g reached.", gnorm, gtol)
+            break
+        
+        if dy < ytol:
+            log.debug(0, "BFGS: dy (%20.12g) < %15.8g reached.", dy, ytol)
             break
 
-        log.debug(0, "%4d %20.12f %20.12f %20.12f %15.3e", k, old_fval, \
-                gnorm, norm_dx, alpha_k)
+        log.debug(0, "%4d %20.12f %20.12f %20.12f %15.3e", k, old_fval, gnorm,
+                  norm_dx, alpha_k)
 
         if abs(norm_dx) < dx_tol:
-            log.debug(0, "CG: dx (%20.12f) = 0 reached.", norm_dx)
+            log.debug(0, "BFGS: dx (%20.12f) = 0 reached.", norm_dx)
             break
 
         if not np.isfinite(old_fval):
