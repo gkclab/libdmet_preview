@@ -242,8 +242,7 @@ for iter in range(MaxIter):
     basis_k = Lat.R2k_basis(basis)
 
     log.section("\nSolving impurity problem\n")
-    solver_args = {"nelec": (Lat.ncore+Lat.nval)*2, "dm0": dmet.foldRho_k(rho_k, basis_k),
-                   "restart": True, "basis": basis}
+    solver_args = {"nelec": (Lat.ncore+Lat.nval)*2, "dm0": dmet.foldRho_k(rho_k, basis_k)}
 
     rhoEmb, EnergyEmb, ImpHam, dmu = \
         dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
