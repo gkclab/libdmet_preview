@@ -37,7 +37,7 @@ cell.spin = 0
 cell.basis   = 'gth-dzvp-molopt-sr'
 cell.pseudo  = 'gth-pade'
 cell.verbose = 5
-cell.precision = 1e-11
+cell.precision = 1e-12
 cell.max_memory = max_memory
 cell.build()
 
@@ -76,8 +76,8 @@ beta = np.inf
 
 # DMET SCF control
 MaxIter = 100
-u_tol = 5.0e-5
-E_tol = 5.0e-6
+u_tol = 1.0e-4
+E_tol = 5.0e-5
 iter_tol = 4
 
 # DIIS
@@ -89,12 +89,12 @@ dc = dmet.FDiisContext(adiis.space)
 # solver and mu fit
 ncas = nscsites + nval
 nelecas = (Lat.ncore + Lat.nval) * 2
-cisolver = dmet.impurity_solver.CCSD(restricted=restricted, tol=2e-7, tol_normt=2e-5, max_memory=max_memory)
+cisolver = dmet.impurity_solver.CCSD(restricted=restricted, tol=5e-7, tol_normt=5e-5, max_memory=max_memory)
 solver = cisolver
 nelec_tol = 1.0e-5
 delta = 0.01
 step = 0.1
-load_frecord = True
+load_frecord = False
 
 # vcor fit
 imp_fit = False
@@ -109,32 +109,6 @@ CG_check = False
 ### ************************************************************
 
 log.section("\nSolving SCF mean-field problem\n")
-
-def DiagRHF_symm(Fock, vcor, lattice, ovlp):
-    if len(Fock.shape) == 3:
-        Fock = Fock[np.newaxis, ...]
-    ncells = Fock.shape[-3]
-    nscsites = Fock.shape[-1]
-    ew = np.empty((ncells, nscsites))
-    ev = np.empty((ncells, nscsites, nscsites), dtype = np.complex128)
-    
-    computed = set()
-    for i in range(ncells):
-        neg_i = lattice.cell_pos2idx(-lattice.cell_idx2pos(i))
-        if neg_i in computed:
-            ew[i], ev[i] = ew[neg_i], ev[neg_i].conj()
-        else:
-            if vcor is None:
-                ew[i], ev[i] = la.eigh(Fock[0, i], ovlp[i])
-            else:
-                ew[i], ev[i] = la.eigh(Fock[0, i] + vcor.get(i, True)[0], ovlp[i])
-            computed.add(i)
-    return ew, ev
-
-def eig(h_kpts, s_kpts):
-    e_a, c_a = DiagRHF_symm(h_kpts[0], None, Lat, s_kpts)# khf.KSCF.eig(self, h_kpts[0], s_kpts)
-    e_b, c_b = DiagRHF_symm(h_kpts[1], None, Lat, s_kpts) #khf.KSCF.eig(self, h_kpts[1], s_kpts)
-    return (e_a,e_b), (c_a,c_b)
 
 # idx of orbitals 
 aoind = cell.aoslice_by_atom()
@@ -189,28 +163,12 @@ if os.path.isfile(chkfname):
     kmf.with_df._cderi = gdf_fname
     data = chkfile.load(chkfname, 'scf')
     kmf.__dict__.update(data)
-    
-    hcore = np.load('hcore.npy')
-    ovlp = np.load('ovlp.npy')
-    np.save('hcore.npy', hcore)
-    np.save('ovlp.npy', ovlp)
-    kmf.get_hcore = lambda *args: hcore
-    kmf.get_ovlp = lambda *args: ovlp
-    kmf.eig = eig
 else:
     kmf = scf.KUHF(cell, kpts, exxdiv=exxdiv).density_fit()
     kmf.with_df = gdf
     kmf.with_df._cderi = gdf_fname
     kmf.conv_tol = 1e-11
     kmf.chkfile = chkfname
-    
-    hcore = kmf.get_hcore()
-    ovlp = kmf.get_ovlp()
-    kmf.get_hcore = lambda *args: hcore
-    kmf.get_ovlp = lambda *args: ovlp
-    kmf.eig = eig
-
-    hcore_ao = np.asarray(kmf.get_hcore())
     aoind = cell.aoslice_by_atom()
     dm = kmf.get_init_guess()
 
@@ -220,26 +178,6 @@ else:
     dm[1,:,aoind[1][2]:aoind[1][3], aoind[1][2]:aoind[1][3]] = 2. * dm[1,:,aoind[1][2]:aoind[1][3], aoind[1][2]:aoind[1][3]]
     kmf.max_cycle = 50
     kmf.kernel(dm)
-
-fock_spin = kmf.get_fock()
-#fock_spin = np.load('fock.npy')
-fock_spin_R = Lat.k2R(fock_spin)
-fock_spin = Lat.R2k(fock_spin_R.real)
-
-mo_energy, mo_coeff = kmf.eig(fock_spin, ovlp)
-kmf.mo_coeff = mo_coeff
-kmf.mo_energy = kmf.mo_energy
-kmf.mo_occ = kmf.get_occ()
-
-rdm1 = kmf.make_rdm1()
-rdm1 = np.asarray(((rdm1[0]+rdm1[1])*0.5,)*2)
-rdm1_R = Lat.k2R(rdm1)
-
-fock_ave = np.asarray(fock_spin[0]) + np.asarray(fock_spin[1])
-fock_ave *= 0.5
-fock_ave = np.asarray((fock_ave, fock_ave))
-#fock_ave = np.load('fock_ave.npy')
-fock_R = Lat.k2R(fock_ave)
 
 log.result("kmf electronic energy: %20.12f", kmf.e_tot - kmf.energy_nuc())
 
@@ -256,18 +194,12 @@ assert(nval == C_ao_iao_val.shape[-1])
 
 # use IAO
 C_ao_lo = C_ao_iao
-Lat.set_Ham(kmf, gdf, C_ao_lo, eri_symmetry=4, fock=fock_ave, rdm1=rdm1)
+Lat.set_Ham(kmf, gdf, C_ao_lo, eri_symmetry=4)
 
 # vcor initialization
 idx_range = list(range(ncore, ncore+nval))
 vcor = dmet.VcorLocal_new(restricted, bogoliubov, nscsites, idx_range=idx_range)
-z_mat = np.zeros((2, nscsites, nscsites))
-df = fock_spin - fock_ave
-df = make_basis.transform_h1_to_lo(df, C_ao_lo)
-df_R = Lat.k2R(df)
-vcor_unit = df_R[:, 0]
-z_mat[np.ix_(range(2), idx_range, idx_range)] = vcor_unit[np.ix_(range(2), idx_range, idx_range)]
-vcor.assign(z_mat)
+vcor.update(np.zeros(vcor.length()))
 
 ### ************************************************************
 ### DMET procedure
@@ -290,6 +222,8 @@ for iter in range(MaxIter):
 
     rho, Mu, res = dmet.HartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
     rho = rho.real
+    rho_k = Lat.R2k(rho)
+
     print ("mf rho alpha")
     dm_Ni0_3d_a = rho[0,0][np.ix_(iao_Ni0_3d, iao_Ni0_3d)]
     dm_Ni1_3d_a = rho[0,0][np.ix_(iao_Ni1_3d, iao_Ni1_3d)]
@@ -303,11 +237,13 @@ for iter in range(MaxIter):
     print (dm_Ni1_3d_b)
      
     log.section("\nConstructing impurity problem\n")
-    ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=True, int_bath=int_bath, max_memory=max_memory)
+    ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, int_bath=int_bath, max_memory=max_memory)
     ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
-    
+    basis_k = Lat.R2k_basis(basis)
+
     log.section("\nSolving impurity problem\n")
-    solver_args = {"restart": True, "nelec": (Lat.ncore+Lat.nval)*2, "dm0": dmet.foldRho(rho, Lat, basis)}
+    solver_args = {"nelec": (Lat.ncore+Lat.nval)*2, "dm0": dmet.foldRho_k(rho_k, basis_k),
+                   "restart": True, "basis": basis}
 
     rhoEmb, EnergyEmb, ImpHam, dmu = \
         dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
