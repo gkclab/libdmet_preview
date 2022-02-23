@@ -32,7 +32,7 @@ exxdiv = None
 ### System settings
 ### ************************************************************
 
-cell = read_poscar("./NiO-AFM-417.vasp")
+cell = read_poscar("./NiO-AFM-417")
 cell.spin = 0
 cell.basis   = 'gth-dzvp-molopt-sr'
 cell.pseudo  = 'gth-pade'
