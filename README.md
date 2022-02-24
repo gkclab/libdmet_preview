@@ -1,4 +1,4 @@
-libDMET for realistic solids
+libDMET
 ===============================================
 ![Build Status](https://github.com/zhcui/libdmet_solid/workflows/CI/badge.svg)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -9,7 +9,7 @@ Installation
 ------------
 
 * Prerequisites
-    - [PySCF](https://github.com/pyscf/pyscf/tree/dev) 1.7 or higher.
+    - [PySCF](https://github.com/pyscf/pyscf) 2.0 or higher.
 
 * Add libdmet top-level directory to your `PYTHONPATH` and you are all set!
   e.g. if libdmet_preview is installed in `/opt`, your `PYTHONPATH` should be
