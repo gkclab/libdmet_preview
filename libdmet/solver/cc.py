@@ -32,7 +32,9 @@ from pyscf.cc.uccsd import _ChemistsERIs
 
 einsum = partial(np.einsum, optimize=True)
 
-def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
+def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
+    from libdmet.utils import tril_take_idx
+    assert ao2mofn is None
     cput0 = (time.process_time(), time.perf_counter())
     eris = _ChemistsERIs()
     eris._common_init_(mycc, mo_coeff)
@@ -43,128 +45,131 @@ def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
 
     moa = eris.mo_coeff[0]
     mob = eris.mo_coeff[1]
-    nmoa = moa.shape[1]
-    nmob = mob.shape[1]
+    naoa, nmoa = moa.shape
+    naob, nmob = mob.shape
+    assert naoa == naob
 
-    if callable(ao2mofn):
-        eri_aa = ao2mofn(moa).reshape([nmoa]*4)
-        eri_bb = ao2mofn(mob).reshape([nmob]*4)
-        eri_ab = ao2mofn((moa,moa,mob,mob))
+    if len(mycc._scf._eri) == 1:
+        eri_ao = [mycc._scf._eri[0], mycc._scf._eri[0], mycc._scf._eri[0]]
+    elif len(mycc._scf._eri) == 3:
+        eri_ao = mycc._scf._eri
     else:
-        if len(mycc._scf._eri) == 1:
-            eri_aa = ao2mo.restore(1, ao2mo.full(mycc._scf._eri[0], moa), nmoa)
-            eri_bb = ao2mo.restore(1, ao2mo.full(mycc._scf._eri[0], mob), nmob)
-            eri_ab = ao2mo.general(mycc._scf._eri[0], (moa, moa, mob, mob), compact=False)
-        elif len(mycc._scf._eri) == 3:
-            eri_aa = ao2mo.restore(1, ao2mo.full(mycc._scf._eri[0], moa), nmoa)
-            eri_bb = ao2mo.restore(1, ao2mo.full(mycc._scf._eri[1], mob), nmob)
-            eri_ab = ao2mo.general(mycc._scf._eri[2], (moa, moa, mob, mob), compact=False)
-        else:
-            raise ValueError
+        raise ValueError("Unknown ERI length %s"%(len(mycc._scf._eri)))
+    
+    o = np.arange(0, nocca)
+    v = np.arange(nocca, nmoa)
+    
+    if (naoa == nmoa) and (max_abs(moa - np.eye(nmoa)) < 1e-13):
+        eri_aa = ao2mo.restore(4, eri_ao[0], naoa)
+    else:
+        eri_aa = ao2mo.full(ao2mo.restore(4, eri_ao[0], naoa),
+                            moa, compact=True)
+    
+    eris.oooo = take_eri(eri_aa, o, o, o, o)
+    eris.ovoo = take_eri(eri_aa, o, v, o, o)
+    eris.ovov = take_eri(eri_aa, o, v, o, v)
+    eris.oovv = take_eri(eri_aa, o, o, v, v)
+    eris.ovvo = take_eri(eri_aa, o, v, v, o)
 
-    eri_ba = eri_ab.reshape(nmoa,nmoa,nmob,nmob).transpose(2,3,0,1)
+    idx1 = tril_take_idx(o, v, compact=False)
+    idx2 = tril_take_idx(v, v, compact=True)
+    eris.ovvv = eri_aa[np.ix_(idx1, idx2)].reshape(nocca, nvira, nvira*(nvira+1)//2)
+    
+    eris.vvvv = take_eri(eri_aa, v, v, v, v, compact=True)
+    eri_aa = None
+    
+    O = np.arange(0, noccb)
+    V = np.arange(noccb, nmob)
 
-    eri_aa = eri_aa.reshape(nmoa,nmoa,nmoa,nmoa)
-    eri_ab = eri_ab.reshape(nmoa,nmoa,nmob,nmob)
-    eri_ba = eri_ba.reshape(nmob,nmob,nmoa,nmoa)
-    eri_bb = eri_bb.reshape(nmob,nmob,nmob,nmob)
-    eris.oooo = eri_aa[:nocca,:nocca,:nocca,:nocca].copy()
-    eris.ovoo = eri_aa[:nocca,nocca:,:nocca,:nocca].copy()
-    eris.ovov = eri_aa[:nocca,nocca:,:nocca,nocca:].copy()
-    eris.oovv = eri_aa[:nocca,:nocca,nocca:,nocca:].copy()
-    eris.ovvo = eri_aa[:nocca,nocca:,nocca:,:nocca].copy()
-    eris.ovvv = eri_aa[:nocca,nocca:,nocca:,nocca:].copy()
-    eris.vvvv = eri_aa[nocca:,nocca:,nocca:,nocca:].copy()
+    if (naob == nmob) and (max_abs(mob - np.eye(nmob)) < 1e-13):
+        eri_bb = ao2mo.restore(4, eri_ao[1], naob)
+    else:
+        eri_bb = ao2mo.full(ao2mo.restore(4, eri_ao[1], naob),
+                            mob, compact=True)
 
-    eris.OOOO = eri_bb[:noccb,:noccb,:noccb,:noccb].copy()
-    eris.OVOO = eri_bb[:noccb,noccb:,:noccb,:noccb].copy()
-    eris.OVOV = eri_bb[:noccb,noccb:,:noccb,noccb:].copy()
-    eris.OOVV = eri_bb[:noccb,:noccb,noccb:,noccb:].copy()
-    eris.OVVO = eri_bb[:noccb,noccb:,noccb:,:noccb].copy()
-    eris.OVVV = eri_bb[:noccb,noccb:,noccb:,noccb:].copy()
-    eris.VVVV = eri_bb[noccb:,noccb:,noccb:,noccb:].copy()
+    eris.OOOO = take_eri(eri_bb, O, O, O, O)
+    eris.OVOO = take_eri(eri_bb, O, V, O, O)
+    eris.OVOV = take_eri(eri_bb, O, V, O, V)
+    eris.OOVV = take_eri(eri_bb, O, O, V, V)
+    eris.OVVO = take_eri(eri_bb, O, V, V, O)
 
-    eris.ooOO = eri_ab[:nocca,:nocca,:noccb,:noccb].copy()
-    eris.ovOO = eri_ab[:nocca,nocca:,:noccb,:noccb].copy()
-    eris.ovOV = eri_ab[:nocca,nocca:,:noccb,noccb:].copy()
-    eris.ooVV = eri_ab[:nocca,:nocca,noccb:,noccb:].copy()
-    eris.ovVO = eri_ab[:nocca,nocca:,noccb:,:noccb].copy()
-    eris.ovVV = eri_ab[:nocca,nocca:,noccb:,noccb:].copy()
-    eris.vvVV = eri_ab[nocca:,nocca:,noccb:,noccb:].copy()
+    idx1 = tril_take_idx(O, V, compact=False)
+    idx2 = tril_take_idx(V, V, compact=True)
+    eris.OVVV = eri_bb[np.ix_(idx1, idx2)].reshape(noccb, nvirb, nvirb*(nvirb+1)//2)
+    
+    eris.VVVV = take_eri(eri_bb, V, V, V, V, compact=True)
+    eri_bb = None
 
-    #eris.OOoo = eri_ba[:noccb,:noccb,:nocca,:nocca].copy()
-    eris.OVoo = eri_ba[:noccb,noccb:,:nocca,:nocca].copy()
-    #eris.OVov = eri_ba[:noccb,noccb:,:nocca,nocca:].copy()
-    eris.OOvv = eri_ba[:noccb,:noccb,nocca:,nocca:].copy()
-    eris.OVvo = eri_ba[:noccb,noccb:,nocca:,:nocca].copy()
-    eris.OVvv = eri_ba[:noccb,noccb:,nocca:,nocca:].copy()
-    #eris.VVvv = eri_ba[noccb:,noccb:,nocca:,nocca:].copy()
+    if ((naoa == naob) and (nmoa == nmob)) and \
+       ((naoa == nmoa) and (max_abs(moa - np.eye(nmoa)) < 1e-13)) and \
+       ((naob == nmob) and (max_abs(mob - np.eye(nmob)) < 1e-13)):
+        eri_ab = ao2mo.restore(4, eri_ao[2], naoa)
+    else:
+        eri_ab = ao2mo.general(ao2mo.restore(4, eri_ao[2], naoa),
+                               (moa, moa, mob, mob), compact=True)
+    eri_ao = None
 
-    if not callable(ao2mofn):
-        ovvv = eris.ovvv.reshape(nocca*nvira,nvira,nvira)
-        eris.ovvv = lib.pack_tril(ovvv).reshape(nocca,nvira,nvira*(nvira+1)//2)
-        eris.vvvv = ao2mo.restore(4, eris.vvvv, nvira)
+    eris.ooOO = take_eri(eri_ab, o, o, O, O)
+    eris.ovOO = take_eri(eri_ab, o, v, O, O)
+    eris.ovOV = take_eri(eri_ab, o, v, O, V)
+    eris.ooVV = take_eri(eri_ab, o, o, V, V)
+    eris.ovVO = take_eri(eri_ab, o, v, V, O)
+    
+    idx1 = tril_take_idx(o, v, compact=False)
+    eris.ovVV = eri_ab[np.ix_(idx1, idx2)].reshape(nocca, nvira, nvirb*(nvirb+1)//2)
+    
+    eris.vvVV = take_eri(eri_ab, v, v, V, V, compact=True)
+    
+    eri_ba = eri_ab.T
+    eri_ab = None
 
-        OVVV = eris.OVVV.reshape(noccb*nvirb,nvirb,nvirb)
-        eris.OVVV = lib.pack_tril(OVVV).reshape(noccb,nvirb,nvirb*(nvirb+1)//2)
-        eris.VVVV = ao2mo.restore(4, eris.VVVV, nvirb)
-
-        ovVV = eris.ovVV.reshape(nocca*nvira,nvirb,nvirb)
-        eris.ovVV = lib.pack_tril(ovVV).reshape(nocca,nvira,nvirb*(nvirb+1)//2)
-        vvVV = eris.vvVV.reshape(nvira**2,nvirb**2)
-        idxa = np.tril_indices(nvira)
-        idxb = np.tril_indices(nvirb)
-        eris.vvVV = lib.take_2d(vvVV, idxa[0]*nvira+idxa[1], idxb[0]*nvirb+idxb[1])
-
-        OVvv = eris.OVvv.reshape(noccb*nvirb,nvira,nvira)
-        eris.OVvv = lib.pack_tril(OVvv).reshape(noccb,nvirb,nvira*(nvira+1)//2)
+    eris.OVoo = take_eri(eri_ba, O, V, o, o)
+    eris.OOvv = take_eri(eri_ba, O, O, v, v)
+    eris.OVvo = take_eri(eri_ba, O, V, v, o)
+    
+    idx1 = tril_take_idx(O, V, compact=False)
+    idx2 = tril_take_idx(v, v, compact=True)
+    eris.OVvv = eri_ba[np.ix_(idx1, idx2)].reshape(noccb, nvirb, nvira*(nvira+1)//2)
+    eri_ba = None
     return eris
+    
+def ao2mo_uhf(mycc, mo_coeff=None):
+    nmoa, nmob = mycc.get_nmo()
+    nao = mycc.mo_coeff[0].shape[0]
+    nmo_pair = nmoa * (nmoa+1) // 2
+    nao_pair = nao * (nao+1) // 2
+    mem_incore = (max(nao_pair**2, nmoa**4) + nmo_pair**2) * 8/1e6
+    mem_now = lib.current_memory()[0]
+    if (mycc._scf._eri is not None and
+        (mem_incore+mem_now < mycc.max_memory or mycc.incore_complete)):
+        return _make_eris_incore_uhf(mycc, mo_coeff)
+
+    elif getattr(mycc._scf, 'with_df', None):
+        log.warn('UCCSD detected DF being used in the HF object. '
+                 'MO integrals are computed based on the DF 3-index tensors.\n'
+                 'It\'s recommended to use dfccsd.CCSD for the '
+                 'DF-CCSD calculations')
+        raise NotImplementedError
+
+    else:
+        raise NotImplementedError
+        return _make_eris_outcore(mycc, mo_coeff)
+
+def make_rdm2_uhf(mycc, t1=None, t2=None, l1=None, l2=None, ao_repr=False):
+    from libdmet.solver import uccsd_rdm
+    if t1 is None: t1 = mycc.t1
+    if t2 is None: t2 = mycc.t2
+    if l1 is None: l1 = mycc.l1
+    if l2 is None: l2 = mycc.l2
+    if l1 is None: l1, l2 = mycc.solve_lambda(t1, t2)
+    return uccsd_rdm.make_rdm2(mycc, t1, t2, l1, l2, ao_repr=ao_repr)
 
 class UICCSD(cc.uccsd.UCCSD):
-    def ao2mo(self, mo_coeff=None):
-        nmoa, nmob = self.get_nmo()
-        nao = self.mo_coeff[0].shape[0]
-        nmo_pair = nmoa * (nmoa+1) // 2
-        nao_pair = nao * (nao+1) // 2
-        mem_incore = (max(nao_pair**2, nmoa**4) + nmo_pair**2) * 8/1e6
-        mem_now = lib.current_memory()[0]
-        if (self._scf._eri is not None and
-            (mem_incore+mem_now < self.max_memory or self.incore_complete)):
-            return _make_eris_incore(self, mo_coeff)
-
-        elif getattr(self._scf, 'with_df', None):
-            logger.warn(self, 'UCCSD detected DF being used in the HF object. '
-                        'MO integrals are computed based on the DF 3-index tensors.\n'
-                        'It\'s recommended to use dfccsd.CCSD for the '
-                        'DF-CCSD calculations')
-            raise NotImplementedError
-
-        else:
-            raise NotImplementedError
-            return _make_eris_outcore(self, mo_coeff)
+    ao2mo = ao2mo_uhf
+    make_rdm2 = make_rdm2_uhf
 
 class UICCD(UCCD):
-    def ao2mo(self, mo_coeff=None):
-        nmoa, nmob = self.get_nmo()
-        nao = self.mo_coeff[0].shape[0]
-        nmo_pair = nmoa * (nmoa+1) // 2
-        nao_pair = nao * (nao+1) // 2
-        mem_incore = (max(nao_pair**2, nmoa**4) + nmo_pair**2) * 8/1e6
-        mem_now = lib.current_memory()[0]
-        if (self._scf._eri is not None and
-            (mem_incore+mem_now < self.max_memory or self.incore_complete)):
-            return _make_eris_incore(self, mo_coeff)
-
-        elif getattr(self._scf, 'with_df', None):
-            logger.warn(self, 'UCCSD detected DF being used in the HF object. '
-                        'MO integrals are computed based on the DF 3-index tensors.\n'
-                        'It\'s recommended to use dfccsd.CCSD for the '
-                        'DF-CCSD calculations')
-            raise NotImplementedError
-
-        else:
-            raise NotImplementedError
-            return _make_eris_outcore(self, mo_coeff)
+    ao2mo = ao2mo_uhf
 
 class CCSD(object):
     def __init__(self, nproc=1, nnode=1, TmpDir="./tmp", SharedDir=None, 
