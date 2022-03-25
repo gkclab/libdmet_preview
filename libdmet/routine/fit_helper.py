@@ -9,14 +9,14 @@ Author:
 """
 
 import sys
+import warnings
 import time
 import numpy as np
 import scipy.linalg as la
 
 from scipy.optimize import minimize_scalar, fmin
 from scipy.optimize._trustregion_ncg import CGSteihaugSubproblem 
-from scipy.optimize.optimize import (_check_unknown_options, _status_message,
-                                     OptimizeResult)
+from scipy.optimize import OptimizeResult
 from scipy.optimize._differentiable_functions import ScalarFunction, FD_METHODS
 
 from pyscf.soscf import ciah
@@ -28,6 +28,28 @@ from libdmet.utils import logger as log
 #norm = la.norm
 norm = max_abs
 _epsilon = np.sqrt(np.finfo(float).eps)
+
+_status_message = {'success': 'Optimization terminated successfully.',
+                   'maxfev': 'Maximum number of function evaluations has '
+                              'been exceeded.',
+                   'maxiter': 'Maximum number of iterations has been '
+                              'exceeded.',
+                   'pr_loss': 'Desired error not necessarily achieved due '
+                              'to precision loss.',
+                   'nan': 'NaN result encountered.',
+                   'out_of_bounds': 'The result is outside of the provided '
+                                    'bounds.'}
+
+class OptimizeWarning(UserWarning):
+    pass
+
+def _check_unknown_options(unknown_options):
+    if unknown_options:
+        msg = ", ".join(map(str, unknown_options.keys()))
+        # Stack level 4: this is called from _minimize_*, which is
+        # called from another function in SciPy. Level 4 is the first
+        # level in user code.
+        warnings.warn("Unknown solver options: %s" % msg, OptimizeWarning, 4)
 
 def _prepare_scalar_function(fun, x0, jac=None, args=(), bounds=None,
                              epsilon=None, finite_diff_rel_step=None,
@@ -117,9 +139,13 @@ def _prepare_scalar_function(fun, x0, jac=None, args=(), bounds=None,
 
     # ScalarFunction caches. Reuse of fun(x) during grad
     # calculation reduces overall function evaluations.
-    sf = ScalarFunction(fun, x0, args, grad, hess,
-                        finite_diff_rel_step, bounds, epsilon=epsilon)
-
+    # ZHC NOTE for scipy < 1.5, epsilon is not an arg
+    try:
+        sf = ScalarFunction(fun, x0, args, grad, hess,
+                            finite_diff_rel_step, bounds, epsilon=epsilon)
+    except:
+        sf = ScalarFunction(fun, x0, args, grad, hess,
+                            finite_diff_rel_step, bounds)
     return sf
 
 def wrap_function(function, args):
