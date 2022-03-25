@@ -2,6 +2,7 @@
 
 """
 Helper functions for fit.
+Modified from Scipy.
 
 Author:
     Zhi-Hao Cui
@@ -16,11 +17,7 @@ from scipy.optimize import minimize_scalar, fmin
 from scipy.optimize._trustregion_ncg import CGSteihaugSubproblem 
 from scipy.optimize.optimize import (_check_unknown_options, _status_message,
                                      OptimizeResult)
-try:
-    # ZHC NOTE scipy change wrap_function -> _wrap_function
-    from scipy.optimize.optimize import _wrap_function as wrap_function
-except ImportError:
-    from scipy.optimize.optimize import wrap_function
+from scipy.optimize._differentiable_functions import ScalarFunction, FD_METHODS
 
 from pyscf.soscf import ciah
 from pyscf.lib import logger
@@ -32,6 +29,113 @@ from libdmet.utils import logger as log
 norm = max_abs
 _epsilon = np.sqrt(np.finfo(float).eps)
 
+def _prepare_scalar_function(fun, x0, jac=None, args=(), bounds=None,
+                             epsilon=None, finite_diff_rel_step=None,
+                             hess=None):
+    """
+    Creates a ScalarFunction object for use with scalar minimizers
+    (BFGS/LBFGSB/SLSQP/TNC/CG/etc).
+
+    Parameters
+    ----------
+    fun : callable
+        The objective function to be minimized.
+
+            ``fun(x, *args) -> float``
+
+        where ``x`` is an 1-D array with shape (n,) and ``args``
+        is a tuple of the fixed parameters needed to completely
+        specify the function.
+    x0 : ndarray, shape (n,)
+        Initial guess. Array of real elements of size (n,),
+        where 'n' is the number of independent variables.
+    jac : {callable,  '2-point', '3-point', 'cs', None}, optional
+        Method for computing the gradient vector. If it is a callable, it
+        should be a function that returns the gradient vector:
+
+            ``jac(x, *args) -> array_like, shape (n,)``
+
+        If one of `{'2-point', '3-point', 'cs'}` is selected then the gradient
+        is calculated with a relative step for finite differences. If `None`,
+        then two-point finite differences with an absolute step is used.
+    args : tuple, optional
+        Extra arguments passed to the objective function and its
+        derivatives (`fun`, `jac` functions).
+    bounds : sequence, optional
+        Bounds on variables. 'new-style' bounds are required.
+    eps : float or ndarray
+        If `jac is None` the absolute step size used for numerical
+        approximation of the jacobian via forward differences.
+    finite_diff_rel_step : None or array_like, optional
+        If `jac in ['2-point', '3-point', 'cs']` the relative step size to
+        use for numerical approximation of the jacobian. The absolute step
+        size is computed as ``h = rel_step * sign(x0) * max(1, abs(x0))``,
+        possibly adjusted to fit into the bounds. For ``method='3-point'``
+        the sign of `h` is ignored. If None (default) then step is selected
+        automatically.
+    hess : {callable,  '2-point', '3-point', 'cs', None}
+        Computes the Hessian matrix. If it is callable, it should return the
+        Hessian matrix:
+
+            ``hess(x, *args) -> {LinearOperator, spmatrix, array}, (n, n)``
+
+        Alternatively, the keywords {'2-point', '3-point', 'cs'} select a
+        finite difference scheme for numerical estimation.
+        Whenever the gradient is estimated via finite-differences, the Hessian
+        cannot be estimated with options {'2-point', '3-point', 'cs'} and needs
+        to be estimated using one of the quasi-Newton strategies.
+
+    Returns
+    -------
+    sf : ScalarFunction
+    """
+    if callable(jac):
+        grad = jac
+    elif jac in FD_METHODS:
+        # epsilon is set to None so that ScalarFunction is made to use
+        # rel_step
+        epsilon = None
+        grad = jac
+    else:
+        # default (jac is None) is to do 2-point finite differences with
+        # absolute step size. ScalarFunction has to be provided an
+        # epsilon value that is not None to use absolute steps. This is
+        # normally the case from most _minimize* methods.
+        grad = '2-point'
+        epsilon = epsilon
+
+    if hess is None:
+        # ScalarFunction requires something for hess, so we give a dummy
+        # implementation here if nothing is provided, return a value of None
+        # so that downstream minimisers halt. The results of `fun.hess`
+        # should not be used.
+        def hess(x, *args):
+            return None
+
+    if bounds is None:
+        bounds = (-np.inf, np.inf)
+
+    # ScalarFunction caches. Reuse of fun(x) during grad
+    # calculation reduces overall function evaluations.
+    sf = ScalarFunction(fun, x0, args, grad, hess,
+                        finite_diff_rel_step, bounds, epsilon=epsilon)
+
+    return sf
+
+def wrap_function(function, args):
+    # wraps a minimizer function to count number of evaluations
+    # and to easily provide an args kwd.
+    ncalls = [0]
+    if function is None:
+        return ncalls, None
+
+    def function_wrapper(x, *wrapper_args):
+        ncalls[0] += 1
+        # A copy of x is sent to the user function (gh13740)
+        return function(np.copy(x), *(wrapper_args + args))
+
+    return ncalls, function_wrapper
+
 # ****************************************************************************
 # CG, BFGS
 # ****************************************************************************
@@ -41,7 +145,7 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
                  eps=_epsilon, maxiter=None,
                  disp=False, return_all=False, 
                  init_step=1.0, min_step=0.1, 
-                 xatol=1e-5, **unknown_options):
+                 xatol=1e-5, finite_diff_rel_step=None, **unknown_options):
     """
     Minimization of scalar function of one or more variables using the
     conjugate gradient algorithm.
@@ -62,19 +166,19 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
 
     """
     _check_unknown_options(unknown_options)
-    f = fun
-    fprime = jac
-    epsilon = eps
+
     retall = return_all
 
     x0 = np.asarray(x0).flatten()
     if maxiter is None:
         maxiter = len(x0) * 200
-    func_calls, f = wrap_function(f, args)
-    if fprime is None:
-        grad_calls, myfprime = wrap_function(approx_fprime, (f, epsilon))
-    else:
-        grad_calls, myfprime = wrap_function(fprime, args)
+
+    sf = _prepare_scalar_function(fun, x0, jac=jac, args=args, epsilon=eps,
+                                  finite_diff_rel_step=finite_diff_rel_step)
+
+    f = sf.fun
+    myfprime = sf.grad
+
     gfk = myfprime(x0)
     k = 0
     xk = x0
@@ -167,11 +271,11 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
         log.info("%s%s" % ("Warning: " if warnflag != 0 else "", msg))
         log.info("         Current function value: %f" % fval)
         log.info("         Iterations: %d" % k)
-        log.info("         Function evaluations: %d" % func_calls[0])
-        log.info("         Gradient evaluations: %d" % grad_calls[0])
+        log.info("         Function evaluations: %d" % sf.nfev)
+        log.info("         Gradient evaluations: %d" % sf.ngev)
 
-    result = OptimizeResult(fun=fval, jac=gfk, nfev=func_calls[0],
-                            njev=grad_calls[0], status=warnflag,
+    result = OptimizeResult(fun=fval, jac=gfk, nfev=sf.nfev,
+                            njev=sf.ngev, status=warnflag,
                             success=(warnflag == 0), message=msg, x=xk,
                             nit=k)
     if retall:
@@ -183,7 +287,7 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
                    eps=_epsilon, maxiter=None,
                    disp=False, return_all=False, 
                    init_step=1.0, min_step=0.1, xatol=1e-5,  
-                   **unknown_options):
+                   finite_diff_rel_step=None, **unknown_options):
     """
     Minimization of scalar function of one or more variables using the
     BFGS algorithm.
@@ -204,21 +308,19 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
 
     """
     _check_unknown_options(unknown_options)
-    f = fun
-    fprime = jac
-    epsilon = eps
+
     retall = return_all
 
     x0 = np.asarray(x0).flatten()
-    if x0.ndim == 0:
-        x0.shape = (1,)
     if maxiter is None:
         maxiter = len(x0) * 200
-    func_calls, f = wrap_function(f, args)
-    if fprime is None:
-        grad_calls, myfprime = wrap_function(approx_fprime, (f, epsilon))
-    else:
-        grad_calls, myfprime = wrap_function(fprime, args)
+
+    sf = _prepare_scalar_function(fun, x0, jac=jac, args=args, epsilon=eps,
+                                  finite_diff_rel_step=finite_diff_rel_step)
+
+    f = sf.fun
+    myfprime = sf.grad
+
     gfk = myfprime(x0)
     k = 0
     N = len(x0)
@@ -335,11 +437,11 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
         log.info("%s%s" % ("Warning: " if warnflag != 0 else "", msg))
         log.info("         Current function value: %f" % fval)
         log.info("         Iterations: %d" % k)
-        log.info("         Function evaluations: %d" % func_calls[0])
-        log.info("         Gradient evaluations: %d" % grad_calls[0])
+        log.info("         Function evaluations: %d" % sf.nfev)
+        log.info("         Gradient evaluations: %d" % sf.ngev)
 
-    result = OptimizeResult(fun=fval, jac=gfk, hess_inv=Hk, nfev=func_calls[0],
-                            njev=grad_calls[0], status=warnflag,
+    result = OptimizeResult(fun=fval, jac=gfk, hess_inv=Hk, nfev=sf.nfev,
+                            njev=sf.ngev, status=warnflag,
                             success=(warnflag == 0), message=msg, x=xk,
                             nit=k)
     if retall:
