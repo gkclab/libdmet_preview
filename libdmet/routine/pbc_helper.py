@@ -400,7 +400,8 @@ def add_H1_loc_to_k(H1_loc, H1_k):
         raise ValueError
     return res
 
-def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-13, fit_spin=False):
+def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-13, 
+              fit_spin=False, fix_mu=False):
     """
     Fermi-Dirac or Gaussian smearing.
     This version support Sz for UHF smearing.
@@ -412,6 +413,7 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-13, fit_spin=Fals
         mu0: initial mu
         tol: tolerance for fitting nelec
         fit_spin: if True, will fit each spin channel seprately.
+        fix_mu: fix the mu to be mu0.
 
     Returns:
         mf: modified mf object.
@@ -451,7 +453,10 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-13, fit_spin=Fals
             nkpts = 1
         
         # find nelec_target
-        nelectron = mf.cell.tot_electrons(nkpts)
+        if isinstance(mf.mol, pbcgto.Cell):
+            nelectron = mf.mol.tot_electrons(nkpts)
+        else:
+            nelectron = mf.mol.tot_electrons()
         if is_uhf:
             if fit_spin:
                 nelec_target = [(nelectron + Sz) * 0.5, (nelectron - Sz) * 0.5]
@@ -469,7 +474,8 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-13, fit_spin=Fals
         
         mo_energy = np.asarray(mo_energy_kpts)
         mo_occ, mf.mu, nerr = mfd.assignocc(mo_energy, nelec_target, 1.0/mf.sigma, 
-                                            mf.mu, fit_tol=tol, f_occ=f_occ)
+                                            mf.mu, fit_tol=tol, f_occ=f_occ, 
+                                            fix_mu=fix_mu)
         mo_occ = mo_occ.reshape(mo_energy.shape)
 
         # See https://www.vasp.at/vasp-workshop/slides/k-points.pdf
@@ -492,9 +498,9 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-13, fit_spin=Fals
         nelec_now = mo_occ.sum()
         logger.debug(mf, '    Fermi level %s  Sum mo_occ_kpts = %s  should equal nelec = %s',
                      mf.mu, nelec_now, nelectron)
-        if abs(nelec_now - nelectron) > 1e-8:
-            log.warn("Occupancy (nelec_now %s) is not equal to cell.nelectron (%s).", 
-                     nelec_now, nelectron)
+        if (not fix_mu) and abs(nelec_now - nelectron) > tol * 100:
+            logger.warn(mf, "Occupancy (nelec_now %s) is not equal to cell.nelectron (%s).", 
+                        nelec_now, nelectron)
         logger.info(mf, '    sigma = %g  Optimized mu = %s  entropy = %.12g',
                     mf.sigma, mf.mu, mf.entropy)
         
@@ -524,23 +530,34 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-13, fit_spin=Fals
             return mf_class.get_grad(mf, mo_coeff_kpts, mo_occ_kpts, fock)
         if fock is None:
             dm1 = mf.make_rdm1(mo_coeff_kpts, mo_occ_kpts)
-            fock = mf.get_hcore() + mf.get_veff(mf.cell, dm1)
+            fock = mf.get_hcore() + mf.get_veff(mf.mol, dm1)
         if is_uhf:
             ga = get_grad_tril(mo_coeff_kpts[0], mo_occ_kpts[0], fock[0])
             gb = get_grad_tril(mo_coeff_kpts[1], mo_occ_kpts[1], fock[1])
             return np.hstack((ga,gb))
         else: # rhf and ghf
             return get_grad_tril(mo_coeff_kpts, mo_occ_kpts, fock)
-
-    def energy_tot(dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
-        e_tot = mf.energy_elec(dm_kpts, h1e_kpts, vhf_kpts)[0] + mf.energy_nuc()
-        if (mf.sigma and mf.smearing_method and
-            mf.entropy is not None):
-            mf.e_free = e_tot - mf.sigma * mf.entropy
-            mf.e_zero = e_tot - mf.sigma * mf.entropy * .5
-            logger.info(mf, '    Total E(T) = %.15g  Free energy = %.15g  E0 = %.15g',
-                        e_tot, mf.e_free, mf.e_zero)
-        return e_tot
+    
+    if is_khf:
+        def energy_tot(dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
+            e_tot = mf.energy_elec(dm_kpts, h1e_kpts, vhf_kpts)[0] + mf.energy_nuc()
+            if (mf.sigma and mf.smearing_method and
+                mf.entropy is not None):
+                mf.e_free = e_tot - mf.sigma * mf.entropy
+                mf.e_zero = e_tot - mf.sigma * mf.entropy * .5
+                logger.info(mf, '    Total E(T) = %.15g  Free energy = %.15g  E0 = %.15g',
+                            e_tot, mf.e_free, mf.e_zero)
+            return e_tot
+    else:
+        def energy_tot(dm=None, h1e=None, vhf=None):
+            e_tot = mf.energy_elec(dm, h1e, vhf)[0] + mf.energy_nuc()
+            if (mf.sigma and mf.smearing_method and
+                mf.entropy is not None):
+                mf.e_free = e_tot - mf.sigma * mf.entropy
+                mf.e_zero = e_tot - mf.sigma * mf.entropy * .5
+                logger.info(mf, '    Total E(T) = %.15g  Free energy = %.15g  E0 = %.15g',
+                            e_tot, mf.e_free, mf.e_zero)
+            return e_tot
 
     mf.sigma = sigma
     mf.smearing_method = method
