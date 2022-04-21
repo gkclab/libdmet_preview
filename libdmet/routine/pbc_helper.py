@@ -14,6 +14,7 @@ from pyscf import lib
 from pyscf import scf
 from pyscf import ao2mo
 from pyscf import pbc
+from pyscf.pbc import gto as pbcgto
 from pyscf.pbc.lib.kpts_helper import get_kconserv
 from pyscf.lib import logger as pyscflogger
 from pyscf.scf import ghf as mol_ghf
