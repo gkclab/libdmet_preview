@@ -141,7 +141,7 @@ def get_weights_t_reversal(cell, kpts, tol=KPT_DIFF_TOL):
 def get_naoaux(gdf):
     assert gdf._cderi is not None
     with h5py.File(gdf._cderi, 'r') as f:
-        nkptij = f["j3c-kptij"].shape[0]
+        nkptij = len(f["j3c"])
     naux_k_list = []
     for k in range(nkptij):
         with addons.load(gdf._cderi, 'j3c/%s'%k) as feri:
