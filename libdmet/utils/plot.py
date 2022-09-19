@@ -111,7 +111,9 @@ class Grids(object):
         self.weights = np.empty(self.ngrids)
         self.weights[:] = abs(np.linalg.det(cube.box)) / float(self.ngrids)
         self.non0tab = None
-    
+        self.mol = cube.mol
+        self.cutoff = None
+
     def build(self, with_non0tab=False):
         pass
 
