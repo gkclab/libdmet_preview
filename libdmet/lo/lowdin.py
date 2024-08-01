@@ -39,6 +39,7 @@ def lowdin_k(mf_or_lattice, method='meta_lowdin', s=None, pre_orth_ao=lo.orth.RE
     """
     from pyscf import scf
     from pyscf.pbc.scf import khf
+
     if isinstance(mf_or_lattice, khf.KSCF):
         mf = mf_or_lattice
     elif isinstance(mf_or_lattice, scf.hf.SCF): # mol
@@ -49,7 +50,11 @@ def lowdin_k(mf_or_lattice, method='meta_lowdin', s=None, pre_orth_ao=lo.orth.RE
         return np.asarray(C_lowdin)
     else:
         mf = mf_or_lattice.kmf
+    if mf is None:
+        from pyscf.pbc.scf import khf
+        mf = khf.KRHF(mf_or_lattice.cell, kpts=mf_or_lattice.kpts)
     cell = mf.cell
+
     if s is None:
         s1e = mf.get_ovlp()
     else:
@@ -58,7 +63,14 @@ def lowdin_k(mf_or_lattice, method='meta_lowdin', s=None, pre_orth_ao=lo.orth.RE
     assert nkpts == len(s1e)
     C_lowdin = [lo.orth_ao(mf, method, s=s1e[k], pre_orth_ao=pre_orth_ao) \
             for k in range(nkpts)]
-    if isinstance(mf, scf.uhf.UHF): # unrestricted
+
+    from pyscf.scf import uhf
+    from pyscf.pbc.scf import uhf as pbcuhf
+    from pyscf.pbc.scf import kuhf
+    # ZHC FIXME support istype in the future.
+    is_uhf = isinstance(mf, uhf.UHF) or isinstance(mf, pbcuhf.UHF) or isinstance(mf, kuhf.KUHF)
+
+    if is_uhf: # unrestricted
         C_lowdin = (C_lowdin, C_lowdin)
     return np.asarray(C_lowdin)
 
@@ -131,10 +143,16 @@ def _cano(s, tol=1e-12):
     return v[:, idx] / np.sqrt(e[idx])
 
 def _orth_cano(c, s, tol=1e-12, f=None):
-    if f is None:
-        res = np.dot(c, _cano(mdot(c.conj().T, s, c), tol=tol))
+    if s is None:
+        if f is None:
+            res = np.dot(c, _cano(np.dot(c.conj().T, c), tol=tol))
+        else:
+            res = np.dot(c * f, _cano(np.dot(c.conj().T, c), tol=tol))
     else:
-        res = np.dot(c * f, _cano(mdot(c.conj().T, s, c), tol=tol))
+        if f is None:
+            res = np.dot(c, _cano(mdot(c.conj().T, s, c), tol=tol))
+        else:
+            res = np.dot(c * f, _cano(mdot(c.conj().T, s, c), tol=tol))
     return res
     
 def orth_cano(C, S, tol=1e-12, f=None):

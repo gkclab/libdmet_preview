@@ -16,20 +16,19 @@ from libdmet.utils import misc
 from libdmet.utils import logger as log
 
 class HamNonInt(object):
-    def __init__(self, lattice, H1, H2, Fock=None, ImpJK=None, \
-            kspace_input=False, spin_dim=None, spin_dim_H2=None, H0=0.0):
+    def __init__(self, lattice, H1, H2, Fock=None, ImpJK=None, kspace_input=False, 
+                 spin_dim_H2=None, H0=0.0):
         """
         Class of non-interacting Hamiltonian.
-        Spin label can be specified by spin_dim. H2 might have cell label.
+        H2 might have cell label.
 
         Args:
             lattice: lattice object.
-            H1: hcore, shape ((spin_dim,), ncells, nao, nao).
+            H1: hcore, shape ((spin,), ncells, nao, nao).
             H2: shape ((spin_dim_H2,), (ncells,)) + eri shape. 
             Fock: fock, if None will be taken as the same as hcore.
-            ImpJK: JK_imp, shape ((spin_dim,))
+            ImpJK: JK_imp, shape ((spin,))
             kspace_input: H1 and Fock are in k space?
-            spin_dim: spin dimesnion of H1 and Fock [deprecated].
             spin_dim_H2: spin dimension of H2, None for no spin dimension.
             H0: H0.
 
@@ -94,8 +93,8 @@ class HamNonInt(object):
         if ImpJK is None:
             self.ImpJK = None
         else:
-            log.eassert(ImpJK.shape[-2:] == self.H1.shape[-2:], \
-                    "ImpJK shape %s not compatible with supercell", ImpJK.shape)
+            log.eassert(ImpJK.shape[-2:] == self.H1.shape[-2:],
+                        "ImpJK shape %s not compatible with supercell", ImpJK.shape)
             self.ImpJK = ImpJK
 
         # 5. H0
@@ -116,8 +115,8 @@ class HamNonInt(object):
     def getImpJK(self):
         return self.ImpJK
 
-def HubbardHamiltonian(lattice, U, tlist=[1.0], obc=False, compact=False, \
-        tol=1e-10, return_H1=False):
+def HubbardHamiltonian(lattice, U, tlist=[1.0], obc=False, compact=False,
+                       tol=1e-10, return_H1=False):
     """
     1-band Hubbard model in electron representation:
     H = -t <ij> -t' <<ij>> - ...
@@ -142,13 +141,13 @@ def HubbardHamiltonian(lattice, U, tlist=[1.0], obc=False, compact=False, \
     for order, t in enumerate(tlist):
         if abs(t) < tol:
             continue
-        log.eassert(order < len(lattice.neighborDist), \
-                "%dth near neighbor distance unspecified in Lattice object", \
-                order+1)
+        log.eassert(order < len(lattice.neighborDist),
+                    "%dth near neighbor distance unspecified in Lattice object",
+                    order+1)
         dis = lattice.neighborDist[order]
         log.warning("Searching neighbor within only one supercell")
-        pairs = lattice.neighbor(dis=dis, sitesA=range(nscsites), \
-                search_range=search_range)
+        pairs = lattice.neighbor(dis=dis, sitesA=range(nscsites),
+                                 search_range=search_range)
         for i, j in pairs:
             H1[j // nscsites, j % nscsites, i] = -t
     
@@ -211,8 +210,8 @@ def HubbardDCA(lattice, U, tlist=[1.0]):
     np.fill_diagonal(H2, U)
     return HamNonInt(lattice, H1, H2)
 
-def Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=0.0, Vpd=0.0, \
-        ignore_intercell=True, tol=1e-10):
+def Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=0.0, Vpd=0.0,
+                 ignore_intercell=True, tol=1e-10):
     """
     3-band Hubbard model in electron representation:
     H = tpd + tpp + tpp' + ed + Ud + Up + Vpd
@@ -282,8 +281,8 @@ def Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=0.0, Vpd=0.0, \
         H1[j//nscsites, j%nscsites, i] = sign * tpp
     
     # tpp'
-    Osites = [idx for (idx, name) in \
-            zip(range(nscsites), lattice.names[:nscsites]) if name == "O"]
+    Osites = [idx for (idx, name) in 
+              zip(range(nscsites), lattice.names[:nscsites]) if name == "O"]
     pp1_pairs = lattice.neighbor(dis=d_pp1, sitesA=Osites)
     for i, j in pp1_pairs:
         # ZHC FIXME should the sign of tpp be postitive?
@@ -306,8 +305,8 @@ def Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=0.0, Vpd=0.0, \
             log.error("wrong orbital name %s in 3-band Hubbard model", orb)
     return HamNonInt(lattice, H1, H2)
 
-def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False, \
-        factor=1.0, ignore_intercell=True, tol=1e-10):
+def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False,
+                     factor=1.0, ignore_intercell=True, tol=1e-10):
     """
     3-band Hubbard model in electron representation.
     Using parameters from reference.
@@ -386,8 +385,8 @@ def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False, \
     else:
         log.debug(0, "input parameters:\n%s", name)
         known_keys = set(["Ud", "tpd", "D_pd", "Up", "tpp", "tpp1", "Vpd"])
-        log.eassert(set(name.keys()).issubset(known_keys), \
-                "Unknown parameter names.")
+        log.eassert(set(name.keys()).issubset(known_keys),
+                    "Unknown parameter names.")
         
         Ud   = name["Ud"]
         tpd  = name["tpd"]
@@ -419,6 +418,6 @@ def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False, \
         tpp1 *= factor
         Vpd  *= factor
 
-    return Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=tpp1, Vpd=Vpd, \
-            ignore_intercell=ignore_intercell, tol=tol)
+    return Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=tpp1, Vpd=Vpd,
+                        ignore_intercell=ignore_intercell, tol=tol)
     

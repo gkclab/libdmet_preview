@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: Qiming Sun <osirpt.sun@gmail.com>
-#         Zhi-Hao Cui <zhcui0408@gmail.com>
+# Author: Zhi-Hao Cui <zhcui0408@gmail.com>
 
 '''
 Unrestricted coupled cluster doubles
@@ -25,7 +24,7 @@ from pyscf.cc import ccsd
 from pyscf.cc import ccsd_lambda
 from pyscf.cc import uccsd
 from pyscf.cc import uccsd_lambda
-from pyscf.cc import uccsd_rdm
+from libdmet.solver import uccsd_rdm
 
 class UCCD(uccsd.UCCSD):
     def update_amps(self, t1, t2, eris):

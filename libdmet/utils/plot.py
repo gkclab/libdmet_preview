@@ -19,6 +19,7 @@ from pyscf.data.nist import HARTREE2EV
 from libdmet.utils.lattice_plot import LatticePlot, plot_3band_order
 from libdmet.utils import cubegen
 from libdmet.utils.misc import max_abs
+from libdmet.utils import logger as log
 
 import matplotlib
 from matplotlib import pyplot as plt
@@ -34,9 +35,9 @@ matplotlib.rcParams['font.family'] = 'STIXGeneral'
 # plot curve
 # ****************************************************************************
 
-def plot_smooth(x, y, x_plot=None, label=None, color='black', marker='o', \
-        linestyle='-', smooth=1e-4, remove_neg=False, n0left=None, \
-        n0right=None, do_plot=True, **kwargs):
+def plot_smooth(x, y, x_plot=None, label=None, color='black', marker='o',
+                linestyle='-', smooth=1e-4, remove_neg=False, n0left=None,
+                n0right=None, do_plot=True, **kwargs):
     """
     Plot a y-x curve with spline.
     
@@ -117,8 +118,8 @@ class Grids(object):
     def build(self, with_non0tab=False):
         pass
 
-def plot_orb_k(cell, outfile, coeff, kpts_abs, nx=80, ny=80, nz=80, resolution=None, margin=5.0, \
-        latt_vec=None, boxorig=None, box=None):
+def plot_orb_k(cell, outfile, coeff, kpts_abs, nx=80, ny=80, nz=80, resolution=None,
+               margin=5.0, latt_vec=None, boxorig=None, box=None):
     """
     Calculate orbital value on real space grid and write out in cube format.
 
@@ -161,8 +162,8 @@ def plot_orb_k(cell, outfile, coeff, kpts_abs, nx=80, ny=80, nz=80, resolution=N
     # Write out orbital to the .cube file
     cc.write(orb_on_grid, outfile, comment='Orbital value in real space (1/Bohr^3)')
 
-def plot_orb_k_all(cell, outfile, coeffs, kpts_abs, nx=80, ny=80, nz=80, resolution=None, margin=5.0,\
-        latt_vec=None, boxorig=None, box=None):
+def plot_orb_k_all(cell, outfile, coeffs, kpts_abs, nx=80, ny=80, nz=80, resolution=None,
+                   margin=5.0, latt_vec=None, boxorig=None, box=None):
     """
     Plot all k-dependent orbitals in the reference cell.
     """
@@ -208,8 +209,8 @@ def plot_orb_k_all(cell, outfile, coeffs, kpts_abs, nx=80, ny=80, nz=80, resolut
                     orb_on_grid = np.tensordot(ao, coeffs[s, :, :, i], axes=((0, 2), (0, 1))).real
                     cc.write_field(orb_on_grid, outfile+"_s%s_mo%s.cube"%(s, i))
 
-def plot_density_k(cell, outfile, dm, kpts_abs, nx=80, ny=80, nz=80, resolution=None, margin=5.0,\
-        latt_vec=None, boxorig=None, box=None, skip_calc=False):
+def plot_density_k(cell, outfile, dm, kpts_abs, nx=80, ny=80, nz=80, resolution=None,
+                   margin=5.0, latt_vec=None, boxorig=None, box=None, skip_calc=False):
     """
     Calculates electron density and write out in cube format.
 
@@ -233,8 +234,8 @@ def plot_density_k(cell, outfile, dm, kpts_abs, nx=80, ny=80, nz=80, resolution=
             Number of grid point divisions in z direction.
     """
 
-    cc = cubegen.Cube(cell, nx, ny, nz, resolution, margin=margin, \
-            latt_vec=latt_vec, boxorig=boxorig, box=box)
+    cc = cubegen.Cube(cell, nx, ny, nz, resolution, margin=margin,
+                      latt_vec=latt_vec, boxorig=boxorig, box=box)
 
     # Compute density on the .cube grid
     coords = cc.get_coords()
@@ -256,6 +257,69 @@ def plot_density_k(cell, outfile, dm, kpts_abs, nx=80, ny=80, nz=80, resolution=
 
     # Write out density to the .cube file
     cc.write(rho, outfile, comment='Electron density in real space (e/Bohr^3)')
+
+def plot_density_matrix_k(cell, outfile, dm, kpts_abs, R0, nx=80, ny=80, nz=80, resolution=None,
+                          margin=5.0, latt_vec=None, boxorig=None, box=None,
+                          skip_calc=False, coord0_idx=None, fname=None):
+    r"""
+    Calculates density matrix \gamma(R0, r) and write out in cube format.
+    where R0 is the reference point.
+
+    Args:
+        cell : Mole
+            Molecule to calculate the electron density for.
+        outfile : str
+            Name of Cube file to be written.
+        dm : ndarray
+            Density matrix of molecule.
+        R0: reference point, [x0, y0, z0] in bohr. Will find the nearest point.
+        coord0_idx: if given, will use the grid (coords[coord0_idx]) as the reference point.
+
+    Kwargs:
+        nx : int
+            Number of grid point divisions in x direction.
+            Note this is function of the molecule's size; a larger molecule
+            will have a coarser representation than a smaller one for the
+            same value.
+        ny : int
+            Number of grid point divisions in y direction.
+        nz : int
+            Number of grid point divisions in z direction.
+    """
+    cc = cubegen.Cube(cell, nx, ny, nz, resolution, margin=margin,
+                      latt_vec=latt_vec, boxorig=boxorig, box=box)
+
+    coords = cc.get_coords()
+    ngrids = cc.get_ngrids()
+    blksize = min(8000, ngrids)
+    rho = np.empty(ngrids)
+    
+    if coord0_idx is not None:
+        coord0 = coords[coord0_idx]
+    else:
+        coord0 = R0
+    log.info("R0 %s (nearest grid %s)", R0, coord0)
+
+    if skip_calc:
+        rho[:] = 0.0
+    else:
+        ao_0 = np.asarray(cell.pbc_eval_gto('GTOval', coord0[None], kpts=kpts_abs))
+        for ip0, ip1 in lib.prange(0, ngrids, blksize):
+            ao = np.asarray(cell.pbc_eval_gto('GTOval', coords[ip0:ip1], kpts=kpts_abs))
+            if ao.ndim == 2: # 1 kpt
+                ao = ao[np.newaxis]
+            rho[ip0:ip1] = np.einsum("kP, kPQ, kgQ -> g", ao_0[:, 0], dm, 
+                                     ao.conj(), optimize=True).real
+    rho = rho.reshape(cc.nx, cc.ny, cc.nz)
+    if fname is not None:
+        f = h5py.File("%s"%fname, 'w')
+        f["n"] = np.asarray((cc.nx, cc.ny, cc.nz))
+        f["coords"] = coords
+        f["R0"] = coord0
+        f["box"] = cc.box
+        f["rho"] = rho
+        f.close()
+    cc.write(rho, outfile, comment='Electron density matrix in real space (e/Bohr^3)')
 
 def plot_elf(mol, cube, dms, fname="ELF", elf_reg=1e-5, small_rho_tol=1e-8, 
              max_memory=None, spin_average=False, kpts=None, save_rho=True):
@@ -582,12 +646,10 @@ def get_ao_g_mol(mol, nx=40, ny=40, nz=40, resolution=None, coords=None):
         orb_on_grid[ip0:ip1] = ao
     return orb_on_grid
 
-def get_ao_g_k(cell, outfile, dm, kpts_abs, nx=80, ny=80, nz=80, resolution=None, margin=5.0,\
-        latt_vec=None, boxorig=None, box=None, coords=None):
-    cc = cubegen.Cube(cell, nx, ny, nz, resolution, margin=margin, \
-            latt_vec=latt_vec, boxorig=boxorig, box=box)
-
-    # Compute density on the .cube grid
+def get_ao_g_k(cell, kpts_abs, nx=80, ny=80, nz=80, resolution=None,
+               margin=5.0, latt_vec=None, boxorig=None, box=None, coords=None):
+    cc = cubegen.Cube(cell, nx, ny, nz, resolution, margin=margin,
+                      latt_vec=latt_vec, boxorig=boxorig, box=box)
     if coords is None:
         coords = cc.get_coords()
         ngrids = cc.get_ngrids()
@@ -595,7 +657,7 @@ def get_ao_g_k(cell, outfile, dm, kpts_abs, nx=80, ny=80, nz=80, resolution=None
         ngrids = coords.shape[0]
 
     blksize = min(8000, ngrids)
-    nao = mol.nao_nr()
+    nao = cell.nao_nr()
     nkpts = len(kpts_abs)
     orb_on_grid = np.empty((nkpts, ngrids, nao))
     for ip0, ip1 in lib.prange(0, ngrids, blksize):
@@ -760,8 +822,8 @@ def eval_spin_corr_func_lo(rdm1_lo, rdm2_lo, idx1, idx2, Sz_only=False):
 # plot density of states DOS
 # ****************************************************************************
 
-def get_dos(mo_energy, ndos=301, e_min=None, e_max=None, e_fermi=None, \
-        sigma=0.005, mo_coeff=None):
+def get_dos(mo_energy, ndos=301, e_min=None, e_max=None, e_fermi=None,
+            sigma=0.005, mo_coeff=None, ovlp=None, elist=None):
     """
     Compute density of states for a given set of MOs (with kpts).
     If mo_coeff is None, the total (spin-)dos is calculated,
@@ -801,8 +863,10 @@ def get_dos(mo_energy, ndos=301, e_min=None, e_max=None, e_fermi=None, \
             e_max = mo_energy_max + margin
         else:
             e_max = min(15.0 / HARTREE2EV, mo_energy_max) + 1.0
-
-    elist = np.linspace(e_min, e_max, ndos)
+    
+    if elist is None:
+        elist = np.linspace(e_min, e_max, ndos)
+    ndos = ne = len(elist)
     norm = sigma * np.sqrt(2 * np.pi)
     tsigma = 2.0 * sigma ** 2
     if mo_energy.ndim == 2:
@@ -814,35 +878,135 @@ def get_dos(mo_energy, ndos=301, e_min=None, e_max=None, e_fermi=None, \
             mo_coeff = np.asarray(mo_coeff)
             nao, nmo = mo_coeff.shape[-2:]
             dos = np.zeros((nao, ndos))
-            # kpm, kpm -> kpm -> pkm
-            mo_sq = (mo_coeff.conj() * mo_coeff).real.transpose(1, 0, 2)
+            
+            if ovlp is None:
+                log.warn("plot PDOS ovlp is not given ... Use identity instead.")
+                ovlp = np.zeros((nkpts, nao, nao), dtype=complex)
+                ovlp[:, range(nao), range(nao)] = 1.0
+            mo_sq = np.einsum('kpm, kpq, kqm -> pkm', 
+                              mo_coeff.conj(), ovlp, mo_coeff,
+                              optimize=True).real
             for i, e_curr in enumerate(elist):
                 # pkm, km -> p
-                dos[:, i] = np.sum(mo_sq * np.exp(-((mo_energy-e_curr)**2) \
-                        / tsigma), axis=(1, 2))
+                dos[:, i] = np.sum(mo_sq * np.exp(-((mo_energy-e_curr)**2) / tsigma),
+                                   axis=(1, 2))
     else:
         spin = mo_energy.shape[0]
         if mo_coeff is None:
             dos = np.zeros((spin,) + elist.shape)
             for s in range(spin):
                 for i, e_curr in enumerate(elist):
-                    dos[s, i] = np.sum(np.exp(-((mo_energy[s]-e_curr)**2) \
-                            / tsigma))
+                    dos[s, i] = np.sum(np.exp(-((mo_energy[s]-e_curr)**2) / tsigma))
         else:
             mo_coeff = np.asarray(mo_coeff)
             nao, nmo = mo_coeff.shape[-2:]
             dos = np.zeros((spin, nao) + elist.shape)
-            # skpm, skpm -> skpm -> spkm
-            mo_sq = (mo_coeff.conj() * mo_coeff).real.transpose(0, 2, 1, 3)
+            if ovlp is None:
+                log.warn("plot PDOS ovlp is not given ... Use identity instead.")
+                ovlp = np.zeros((nkpts, nao, nao), dtype=complex)
+                ovlp[:, range(nao), range(nao)] = 1.0
+            mo_sq = np.einsum('skpm, kpq, skqm -> spkm', 
+                              mo_coeff.conj(), ovlp, mo_coeff,
+                              optimize=True).real
             for s in range(spin):
                 for i, e_curr in enumerate(elist):
                     # pkm, km -> pkm -> p
-                    dos[s, :, i] = np.sum(mo_sq[s] * np.exp(-((mo_energy[s] - \
-                            e_curr)**2) / tsigma), axis=(1, 2))
+                    dos[s, :, i] = np.sum(mo_sq[s] * np.exp(-((mo_energy[s] - e_curr)**2) / tsigma),
+                                          axis=(1, 2))
     return elist, dos / (nkpts * norm)
 
-def plot_dos(elist, pdos, idx_dic=None, color_dic=None, \
-        fig_size=(12, 6), fig_name="pdos.pdf", unit='eV', text=None, **kwargs):
+def get_dos_k(mo_energy, ndos=301, e_min=None, e_max=None, e_fermi=None,
+              sigma=0.005, mo_coeff=None, ovlp=None, elist=None):
+    """
+    Compute density of states (per k-point) for a given set of MOs (with kpts).
+    If mo_coeff is None, the total (spin-)dos is calculated,
+    Otherwise, orbital-based (spin-)pdos is calculated.
+    DOS shape: ((spin,), nkpts, ndos)
+    PDOS shape: ((spin,), nkpts, nlo, ndos)
+    
+    Args:
+        mo_energy: ((spin,), nkpts, nmo)
+        ndos: number of points to plot
+        e_min: left boundary of plot range
+        e_max: right boundary of plot range
+        e_fermi: fermi level, if given shift the zero as fermi level.
+        sigma: smearing value
+        mo_coeff: C_lo_mo for character analysis (PDOS), 
+                  shape ((spin,) nkpts, nlo, nmo)
+        efermi
+    
+    Returns:
+        elist: (ndos)
+        dos: ((spin,), nkpts, (nlo,), ndos)
+    """
+    mo_energy = np.asarray(mo_energy)
+    if e_fermi is not None:
+        mo_energy = mo_energy - e_fermi
+    nkpts, nmo = mo_energy.shape[-2:]
+    mo_energy_min = mo_energy.min()
+    mo_energy_max = mo_energy.max()
+    margin = max(10 * sigma, 0.05 * (mo_energy_max - mo_energy_min)) # margin
+    if e_min is None:
+        if e_fermi is None:
+            e_min = mo_energy_min - margin
+        else:
+            e_min = max(-15.0 / HARTREE2EV, mo_energy_min) - 1.0
+    if e_max is None:
+        if e_fermi is None:
+            e_max = mo_energy_max + margin
+        else:
+            e_max = min(15.0 / HARTREE2EV, mo_energy_max) + 1.0
+    
+    if elist is None:
+        elist = np.linspace(e_min, e_max, ndos)
+    ndos = ne = len(elist)
+    norm = sigma * np.sqrt(2 * np.pi)
+    tsigma = 2.0 * sigma ** 2
+    if mo_energy.ndim == 2:
+        if mo_coeff is None: # total dos
+            dos = np.zeros((nkpts, ne))
+            for i, e_curr in enumerate(elist):
+                dos[:, i] = np.einsum('km -> k', np.exp(-((mo_energy-e_curr)**2) / tsigma))
+        else: # pdos
+            mo_coeff = np.asarray(mo_coeff)
+            nao, nmo = mo_coeff.shape[-2:]
+            dos = np.zeros((nkpts, nao, ndos))
+            if ovlp is None:
+                log.warn("plot PDOS ovlp is not given ... Use identity instead.")
+                ovlp = np.zeros((nkpts, nao, nao), dtype=complex)
+                ovlp[:, range(nao), range(nao)] = 1.0
+            mo_sq = np.einsum('kpm, kpq, kqm -> pkm', 
+                              mo_coeff.conj(), ovlp, mo_coeff,
+                              optimize=True).real
+            for i, e_curr in enumerate(elist):
+                dos[:, :, i] = np.einsum('pkm, km -> kp', mo_sq, np.exp(-((mo_energy-e_curr)**2) / tsigma))
+    else:
+        spin = mo_energy.shape[0]
+        if mo_coeff is None:
+            dos = np.zeros((spin, nkpts,) + elist.shape)
+            for s in range(spin):
+                for i, e_curr in enumerate(elist):
+                    dos[s, :, i] = np.einsum('km -> k', np.exp(-((mo_energy[s]-e_curr)**2) / tsigma))
+        else:
+            mo_coeff = np.asarray(mo_coeff)
+            nao, nmo = mo_coeff.shape[-2:]
+            dos = np.zeros((spin, nkpts, nao) + elist.shape)
+            if ovlp is None:
+                log.warn("plot PDOS ovlp is not given ... Use identity instead.")
+                ovlp = np.zeros((nkpts, nao, nao), dtype=complex)
+                ovlp[:, range(nao), range(nao)] = 1.0
+            mo_sq = np.einsum('skpm, kpq, skqm -> spkm', 
+                              mo_coeff.conj(), ovlp, mo_coeff,
+                              optimize=True).real
+            for s in range(spin):
+                for i, e_curr in enumerate(elist):
+                    # pkm, km -> pkm -> p
+                    dos[s, :, :, i] = np.einsum('pkm, km -> kp', mo_sq[s], np.exp(-((mo_energy[s] - e_curr)**2) / tsigma))
+    return elist, dos / (norm)
+
+def plot_dos(elist, pdos, idx_dic=None, color_dic=None,
+             fig_size=(12, 6), fig_name="pdos.pdf", unit='eV', text=None,
+             **kwargs):
     """
     Plot (projected) density of states.
     
@@ -881,8 +1045,8 @@ def plot_dos(elist, pdos, idx_dic=None, color_dic=None, \
             for orb_name, idx in idx_dic.items():
                 if orb_name in color_dic:
                     pdos_i = pdos[idx].sum(axis=0)
-                    plt.plot(elist, pdos_i, label=orb_name, \
-                            color=color_dic[orb_name], linewidth=1)
+                    plt.plot(elist, pdos_i, label=orb_name,
+                             color=color_dic[orb_name], linewidth=1)
     elif pdos.ndim == 2 and (idx_dic is None): # unrestricted total DOS
         assert pdos.shape[0] == 2
         plt.plot(elist, pdos[0], label='total', color='grey', linewidth=1)
@@ -895,23 +1059,23 @@ def plot_dos(elist, pdos, idx_dic=None, color_dic=None, \
         if color_dic is None:
             for orb_name, idx in idx_dic.items():
                 pdos_i = pdos[:, idx].sum(axis=1)
-                tmp = plt.plot(elist, pdos_i[0], label=orb_name, \
-                        linewidth=1)[0]
-                plt.plot(elist, -pdos_i[1], color=tmp.get_color(), \
-                        linewidth=1)
+                tmp = plt.plot(elist, pdos_i[0], label=orb_name,
+                               linewidth=1)[0]
+                plt.plot(elist, -pdos_i[1], color=tmp.get_color(),
+                         linewidth=1)
         else:
             for orb_name, idx in idx_dic.items():
                 if orb_name in color_dic:
                     pdos_i = pdos[:, idx].sum(axis=1)
-                    tmp = plt.plot(elist, pdos_i[0], label=orb_name, \
-                            color=color_dic[orb_name], linewidth=1)[0]
-                    plt.plot(elist, -pdos_i[1], color=tmp.get_color(), \
-                            linewidth=1)
+                    tmp = plt.plot(elist, pdos_i[0], label=orb_name,
+                                   color=color_dic[orb_name], linewidth=1)[0]
+                    plt.plot(elist, -pdos_i[1], color=tmp.get_color(),
+                             linewidth=1)
     else:
         raise ValueError("Unknown pdos shape %s" %(str(pdos.shape)))
 
-    ax.legend(fancybox=False, framealpha=1.0, edgecolor='black', fontsize=10, \
-            frameon=False, loc='upper right')
+    ax.legend(fancybox=False, framealpha=1.0, edgecolor='black', fontsize=10,
+              frameon=False, loc='upper right')
     
     # plot efermi line
     efermi_x = [0.0, 0.0]
@@ -922,9 +1086,9 @@ def plot_dos(elist, pdos, idx_dic=None, color_dic=None, \
     plt.xlabel("$E$ [%s]"%(unit), fontsize=10) 
     plt.ylabel("PDOS", fontsize=10) 
     if text is not None:
-        plt.text(0.02, 0.96, text, horizontalalignment='left', \
-                verticalalignment='center', transform=ax.transAxes, \
-                fontsize=10)
+        plt.text(0.02, 0.96, text, horizontalalignment='left',
+                 verticalalignment='center', transform=ax.transAxes,
+                 fontsize=10)
     plt.savefig(fig_name, dpi=300, bbox_inches='tight')
     return plt
 
@@ -965,7 +1129,8 @@ def plot_bands(ax, kdis, ew, weights=None, cmap=None, linewidth=4, alpha=1.0):
 
     return line
 
-def get_kdis(kpts, kpts_sp=None, tol=1e-10):
+
+def get_kdis(kpts, kpts_sp=None, latt_vec=None, tol=1e-10):
     """
     Get k-distance in the BZ.
 
@@ -974,11 +1139,13 @@ def get_kdis(kpts, kpts_sp=None, tol=1e-10):
         kpts_sp: special kpoints for segmentation, (nkpts_sp, 3),
                  the path go through these points should include kpts.
         tol: tolerance for zero.
+        latt_vec: lattice vector for non-cubic cell.
 
     Returns:
         kdis: distance in the BZ, use for plot bands.
         kdis_sp: distance for special kpts.
     """
+    from libdmet.system.fourier import frac2real, real2frac
     def get_pos(kpt, kleft, kright):
         diff0 = kpt - kleft
         diff1 = kpt - kright
@@ -998,13 +1165,19 @@ def get_kdis(kpts, kpts_sp=None, tol=1e-10):
         else:
             pos = 'out'
         return pos
+    
 
     if kpts_sp is None:
         kdis = np.diff(kpts, axis=0)
+        if latt_vec is not None:
+            kdis_sp = frac2real(latt_vec, kdis_sp)
+            kdis = frac2real(latt_vec, kdis)
         kdis = np.hstack((0.0, np.cumsum(la.norm(kdis, axis=1))))
         kdis_sp = None
     else:
         kdis_sp = np.diff(kpts_sp, axis=0)
+        if latt_vec is not None:
+            kdis_sp = frac2real(latt_vec, kdis_sp)
         kdis_sp = np.hstack((0.0, np.cumsum(la.norm(kdis_sp, axis=1))))
         kdis = []
         idx0 = 0
@@ -1019,7 +1192,116 @@ def get_kdis(kpts, kpts_sp=None, tol=1e-10):
                 break
             else:
                 raise ValueError("kpt (%s) are not in the special kpoints path."%(kpt))
-            kdis.append(kdis_sp[idx0] + la.norm(kpt - kpts_sp[idx0]))
+            if latt_vec is not None:
+                kdis.append(kdis_sp[idx0] + la.norm(frac2real(latt_vec, kpt - kpts_sp[idx0])))
+            else:
+                kdis.append(kdis_sp[idx0] + la.norm(kpt - kpts_sp[idx0]))
 
         kdis = np.asarray(kdis)
     return kdis, kdis_sp
+
+
+def get_fermi_surface(mo_coeff, mo_energy, latt, mu=0.0, sigma=0.1, latt_uc=None,
+                      fname=None):
+    """
+    Compute the fermi surface.
+
+    Args:
+        mo_coeff: (nkpts, nao, nmo) MO coefficients.
+        mo_energy: (nkpts, nmo) MO energies.
+        mu: energy level to compute.
+        sigma: smearing for gaussian.
+        latt: lattice.
+        latt_uc: if given, will unfold the fermi_surface to the unit cell.
+        fname: if given, will write the fs to a file named fname.
+
+    Returns:
+        kpts_scaled: kpts scaled.
+        fs: fermi surface.
+    """
+    mo_energy = np.asarray(mo_energy)
+    nmo = mo_energy.shape[-1]
+    f_occ = mo_energy - mu
+    f_occ **= 2
+    f_occ /= (-2 * sigma**2)
+    f_occ = np.exp(f_occ)
+    f_occ /= (np.sqrt(2 * np.pi * sigma**2) * nmo)
+
+    if latt_uc is not None:
+        from libdmet.system.fourier import unfold_mo_coeff, unfold_mo_energy
+        mo_coeff = np.asarray(mo_coeff)
+        mo_coeff_uc = unfold_mo_coeff(mo_coeff, latt_uc, latt)
+        weights = np.einsum('kpm, kpm -> km', mo_coeff_uc.conj(), mo_coeff_uc, optimize=True).real
+        f_occ_uc = unfold_mo_energy(f_occ, latt_uc, latt, tol=1e-10)
+        f_occ_uc *= (weights * (latt_uc.nkpts / latt.nkpts)) 
+        f_occ_uc = f_occ_uc.sum(axis=-1)
+        f_occ = f_occ_uc
+        kpts_scaled = latt_uc.kpts_scaled
+    else:
+        f_occ = f_occ.sum(axis=-1)
+        kpts_scaled = latt.kpts_scaled
+
+    if fname is not None:
+        with open(fname, 'w') as f:
+            for kpt, fo in zip(kpts_scaled, f_occ):
+                f.write("%15.8f %15.8f %15.8f %15.8f \n"%(*kpt, fo))
+
+    return kpts_scaled, f_occ
+
+get_fs = get_fermi_surface
+
+def plot_fermi_surface(fname, fname_save="fs.pdf", wrap_around=True, vmin=None, vmax=None,
+                       cmap='viridis', interpolation=None):
+    xs, ys, zs, f_occs = np.loadtxt(fname).T
+    if wrap_around:
+        xs_new = []
+        ys_new = []
+        vals_new = []
+        for x, y, z, gap in zip(xs, ys, zs, f_occs):
+            if z == -0.5:
+                continue
+            if x == -0.5:
+                xs_new.append(0.5)
+                ys_new.append(y)
+                vals_new.append(gap)
+                if y == -0.5:
+                    xs_new.append(0.5)
+                    ys_new.append(0.5)
+                    vals_new.append(gap)
+
+            if y == -0.5:
+                xs_new.append(x)
+                ys_new.append(0.5)
+                vals_new.append(gap)
+            xs_new.append(x)
+            ys_new.append(y)
+            vals_new.append(gap)
+    
+    # sort
+    seq = list(zip(xs_new, ys_new))
+    idx = sorted(range(len(seq)), key=seq.__getitem__)
+    
+    xs_new = np.asarray(xs_new)[idx]
+    ys_new = np.asarray(ys_new)[idx]
+    vals_new = np.asarray(vals_new)[idx]
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    nkx = int(np.sqrt(len(xs_new)) + 0.5)
+    nky = int(np.sqrt(len(ys_new)) + 0.5)
+    xxx = plt.imshow(vals_new.reshape(nkx, nky), interpolation=interpolation,
+                     vmin=vmin, vmax=vmax, cmap=cmap)
+    
+    cbar = plt.colorbar(xxx)
+    cbar.ax.tick_params(labelsize=15, bottom=False, top=False, left=False,
+                        right=True, width=1.5)
+
+    cbar.ax.set_ylabel(r'DOS', fontsize=20, labelpad=10.0)
+    cbar.ax.yaxis.set_label_position("right")
+
+    plt.xlabel("$k_{x}$", fontsize=20)
+    plt.ylabel("$k_{y}$", fontsize=20)
+    ax.tick_params(labelsize=15, width=1.5)
+    
+    plt.savefig(fname_save, dpi=300)
+
+plot_fs = plot_fermi_surface

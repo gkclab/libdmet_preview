@@ -14,8 +14,8 @@ import itertools as it
 from pyscf import ao2mo
 
 from libdmet.routine import mfd
-from libdmet.utils.misc import (mdot, max_abs, find, add_spin_dim, \
-        Iterable, format_idx)
+from libdmet.utils.misc import (mdot, max_abs, find, add_spin_dim, Iterable,
+                                format_idx)
 from libdmet.utils import logger as log
 from libdmet.settings import IMAG_DISCARD_TOL 
 
@@ -44,12 +44,9 @@ def transform_trans_inv_k(basis_k, H_k):
     res = np.zeros((nbasis, nbasis), dtype=np.complex128)
     for k in range(nkpts):
         res += mdot(basis_k[k].conj().T, H_k[k], basis_k[k])
-    if max_abs(res.imag) < IMAG_DISCARD_TOL:
-        res = res.real
-    else:
-        log.warn("transform_trans_inv_k: has imag part %s", \
-                max_abs(res.imag))
-    res /= float(nkpts)
+    if max_abs(res.imag) > IMAG_DISCARD_TOL:
+        log.warn("transform_trans_inv_k: has imag part %s", max_abs(res.imag))
+    res = res.real / float(nkpts)
     return res
 
 def transform_trans_inv_sparse(basis, lattice, H, symmetric=True, thr=1e-7):
@@ -83,7 +80,6 @@ def transform_local(basis, lattice, H):
     return res
 
 def transform_local_sparse(basis, lattice, H, thr = 1e-7):
-    # assume H is (nscsites, nscsites)
     ncells = lattice.ncells
     nbasis = basis.shape[-1]
     res = np.zeros((nbasis, nbasis))
@@ -98,7 +94,7 @@ def transform_local_sparseH(basis, lattice, H, thr = 1e-7):
     res = np.zeros((nbasis, nbasis))
     mask_H = np.nonzero(abs(H) > thr)
     mask_H = zip(*map(lambda a: a.tolist(), mask_H))
-    for j,k in mask_H:
+    for j, k in mask_H:
         #for i in range(ncells):
         res += np.dot(basis[:,j].T, basis[:,k]) *  H[j,k]
     return res
@@ -129,18 +125,10 @@ def transform_scalar(basis, lattice, s):
 
 def transform_4idx(vijkl, ip, jq, kr, ls):
     """
-    ip, ijkl -> pjkl -> jpkl
-    jq, jpkl -> qpkl -> pqkl
-    pqkl, ls -> pqks -> pqsk
-    pqsk, kr -> pqsr -> pqrs
+    transform eri with 1-fold symmetry.
     """
-    return np.swapaxes(np.tensordot(\
-        np.swapaxes(np.tensordot(\
-        np.swapaxes(np.tensordot(jq, \
-        np.swapaxes(np.tensordot(ip, vijkl, axes = (0,0)),0,1), \
-        axes = (0,0)),0,1), \
-        ls, axes = (3,0)),2,3), \
-        kr, axes = (3,0)),2,3)
+    return np.einsum('ijkl, ip, jq, kr, ls -> pqrs', vijkl, ip, jq, kr, ls, 
+                     optimize=True)
 
 def transform_eri_local(basis, lattice, H2):
     """
@@ -154,17 +142,17 @@ def transform_eri_local(basis, lattice, H2):
     res = np.zeros((spin*(spin+1)//2, nbasis, nbasis, nbasis, nbasis))
     if H2.ndim == 4:
         if spin == 1:
-            H2 = H2[np.newaxis]
+            H2 = H2[None]
         else:
-            H2 = np.asarray((H2, H2, H2))
+            H2 = [H2, H2, H2]
     if spin == 1:
         for i in range(ncells):
-            res[0] += transform_4idx(H2[0], basis[0,i], basis[0,i], basis[0,i], basis[0,i])
+            res[0] += transform_4idx(H2[0], basis[0, i], basis[0, i], basis[0, i], basis[0, i])
     else:
         for i in range(ncells):
-            res[0] += transform_4idx(H2[0], basis[0,i], basis[0,i], basis[0,i], basis[0,i])
-            res[1] += transform_4idx(H2[1], basis[1,i], basis[1,i], basis[1,i], basis[1,i])
-            res[2] += transform_4idx(H2[2], basis[0,i], basis[0,i], basis[1,i], basis[1,i])
+            res[0] += transform_4idx(H2[0], basis[0, i], basis[0, i], basis[0, i], basis[0, i])
+            res[1] += transform_4idx(H2[1], basis[1, i], basis[1, i], basis[1, i], basis[1, i])
+            res[2] += transform_4idx(H2[2], basis[0, i], basis[0, i], basis[1, i], basis[1, i])
     return res
 
 def get_emb_basis_other_cell(lattice, basis, R, reorder_idx=None):
@@ -192,7 +180,7 @@ def get_emb_basis_other_cell(lattice, basis, R, reorder_idx=None):
         basis_R = basis_R[0]
     return basis_R
 
-def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True, \
+def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True, 
                    sign=None):
     """
     Get rho_glob in site basis, in stripe shape.
@@ -228,9 +216,9 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True, \
     rho_glob = 0.0
     I_idx = 0
     
-    for basis_I, lattice_I, rho_emb_I, sign_I in zip(basis_col, lattice_col, \
+    for basis_I, lattice_I, rho_emb_I, sign_I in zip(basis_col, lattice_col, 
                                                      rho_emb_col, sign):
-        log.debug(0, "Build rdm1_glob, impurity %s, indices: %s, sign: %s", \
+        log.debug(0, "Build rdm1_glob, impurity %s, indices: %s, sign: %s", 
                   I_idx, format_idx(lattice_I.imp_idx), sign_I)
         basis_I = np.asarray(basis_I)
         if basis_I.ndim == 3:
@@ -281,13 +269,13 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True, \
         I_idx += 1
     return rho_glob
 
-def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True, \
+def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True, 
                    sign=None):
     if sign is not None:
         compact = False
     
-    rho_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric, \
-            compact=compact, sign=sign)
+    rho_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric,
+                           compact=compact, sign=sign)
 
     if isinstance(lattice, Iterable):
         if compact:
@@ -301,7 +289,7 @@ def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True, \
             rho_k = lattice.R2k(lattice.extract_stripe(rho_R))
     return rho_k
 
-def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True, \
+def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True, 
                       sign=None):
     """
     Get rho_glob in site basis, in full shape.
@@ -309,7 +297,7 @@ def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True, \
     """
     if sign is not None:
         compact = False
-    rho_glob_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric, \
+    rho_glob_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric, 
                                 compact=compact, sign=sign)
     if compact:
         if isinstance(lattice, Iterable):
@@ -428,8 +416,8 @@ def get_rdm1_idem(rdm1, nelec, beta):
         ewocc, mu, nerr = mfd.assignocc(ew, nelec, beta, mu0=-0.5)
         for s in range(spin):
             for k in range(nkpts):
-                rdm1_idem[s, k] = np.dot(ev[s, k] * ewocc[s, k], \
-                        ev[s, k].conj().T)
+                rdm1_idem[s, k] = np.dot(ev[s, k] * ewocc[s, k], 
+                                         ev[s, k].conj().T)
     return rdm1_idem
 
 def get_H1_power_R(lattice, H1_k=None, power=2, return_all_power=False):

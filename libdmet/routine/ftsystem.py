@@ -9,8 +9,11 @@ Author:
 
 import numpy as np
 import scipy
-from scipy.optimize import minimize, brentq
+from scipy.optimize import brentq
 import scipy.linalg as la
+
+from pyscf import lib
+
 from libdmet.utils import logger as log
 from libdmet.utils.misc import *
 from libdmet.basis_transform import make_basis
@@ -18,7 +21,7 @@ from libdmet.basis_transform import make_basis
 FIT_TOL = 1e-12
 ZERO_TOL = 1e-10
 
-def fermi_smearing_occ(mu, mo_energy, beta):
+def fermi_smearing_occ(mu, mo_energy, beta, ncore=0, nvirt=0):
     """
     Fermi smearing function for mo_occ.
     By using broadcast, mu can be a list of values 
@@ -28,18 +31,29 @@ def fermi_smearing_occ(mu, mo_energy, beta):
         mu: chemical potential, can have shape (), (1,), (spin,).
         mo_energy: orbital energy, can be (nmo,) or (s, k, ..., nmo) array.
         beta: inverse temperature, float.
+        ncore: number of core orbitals with occupation 1.
+        nvirt: number of virt orbitals with occupation 0.
 
     Returns:
         occ: orbital occupancy, the same shape as mo_energy.
     """
     mo_energy = np.asarray(mo_energy)
-    mu = np.asarray(mu).reshape(-1, *np.ones(mo_energy.ndim - 1, dtype=int))
+    mu = np.asarray(mu).reshape(-1, *([1] * (mo_energy.ndim - 1)))
     de = beta * (mo_energy - mu) 
     occ = np.zeros_like(mo_energy)
-    occ[de < 100] = 1.0 / (np.exp(de[de < 100]) + 1.0)
+    idx = (de < 100)
+    if ncore != 0:
+        assert mo_energy.ndim == 1
+        idx[:ncore] = False 
+        occ[:ncore] = 1.0
+    if nvirt != 0:
+        assert mo_energy.ndim == 1
+        idx[-nvirt:] = False
+    
+    occ[idx] = 1.0 / (np.exp(de[idx]) + 1.0)
     return occ
 
-def gaussian_smearing_occ(mu, mo_energy, beta):
+def gaussian_smearing_occ(mu, mo_energy, beta, ncore=0, nvirt=0):
     """
     Gaussian smearing function for mo_occ.
 
@@ -52,11 +66,11 @@ def gaussian_smearing_occ(mu, mo_energy, beta):
         occ: orbital occupancy, the same shape as mo_energy.
     """
     mo_energy = np.asarray(mo_energy)
-    mu = np.asarray(mu).reshape(-1, *np.ones(mo_energy.ndim - 1, dtype=int))
+    mu = np.asarray(mu).reshape(-1, *([1] * (mo_energy.ndim - 1)))
     return 0.5 * scipy.special.erfc((mo_energy - mu) * beta)
 
 def find_mu(nelec, mo_energy, beta, mu0=None, f_occ=fermi_smearing_occ, 
-            tol=FIT_TOL):
+            tol=FIT_TOL, ncore=0, nvirt=0):
     """
     Find chemical potential mu for a target nelec.
     Assume mo_energy has no spin dimension.
@@ -65,7 +79,7 @@ def find_mu(nelec, mo_energy, beta, mu0=None, f_occ=fermi_smearing_occ,
         mu: chemical potential.
     """
     def nelec_cost_fn_brentq(mu):
-        mo_occ = f_occ(mu, mo_energy, beta)
+        mo_occ = f_occ(mu, mo_energy, beta, ncore=ncore, nvirt=nvirt)
         return mo_occ.sum() - nelec
     
     nelec_int = int(np.round(nelec))
@@ -85,16 +99,18 @@ def find_mu(nelec, mo_energy, beta, mu0=None, f_occ=fermi_smearing_occ,
         rval += max(100.0, 1.0 / beta)
     res = brentq(nelec_cost_fn_brentq, lval, rval, xtol=tol, rtol=tol,
                  maxiter=10000, full_output=True, disp=False)
-    if not res[1].converged:
+    if (not res[1].converged):
         log.warn("fitting mu (fermi level) brentq fails.")
     mu = res[0]
     return mu
 
 def find_mu_by_density(density, mo_energy, beta, mu0=None, 
-                       f_occ=fermi_smearing_occ, tol=FIT_TOL):
+                       f_occ=fermi_smearing_occ, tol=FIT_TOL, ncore=0,
+                       nvirt=0):
     norb = mo_energy.size
     nelec = density * norb
-    return find_mu(nelec, mo_energy, beta, mu0=mu0, f_occ=f_occ, tol=tol*norb)
+    return find_mu(nelec, mo_energy, beta, mu0=mu0, f_occ=f_occ, tol=tol*norb,
+                   ncore=ncore, nvirt=nvirt)
 
 def kernel(h, nelec, beta, mu0=None, fix_mu=False):
     mo_energy, mo_coeff = la.eigh(h)
@@ -185,7 +201,7 @@ def get_rho_grad(mo_energy, mo_coeff, mu, beta, fix_mu=True, compact=False):
         f_sum = f.sum()
         if abs(f_sum) > ZERO_TOL: # not almost zero T
             # partial rho_ij / partial mu
-            drho_dmu = mo_coeff.dot(np.diag(f)).dot(mo_coeff.conj().T)
+            drho_dmu = np.dot(mo_coeff * f, mo_coeff.conj().T)
             drho_dmu *= beta
             
             # partial mu / partial v_{kl}
@@ -225,7 +241,6 @@ def get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=True, compact=False,
     spin, _, norb = mo_coeff.shape
     if fit_idx is None:
         fit_idx = range(norb)
-    fit_mesh = np.ix_(fit_idx, fit_idx)
 
     rho_elec = fermi_smearing_occ(mu, mo_energy, beta)
     rho_hole = 1.0 - rho_elec
@@ -240,39 +255,38 @@ def get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=True, compact=False,
     de_mat_inv[nonzero_mask] = 1.0 / de_mat[nonzero_mask]
     
     # K_{pq}
-    dw_dv = np.zeros((spin, norb, norb))
+    dw_dv = np.zeros((spin, norb, norb), dtype=mo_coeff.dtype)
     for s in range(spin):
         K = de_mat_inv[s] * (rho_elec[s, :, None] - rho_elec[s])
         K[zero_mask[s]] = (rho_elec[s, :, None] * rho_hole[s])[zero_mask[s]] * (-beta)
         # pk, kl, lq -> pq; pq, pq -> pq
-        dw_dv[s] = mdot(mo_coeff[s, fit_idx].T, 2.0*drho[s], mo_coeff[s, fit_idx].conj()) * K
-        dw_dv[s] = mdot(mo_coeff[s].conj(), dw_dv[s], mo_coeff[s].T) # ip, pq, qj -> ij
+        tmp  = mdot(mo_coeff[s, fit_idx].T, 2.0*drho[s], mo_coeff[s, fit_idx].conj()) * K
+        # tmp += mdot(mo_coeff[s, fit_idx].T.conj(), 2.0*drho[s], mo_coeff[s, fit_idx]) * K / 2.0
+        dw_dv[s] = mdot(mo_coeff[s].conj(), tmp, mo_coeff[s].T) # ip, pq, qj -> ij
     
     # contribution from mu change
     if not fix_mu:
-        dw_dv_mu_part = np.zeros((spin, norb, norb))
+        dw_dv_mu_part = np.zeros((spin, norb, norb), dtype=dw_dv.dtype)
         for s in range(spin):
             f = rho_elec[s] * rho_hole[s]
-            f_sum = f.sum()
+            f_sum = np.sum(f)
             if abs(f_sum) > ZERO_TOL: # not almost zero T
                 # partial rho_ij / partial mu
-                drho_dmu = (mo_coeff[s] * f).dot(mo_coeff[s].conj().T) # should * beta
-                dw_dmu = (drho[s] * drho_dmu[fit_mesh]).sum() * 2.0 * beta
+                drho_dmu = np.dot(mo_coeff[s] * f, mo_coeff[s].conj().T) # should * beta
+                #dw_dmu = np.sum(drho[s] * drho_dmu[fit_mesh]) * 2.0 * beta
+                dw_dmu = np.einsum('ij, ij ->', drho[s], drho_dmu[fit_idx][:, fit_idx],
+                                   optimize=True) * 2.0 * beta
                 # dw_dv = dw_dmu * dmu_dv (dmu_dv = drho_dmu / f_sum)
                 dw_dv_mu_part[s] = drho_dmu * (dw_dmu / f_sum) # ji
         dw_dv += dw_dv_mu_part
     
     if compact:
         # symmetrize
-        diag_idx = (np.arange(norb), np.arange(norb))
-        tril_idx = np.tril_indices(norb)
-        num_tril = tril_idx[0].shape[0]
-        dw_dv = dw_dv + np.swapaxes(dw_dv.conj(), -2, -1)
-        dw_dv_compact = np.empty((spin, num_tril))
-        for s in range(spin):
-            dw_dv[s][diag_idx] *= 0.5
-            dw_dv_compact[s] = dw_dv[s][tril_idx]
-        dw_dv = dw_dv_compact
+        dw_dv = lib.pack_tril(dw_dv)
+        dw_dv *= 2.0
+        diag_idx = tril_diag_indices(norb)
+        dw_dv[:, diag_idx] *= 0.5
+        
     return dw_dv 
 
 if __name__ == '__main__':

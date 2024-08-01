@@ -19,15 +19,13 @@ from scipy.optimize._trustregion_ncg import CGSteihaugSubproblem
 from scipy.optimize import OptimizeResult
 from scipy.optimize._differentiable_functions import ScalarFunction, FD_METHODS
 
-from pyscf.lib import logger
 from pyscf.soscf import ciah
 # ZHC NOTE pyscf 2.2 has new name for CIAH
 try:
     from pyscf.soscf.ciah import CIAHOptimizerMixin
-except AttributeError:
+except ImportError or AttributeError:
     from pyscf.soscf.ciah import CIAHOptimizer as CIAHOptimizerMixin
-except ImportError:
-    from pyscf.soscf.ciah import CIAHOptimizer as CIAHOptimizerMixin
+from pyscf.lib import logger
 
 from libdmet.utils.misc import max_abs
 from libdmet.utils import logger as log
@@ -820,8 +818,8 @@ def kernel(localizer, u0, callback=None, verbose=None):
     """
     Kernel for VcorMinimizer.
     """
-    if localizer.verbose >= logger.WARN:
-        localizer.check_sanity()
+    #if localizer.verbose >= logger.WARN:
+    #    localizer.check_sanity()
     localizer.dump_flags()
 
     cput0 = (logger.process_clock(), logger.perf_counter())
@@ -921,7 +919,7 @@ class CIAHMinimizer(CIAHOptimizerMixin):
     kf_trust_region = 2.0
 
     def __init__(self, func, grad, h_op, h_diag=None):
-        CIAHOptimizerMixin.__init__(self)
+        ciah.CIAHOptimizerMixin.__init__(self)
         self.stdout = sys.stdout
         self.verbose = 5
         

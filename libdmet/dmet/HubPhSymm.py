@@ -71,8 +71,8 @@ def afqmc_symmetrize(lattice, basis, h, h1e):
     h1e[1] = mdot(rot.T, h1e[1], rot)
     return basis, h, h1e
 
-def ConstructImpHam(Lat, rho, v, afqmc=False, matching=True, local=True, \
-        split=False, **kwargs):
+def ConstructImpHam(Lat, rho, v, mu=None, afqmc=False, matching=True, 
+                    local=True, split=False, **kwargs):
     log.result("Making embedding basis")
     basis = slater.embBasis(Lat, rho, local=local, **kwargs)
     if afqmc:
@@ -116,7 +116,7 @@ def InitGuess(ImpSize, U, polar = None, r = None):
     v = VcorLocalPhSymm(U, False, ImpSize, subA, subB, r)
     if polar is None:
         polar = U * 0.5
-    nscsites = np.product(ImpSize)
+    nscsites = np.prod(ImpSize)
     init_v = np.eye(nscsites) * U * 0.5
     init_p = np.diag([polar if s in subA else -polar for s in range(nscsites)])
     v.assign(np.asarray([init_v + init_p, init_v - init_p]))
@@ -135,7 +135,7 @@ def VcorLocalPhSymm(U, bogoliubov, ImpSize, subA, subB, r = None):
     log.eassert(len(subA) == len(subB), "number of sites in two sublattices are equal")
     nscsites = len(subA) * 2
     log.eassert(subA | subB == set(range(nscsites)), "sublattice designation problematic")
-    nscsites = np.product(ImpSize)
+    nscsites = np.prod(ImpSize)
     log.eassert(subA | subB == set(range(nscsites)), "sublattice designation problematic")
 
     if r is None:
@@ -217,7 +217,7 @@ def VcorDCAPhSymm(U, ImpSize, subA, subB):
     log.eassert(len(subA) == len(subB), "number of sites in two sublattices are equal")
     nscsites = len(subA) * 2
     log.eassert(subA | subB == set(range(nscsites)), "sublattice designation problematic")
-    nscsites = np.product(ImpSize)
+    nscsites = np.prod(ImpSize)
     log.eassert(subA | subB == set(range(nscsites)), "sublattice designation problematic")
 
     sites = list(it.product(*map(range, ImpSize)))

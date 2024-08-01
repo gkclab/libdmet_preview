@@ -16,8 +16,8 @@
 # Author: Qiming Sun <osirpt.sun@gmail.com>
 #         Paul J. Robinson <pjrobinson@ucla.edu>
 #
-# Modified for k-points sampling, IAO virtuals, cores by 
-#   Zhi-Hao Cui <zhcui0408@gmail.com>
+# Modified for k-points sampling, IAO virtuals, cores, smearing by 
+#         Zhi-Hao Cui <zhcui0408@gmail.com>
 
 """
 Intrinsic Atomic Orbitals (IAOs) and projected atomic orbitals (PAOs).
@@ -39,15 +39,24 @@ from pyscf.lo.iao import reference_mol, fast_iao_mullikan_pop
 
 from libdmet.utils import logger as log
 from libdmet.utils.misc import mdot, kdot, format_idx, Iterable
-from libdmet.lo.lowdin import orth_cano, vec_lowdin, vec_lowdin_k, \
-        check_orthonormal, check_orthogonal_two_sets, get_ao_labels
+from libdmet.lo.lowdin import (orth_cano, vec_lowdin, vec_lowdin_k, check_orthonormal,
+                               check_orthogonal_two_sets, get_ao_labels)
 
 # Alternately, use ANO for minao
 # orthogonalize iao by orth.lowdin(c.T*mol.intor(ovlp)*c)
 MINAO = getattr(__config__, 'lo_iao_minao', 'minao')
 
-def iao(mol, orbocc, minao=MINAO, kpts=None, pmol=None, mo_coeff_B1=None, \
-        mo_occ=None, tol=1e-12):
+LNAMES = {0: "s", 
+          1: "p", 
+          2: "d", 
+          3: "f", 
+          4: "g", 
+          5: "h", 
+          6: "i",
+          7: "j"}
+
+def iao(mol, orbocc, minao=MINAO, kpts=None, pmol=None, mo_coeff_B1=None, 
+        mo_occ=None, nocc=None, tol=1e-12):
     """
     Intrinsic Atomic Orbitals. [Ref. JCTC, 9, 4834]
 
@@ -57,8 +66,10 @@ def iao(mol, orbocc, minao=MINAO, kpts=None, pmol=None, mo_coeff_B1=None, \
         minao: B2 basis.
         kpts: absolute kpoints.
         pmol: if given, will use as reference mol and negelect minao.
-        mo_coeff_B1: use to linear combine B1 basis.
+        mo_coeff_B1: use to linearly combine B1 basis.
         mo_occ: given to support the smearing, should be [1.0, 0.99, ..., 0.1, 0.0]
+        nocc: only valid when mo_occ is given, 
+              to specify the number of orbitals with occ pattern.
         tol: tolerance for discard singular values in inversion.
 
     Returns:
@@ -69,7 +80,7 @@ def iao(mol, orbocc, minao=MINAO, kpts=None, pmol=None, mo_coeff_B1=None, \
         >>> c = iao(mol, orbocc)
         >>> np.dot(c, orth.lowdin(reduce(np.dot, (c.T,s,c))))
     """
-    if mol.has_ecp():
+    if mol.has_ecp() and minao == 'minao':
         logger.warn(mol, 'ECP/PP is used. MINAO is not a good reference AO basis in IAO.')
     
     if pmol is None:
@@ -124,20 +135,33 @@ def iao(mol, orbocc, minao=MINAO, kpts=None, pmol=None, mo_coeff_B1=None, \
         if np.asarray(orbocc).size == 0:
             a = p12
         else:
-            C = orbocc
-            ctild = la.cho_solve(s2cd, np.dot(s21, C))
-            ctild = la.cho_solve(s1cd, np.dot(s12, ctild))
-            # orthogonalize ctild using canonical orthogonalize
             if mo_occ is None:
-                ctild = orth_cano(ctild, s1, tol=tol)
+                C = orbocc
                 ccs1 = mdot(C, C.conj().T, s1)
+                
+                ctild = la.cho_solve(s2cd, np.dot(s21, C))
+                ctild = la.cho_solve(s1cd, np.dot(s12, ctild))
+                # orthogonalize ctild using canonical orthogonalize
+                ctild = orth_cano(ctild, s1, tol=tol)
+                ccs2 = mdot(ctild, ctild.conj().T, s1)
             else:
-                ctild = orth_cano(ctild, s1, tol=tol, f=np.sqrt(mo_occ))
+                C = orbocc
+                # finite-T projector
                 ccs1 = mdot(C * mo_occ, C.conj().T, s1)
+                # ZHC FIXME how to define a finite-T projector for ctild?
+                # orthogonalization is a problem.
+                if nocc is None:
+                    C_occ = C[:, mo_occ > (0.5 - tol)]
+                else:
+                    C_occ = C[:, :nocc]
+                ctild = la.cho_solve(s2cd, np.dot(s21, C_occ))
+                ctild = la.cho_solve(s1cd, np.dot(s12, ctild))
+                ctild = orth_cano(ctild, s1, tol=tol)
+                ccs2 = mdot(ctild, ctild.conj().T, s1)
 
-            ccs2 = mdot(ctild, ctild.conj().T, s1)
-            a = (p12 + mdot(ccs1, ccs2, p12) * 2 \
-                    - np.dot(ccs1, p12) - np.dot(ccs2, p12))
+            #a is the set of IAOs in the original basis
+            a = (p12 + mdot(ccs1, ccs2, p12) * 2 - \
+                 np.dot(ccs1, p12) - np.dot(ccs2, p12))
     else: # k point sampling
         s21 = np.swapaxes(s12, -1, -2).conj()
         nkpts = len(kpts)
@@ -151,22 +175,32 @@ def iao(mol, orbocc, minao=MINAO, kpts=None, pmol=None, mo_coeff_B1=None, \
                 # at some kpts, there is possibly no occupied MO.
                 a[k] = p12_k
             else:
-                C_k = orbocc[k]
-
-                ctild_k = la.cho_solve(s2cd_k, np.dot(s21[k], C_k))
-                ctild_k = la.cho_solve(s1cd_k, np.dot(s12[k], ctild_k))
-                # orthogonalize ctild using canonical orthogonalize
                 if mo_occ is None:
+                    C_k = orbocc[k]
+                    ctild_k = la.cho_solve(s2cd_k, np.dot(s21[k], C_k))
+                    ctild_k = la.cho_solve(s1cd_k, np.dot(s12[k], ctild_k))
                     ctild_k = orth_cano(ctild_k, s1[k], tol=tol)
                     ccs1_k = mdot(C_k, C_k.conj().T, s1[k])
+                    ccs2_k = mdot(ctild_k, ctild_k.conj().T, s1[k])
                 else:
-                    ctild_k = orth_cano(ctild_k, s1[k], tol=tol, f=np.sqrt(mo_occ[k]))
+                    C_k = orbocc[k]
                     ccs1_k = mdot(C_k * mo_occ[k], C_k.conj().T, s1[k])
-                ccs2_k = mdot(ctild_k, ctild_k.conj().T, s1[k])
+                    
+                    if nocc is None:
+                        C_occ = C_k[:, mo_occ[k] > (0.5 - tol)]
+                    else:
+                        if isinstance(nocc, Iterable):
+                            C_occ = C_k[:, :nocc[k]]
+                        else:
+                            C_occ = C_k[:, :nocc]
+
+                    ctild_k = la.cho_solve(s2cd_k, np.dot(s21[k], C_occ))
+                    ctild_k = la.cho_solve(s1cd_k, np.dot(s12[k], ctild_k))
+                    ctild_k = orth_cano(ctild_k, s1[k], tol=tol)
+                    ccs2_k = mdot(ctild_k, ctild_k.conj().T, s1[k])
                 
-                #a is the set of IAOs in the original basis
-                a[k] = (p12_k + mdot(ccs1_k, ccs2_k, p12_k) * 2 \
-                        - np.dot(ccs1_k, p12_k) - np.dot(ccs2_k, p12_k))
+                a[k] = (p12_k + mdot(ccs1_k, ccs2_k, p12_k) * 2 - \
+                        np.dot(ccs1_k, p12_k) - np.dot(ccs2_k, p12_k))
                 
     if mo_coeff_B1 is not None:
         if kpts is None:
@@ -175,15 +209,15 @@ def iao(mol, orbocc, minao=MINAO, kpts=None, pmol=None, mo_coeff_B1=None, \
             a = kdot(mo_coeff_B1, a)
     return a
 
-def get_iao_virt(cell, C_ao_iao, S, minao=MINAO, full_virt=False, \
-        pmol=None, max_ovlp=False): 
+def get_iao_virt(cell, C_ao_iao, S, minao=MINAO, full_virt=False, pmol=None,
+                 max_ovlp=False, verbose=True): 
     """
     Get virtual orbitals from orthogonal IAO orbitals, C_ao_iao.
     Math: (1 - |IAO><IAO|) |B1> where B1 only choose the remaining virtual AO basis.
     """
     if max_ovlp:
-        return get_iao_virt_max_ovlp(cell, C_ao_iao, S, minao=minao, \
-                full_virt=full_virt, pmol=pmol)
+        return get_iao_virt_max_ovlp(cell, C_ao_iao, S, minao=minao, 
+                                     full_virt=full_virt, pmol=pmol)
 
     C_ao_iao = np.asarray(C_ao_iao)
     S = np.asarray(S)
@@ -195,10 +229,15 @@ def get_iao_virt(cell, C_ao_iao, S, minao=MINAO, full_virt=False, \
         B2_labels = []
     else:
         B2_labels = pmol.ao_labels()
-    virt_idx = [idx for idx, label in enumerate(B1_labels) \
-            if (not label in B2_labels)]
-    log.debug(1, "IAO: virt_idx %s", format_idx(virt_idx))
-    log.debug(1, "IAO: virt_labels:\n%s", np.asarray(B1_labels)[virt_idx])
+    virt_idx = [idx for idx, label in enumerate(B1_labels) 
+                if (not label in B2_labels)]
+    if verbose:
+        log.debug(1, "-" * 79)
+        log.debug(1, "IAO virtuals:")
+        log.debug(1, "index   label")
+        for i in virt_idx:
+            log.debug(1, "%5d   %s", i, B1_labels[i])
+        log.debug(1, "-" * 79)
     nB1 = len(B1_labels)
     nB2 = len(B2_labels)
     nvirt = len(virt_idx)
@@ -246,8 +285,8 @@ def get_iao_virt_max_ovlp(cell, C_ao_iao, S, minao=MINAO, full_virt=False, pmol=
         B2_labels = []
     else:
         B2_labels = pmol.ao_labels()
-    virt_idx = [idx for idx, label in enumerate(B1_labels) \
-            if (not label in B2_labels)]
+    virt_idx = [idx for idx, label in enumerate(B1_labels) 
+                if (not label in B2_labels)]
     nB1 = len(B1_labels)
     nB2 = len(B2_labels)
     nvirt = len(virt_idx)
@@ -305,7 +344,8 @@ def get_iao_virt_max_ovlp(cell, C_ao_iao, S, minao=MINAO, full_virt=False, pmol=
                 C_virt[s] = find_closest_mo(C_virt_new, C_virt_ref, ovlp=S)
     return C_virt
 
-def get_labels(cell, minao=MINAO, full_virt=False, B2_labels=None, core_labels=None):
+def get_labels(cell, minao=MINAO, full_virt=False, B2_labels=None,
+               core_labels=None):
     """
     Get labels of all, val and virt.
     """
@@ -320,16 +360,16 @@ def get_labels(cell, minao=MINAO, full_virt=False, B2_labels=None, core_labels=N
         else:
             pmol = reference_mol(mol, minao)
             B2_labels = pmol.ao_labels()
-    
-    virt_labels = [label for idx, label in enumerate(B1_labels) \
-            if ((not label in B2_labels) and (not label in core_labels))]
+
+    virt_labels = [label for idx, label in enumerate(B1_labels)
+                   if ((not label in B2_labels) and (not label in core_labels))]
     nB1 = len(B1_labels)
     nB2 = len(B2_labels)
     nvirt = len(virt_labels)
     ncore = len(core_labels)
-    log.eassert(nB2 + nvirt + ncore == nB1, \
-            "nB2 (%s) + nvirt (%s) + ncore (%s) != nB1 (%s)", \
-            nB2, nvirt, ncore, nB1)
+    log.eassert(nB2 + nvirt + ncore == nB1, 
+                "nB2 (%s) + nvirt (%s) + ncore (%s) != nB1 (%s)",
+                nB2, nvirt, ncore, nB1)
     
     labels = B2_labels + virt_labels
     return labels, B2_labels, virt_labels
@@ -481,5 +521,75 @@ def proj_ref_ao(mol, minao=MINAO, kpts=None, pmol=None, return_labels=False):
         return C_ao_lo, labels
     else:
         return C_ao_lo
+
+def get_core_shells(pmol_core):
+    """
+    Get number of core shells for each element and angular momentum.
+    
+    Args:
+        pmol_core: reference core cell.
+
+    Returns
+        core_shells: a dict:
+        key: element. value: a dict (key: anglular momentum, value: number of shells).
+    """
+    core_shells = {}
+    for ele in pmol_core._basis.keys():
+        for i, atm in enumerate(pmol_core._atom):
+            if atm[0] == ele:
+                dic = {}
+                for b in pmol_core._bas:
+                    if b[0] == i:
+                        if LNAMES[b[1]] in dic:
+                            dic[LNAMES[b[1]]] += b[3]
+                        else:
+                            dic[LNAMES[b[1]]] = b[3]
+                break
+        else:
+            raise ValueError
+        core_shells[ele] = dic
+    return core_shells
+
+def build_pmol_core_val(cell, basis_core, basis_val):
+    """
+    Build reference cell (pmol) for core and valence basis.
+    and adjust the atomic labels for pmol_val.
+
+    Args:
+        cell: cell object.
+        basis_core: basis for core orbitals.
+        basis_val: basis for valence orbitals.
+
+    Returns:
+        pmol_core: core reference cell.
+        pmol_val: valence reference cell.
+    """
+    pmol_val = reference_mol(cell, minao=basis_val)
+    if basis_core is None:
+        pmol_core = None
+    else:
+        pmol_core = reference_mol(cell, minao=basis_core)
+
+        # rewrite the valence cell ao labels.
+        core_shells = get_core_shells(pmol_core)
+        val_labels = pmol_val.ao_labels()
+        for i in range(len(val_labels)):
+            lab = val_labels[i]
+            lab_sp = lab.split()
+            nspace = len(lab) - len(" ".join(lab_sp))
+            # special treatment for 4f 0
+            idx, ele, orb = lab_sp[:3]
+            for j, x in enumerate(orb):
+                if not x.isdigit():
+                    old_n = int(orb[:j])
+                    lm = orb[j:]
+                    break
+            if ele in core_shells:
+                lab_sp[2] = str(old_n + core_shells[ele].get(lm[0],  0)) + lm
+            else:
+                lab_sp[2] = str(old_n) + lm
+            val_labels[i] = (" ".join(lab_sp)) + (" " * nspace)
+        pmol_val.ao_labels = lambda *args: val_labels
+    return pmol_core, pmol_val
 
 del(MINAO)

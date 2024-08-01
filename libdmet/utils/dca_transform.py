@@ -113,7 +113,7 @@ def transformHam(lattice, cell, H, sparse = True):
             base = map(to_sparse, [dca_terms_by_dim[d][i] for d in range(dim)])
             for c in it.product(*base):
                 pos = comb_idx([idx for (idx, val) in c])
-                factor = np.product([val for (idx, val) in c])
+                factor = np.prod([val for (idx, val) in c])
                 nonzeros.append((pos, v * factor))
 
         return sorted(nonzeros)

@@ -14,7 +14,7 @@ import itertools as it
 import numpy as np
 from libdmet.utils import logger as log
 import libdmet.utils.misc as misc
-from libdmet.utils.misc import eri_idx
+from libdmet.utils.misc import tril_idx, Iterable
 
 def save(ints, fname="integral.h5"):
     """
@@ -70,17 +70,27 @@ class Integral(object):
         self.restricted = restricted
         self.bogoliubov = bogoliubov
         self.H0 = H0
+
+        if isinstance(H1, np.ndarray):
+            H1 = {"cd": H1}
+        if isinstance(H2, np.ndarray):
+            H2 = {"ccdd": H2}
+
         for key in H1:
             # H1 should has shape (spin, norb, norb)
-            log.eassert(H1[key] is None or H1[key].ndim == 3, \
-                    "invalid shape %s" %(str(H1[key].shape)))
+            log.eassert(H1[key] is None or 
+                        (H1[key].ndim == 3 and H1[key].shape[-1] == self.norb), 
+                        "invalid shape %s, should have shape %s",
+                        str(H1[key].shape), 
+                        "(spin, %s, %s)"%(self.norb, self.norb))
+
         self.H1 = H1
         for key in H2:
             if H2[key] is not None:
                 # H2 shape: (spin,) + (nao,)*4 or (pair,)*2 or (pair_pair,)*1
                 length = H2[key].ndim
-                log.eassert(length == 5 or length == 3 or length == 2, \
-                        "invalid H2 shape: %s", str(H2[key].shape))
+                log.eassert(length == 5 or length == 3 or length == 2, 
+                            "invalid H2 shape: %s", str(H2[key].shape))
         self.H2 = H2
 
         # overlap
@@ -115,13 +125,28 @@ class Integral(object):
     def pairAntiSymm(self):
         return list(it.combinations(range(self.norb)[::-1], 2))[::-1]
 
-def dumpFCIDUMP(filename, integral, thr=1e-12):
+def dumpFCIDUMP(filename, integral, thr=1e-12, buffered_io=False, nelec=None, spin=None,
+                dump_as_complex=False):
     header = []
     norb = integral.norb
+    if nelec is None:
+        nelec = norb
+        if spin is None:
+            spin = 0
+    elif isinstance(nelec, Iterable):
+        if spin is None:
+            spin = nelec[0] - nelec[1]
+        else:
+            assert spin == (nelec[0] - nelec[1])
+        nelec = sum(nelec)
+    else:
+        if spin is None:
+            spin = 0
+
     if integral.bogoliubov:
         header.append(" &BCS NORB= %d," % norb)
     else:
-        header.append(" &FCI NORB= %d,NELEC= %d,MS2= %d," % (norb, norb, 0))
+        header.append(" &FCI NORB= %d,NELEC= %d,MS2= %d," % (norb, nelec, spin))
     header.append("  ORBSYM=" + "1," * norb)
     header.append("  ISYM=1,")
     if not integral.restricted:
@@ -130,12 +155,41 @@ def dumpFCIDUMP(filename, integral, thr=1e-12):
     
     # ZHC NOTE ccdd can have permutation symmetry
     eri_format = get_eri_format(integral.H2["ccdd"], norb)[0]
-    def IDX(i, j, k, l):
-        return eri_idx(i, j, k, l, norb, eri_format)
+    if eri_format == 's1':
+        def IDX(i, j, k, l):
+            return (i, j, k, l)
+    elif eri_format == 's4':
+        def IDX(i, j, k, l):
+            ij = tril_idx(i, j)
+            kl = tril_idx(k, l)
+            return (ij, kl)
+    elif eri_format == 's8':
+        def IDX(i, j, k, l):
+            ij = tril_idx(i, j)
+            kl = tril_idx(k, l)
+            return tril_idx(ij, kl)
+    else:
+        raise ValueError
         
-    def writeInt(fout, val, i, j, k=-1, l=-1):
-        if abs(val) > thr:
-            fout.write("%20.16f%4d%4d%4d%4d\n" % (val, i+1, j+1, k+1, l+1))
+    # ZHC TODO optimize the IO effciency using buffer
+    if dump_as_complex:
+        if buffered_io:
+            def writeInt(fout, val, i, j, k=-1, l=-1):
+                if abs(val) > thr:
+                    fout.write("(%20.16f, 0.0) %4d%4d%4d%4d " % (val, i+1, j+1, k+1, l+1))
+        else:
+            def writeInt(fout, val, i, j, k=-1, l=-1):
+                if abs(val) > thr:
+                    fout.write("(%20.16f, 0.0) %4d%4d%4d%4d\n" % (val, i+1, j+1, k+1, l+1))
+    else:
+        if buffered_io:
+            def writeInt(fout, val, i, j, k=-1, l=-1):
+                if abs(val) > thr:
+                    fout.write("%20.16f%4d%4d%4d%4d " % (val, i+1, j+1, k+1, l+1))
+        else:
+            def writeInt(fout, val, i, j, k=-1, l=-1):
+                if abs(val) > thr:
+                    fout.write("%20.16f%4d%4d%4d%4d\n" % (val, i+1, j+1, k+1, l+1))
     
     def insert_ccdd(fout, matrix, t, symm_herm=True, symm_spin=True):
         if symm_herm:
@@ -150,6 +204,49 @@ def dumpFCIDUMP(filename, integral, thr=1e-12):
             for (i, j), (k, l) in it.product(p, repeat=2):
                 writeInt(fout, matrix[t][IDX(i, j, k, l)], i, j, k, l)
     
+    def insert_ccdd_new(fout, matrix, t):
+        """
+        modified from pyblock3.
+        """
+        eri = matrix[t]
+        nmo = norb
+        npair = nmo * (nmo + 1) // 2
+        if eri.ndim == 4:
+            # general
+            assert(eri.size == nmo ** 4)
+            for i in range(nmo):
+                for j in range(nmo):
+                    for k in range(nmo):
+                        for l in range(nmo):
+                            writeInt(fout, eri[i, j, k, l], i, j, k, l)
+        elif eri.ndim == 2:
+            # 4-fold symmetry
+            assert eri.size == npair ** 2
+            ij = 0
+            for i in range(nmo):
+                for j in range(0, i + 1):
+                    kl = 0
+                    for k in range(0, nmo):
+                        for l in range(0, k + 1):
+                            writeInt(fout, eri[ij, kl], i, j, k, l)
+                            kl += 1
+                    ij += 1
+        else:
+            # 8-fold symmetry
+            assert eri.size == npair * (npair + 1) // 2
+            ij = 0
+            ijkl = 0
+            for i in range(nmo):
+                for j in range(0, i + 1):
+                    kl = 0
+                    for k in range(0, i + 1):
+                        for l in range(0, k + 1):
+                            if ij >= kl:
+                                writeInt(fout, eri[ijkl], i, j, k, l)
+                                ijkl += 1
+                            kl += 1
+                    ij += 1
+
     def insert_cccd(fout, matrix, t):
         for (i, j), (k, l) in it.product(integral.pairAntiSymm(), integral.pairNoSymm()):
             writeInt(fout, matrix[t, i, j, k, l], i, j, k, l)
@@ -169,12 +266,16 @@ def dumpFCIDUMP(filename, integral, thr=1e-12):
         else:
             for i, j in integral.pairNoSymm():
                 writeInt(fout, matrix[t, i, j], i, j)
-
-    def insert_H0(fout, val=0):
-        fout.write("%20.16f%4d%4d%4d%4d\n" % (val, 0, 0, 0, 0)) # cannot be ignored even if smaller than thr
+    
+    if dump_as_complex:
+        def insert_H0(fout, val=0):
+            fout.write("(%20.16f, 0.0) %4d%4d%4d%4d\n" % (val, 0, 0, 0, 0)) # cannot be ignored even if smaller than thr
+    else:
+        def insert_H0(fout, val=0):
+            fout.write("%20.16f%4d%4d%4d%4d\n" % (val, 0, 0, 0, 0)) # cannot be ignored even if smaller than thr
 
     if isinstance(filename, str):
-        f = open(filename, "w", 1024*1024*128)
+        f = open(filename, "w", 1024*1024*256)
     elif isinstance(filename, file):
         f = filename
 
@@ -307,7 +408,7 @@ def dumpFCIDUMP_no_perm(filename, integral, thr=1e-12):
         fout.write("%20.16f%4d%4d%4d%4d\n" % (val, 0, 0, 0, 0)) # cannot be ignored even if smaller than thr
 
     if isinstance(filename, str):
-        f = open(filename, "w", 1024*1024*128)
+        f = open(filename, "w", 1024*1024*256)
     elif isinstance(filename, file):
         f = filename
 
@@ -327,6 +428,207 @@ def dumpFCIDUMP_no_perm(filename, integral, thr=1e-12):
         insert_H0(f, 0)
         insert_2dArray(f, integral.H1["cd"], 1)
         insert_H0(f, 0)
+        insert_H0(f, integral.H0)
+    elif integral.restricted and integral.bogoliubov:
+        insert_ccdd(f, integral.H2["ccdd"], 0)
+        insert_H0(f, 0)
+        insert_cccd(f, integral.H2["cccd"], 0)
+        insert_H0(f, 0)
+        insert_cccc(f, integral.H2["cccc"], 0)
+        insert_H0(f, 0)
+        insert_2dArray(f, integral.H1["cd"], 0)
+        insert_H0(f,0)
+        insert_2dArray(f, integral.H1["cc"], 0)
+        insert_H0(f,0)
+        insert_H0(f, integral.H0)
+    else:
+        insert_ccdd(f, integral.H2["ccdd"], 0, symm_herm=False)
+        insert_H0(f, 0)
+        insert_ccdd(f, integral.H2["ccdd"], 1, symm_herm=False)
+        insert_H0(f, 0)
+        insert_ccdd(f, integral.H2["ccdd"], 2, symm_herm=False, symm_spin=False)
+        insert_H0(f, 0)
+        insert_cccd(f, integral.H2["cccd"], 0)
+        insert_H0(f, 0)
+        insert_cccd(f, integral.H2["cccd"], 1)
+        insert_H0(f, 0)
+        insert_cccc(f, integral.H2["cccc"], 0, symm_spin=False)
+        insert_H0(f, 0)
+        insert_2dArray(f, integral.H1["cd"], 0)
+        insert_H0(f, 0)
+        insert_2dArray(f, integral.H1["cd"], 1)
+        insert_H0(f, 0)
+        insert_2dArray(f, integral.H1["cc"], 0, symm_herm=False)
+        insert_H0(f, 0)
+        insert_H0(f, integral.H0)
+
+    if isinstance(filename, str):
+        f.close()
+
+def dumpFCIDUMP_as_ghf(filename, integral, thr=1e-12, buffered_io=False, nelec=None, spin=None,
+                       dump_as_complex=False, aabb=False):
+    """
+    dump UHF integral as GHF (abab order).
+    """
+    header = []
+    norb = integral.norb
+    nso = norb * 2
+    if nelec is None:
+        nelec = norb
+        if spin is None:
+            spin = 0
+    elif isinstance(nelec, Iterable):
+        if spin is None:
+            spin = nelec[0] - nelec[1]
+        else:
+            assert spin == (nelec[0] - nelec[1])
+        nelec = sum(nelec)
+    else:
+        if spin is None:
+            spin = 0
+
+    if integral.bogoliubov:
+        header.append(" &BCS NORB= %d," % nso)
+    else:
+        header.append(" &FCI NORB= %d,NELEC= %d,MS2= %d," % (nso, nelec, spin))
+    header.append("  ORBSYM=" + "1," * nso)
+    header.append("  ISYM=1,")
+    header.append(" &END")
+    
+    eri_format = get_eri_format(integral.H2["ccdd"], norb)[0]
+    if eri_format == 's1':
+        def IDX(i, j, k, l):
+            return (i, j, k, l)
+    elif eri_format == 's4':
+        def IDX(i, j, k, l):
+            ij = tril_idx(i, j)
+            kl = tril_idx(k, l)
+            return (ij, kl)
+    elif eri_format == 's8':
+        def IDX(i, j, k, l):
+            ij = tril_idx(i, j)
+            kl = tril_idx(k, l)
+            return tril_idx(ij, kl)
+    else:
+        raise ValueError
+        
+    # ZHC TODO optimize the IO effciency using buffer
+    if dump_as_complex:
+        if buffered_io:
+            def writeInt(fout, val, i, j, k=-1, l=-1):
+                if abs(val) > thr:
+                    fout.write("(%20.16f, 0.0) %4d%4d%4d%4d " % (val, i+1, j+1, k+1, l+1))
+        else:
+            def writeInt(fout, val, i, j, k=-1, l=-1):
+                if abs(val) > thr:
+                    fout.write("(%20.16f, 0.0) %4d%4d%4d%4d\n" % (val, i+1, j+1, k+1, l+1))
+    else:
+        if buffered_io:
+            def writeInt(fout, val, i, j, k=-1, l=-1):
+                if abs(val) > thr:
+                    fout.write("%20.16f%4d%4d%4d%4d " % (val, i+1, j+1, k+1, l+1))
+        else:
+            def writeInt(fout, val, i, j, k=-1, l=-1):
+                if abs(val) > thr:
+                    fout.write("%20.16f%4d%4d%4d%4d\n" % (val, i+1, j+1, k+1, l+1))
+    
+    def insert_ccdd(fout, matrix, t, symm_herm=True, symm_spin=True):
+        if symm_herm:
+            p = integral.pairSymm()
+        else:
+            p = integral.pairNoSymm()
+        
+        if aabb:
+            raise NotImplementedError
+        else:
+            if t == 0:
+                if symm_spin:
+                    for (i, j), (k, l) in list(it.combinations_with_replacement(p[::-1], 2))[::-1]:
+                        writeInt(fout, matrix[t][IDX(i, j, k, l)], i*2, j*2, k*2, l*2)
+                else:
+                    for (i, j), (k, l) in it.product(p, repeat=2):
+                        writeInt(fout, matrix[t][IDX(i, j, k, l)], i*2, j*2, k*2, l*2)
+            elif t == 1:
+                if symm_spin:
+                    for (i, j), (k, l) in list(it.combinations_with_replacement(p[::-1], 2))[::-1]:
+                        writeInt(fout, matrix[t][IDX(i, j, k, l)], i*2+1, j*2+1, k*2+1, l*2+1)
+                else:
+                    for (i, j), (k, l) in it.product(p, repeat=2):
+                        writeInt(fout, matrix[t][IDX(i, j, k, l)], i*2+1, j*2+1, k*2+1, l*2+1)
+            elif t == 2:
+                if symm_spin:
+                    for (i, j), (k, l) in list(it.combinations_with_replacement(p[::-1], 2))[::-1]:
+                        writeInt(fout, matrix[t][IDX(i, j, k, l)], i*2, j*2, k*2+1, l*2+1)
+                        #writeInt(fout, matrix[t][IDX(i, j, k, l)], k*2+1, l*2+1, i*2, j*2)
+                else:
+                    for (i, j), (k, l) in it.product(p, repeat=2):
+                        writeInt(fout, matrix[t][IDX(i, j, k, l)], i*2, j*2, k*2+1, l*2+1)
+                        #writeInt(fout, matrix[t][IDX(i, j, k, l)], k*2+1, l*2+1, i*2, j*2)
+            else:
+                raise ValueError
+    
+    def insert_cccd(fout, matrix, t):
+        for (i, j), (k, l) in it.product(integral.pairAntiSymm(), integral.pairNoSymm()):
+            writeInt(fout, matrix[t, i, j, k, l], i, j, k, l)
+
+    def insert_cccc(fout, matrix, t, symm_spin=True):
+        if symm_spin:
+            for (i, j), (k, l) in list(it.combinations_with_replacement(integral.pairAntiSymm()[::-1], 2))[::-1]:
+                writeInt(fout, matrix[t, i, j, l, k], i, j, k, l)
+        else:
+            for (i, j), (k, l) in it.product(integral.pairAntiSymm(), repeat=2):
+                writeInt(fout, matrix[t, i, j, l, k], i, j, k, l)
+
+    def insert_2dArray(fout, matrix, t, symm_herm=True):
+        if aabb:
+            raise NotImplementedError
+        else:
+            if t == 0:
+                if symm_herm:
+                    for i, j in integral.pairSymm():
+                        writeInt(fout, matrix[t, i, j], i*2, j*2)
+                else:
+                    for i, j in integral.pairNoSymm():
+                        writeInt(fout, matrix[t, i, j], i*2, j*2)
+            elif t == 1:
+                if symm_herm:
+                    for i, j in integral.pairSymm():
+                        writeInt(fout, matrix[t, i, j], i*2+1, j*2+1)
+                else:
+                    for i, j in integral.pairNoSymm():
+                        writeInt(fout, matrix[t, i, j], i*2+1, j*2+1)
+            else:
+                raise ValueError
+    
+    if dump_as_complex:
+        def insert_H0(fout, val=0):
+            fout.write("(%20.16f, 0.0) %4d%4d%4d%4d\n" % (val, 0, 0, 0, 0)) # cannot be ignored even if smaller than thr
+    else:
+        def insert_H0(fout, val=0):
+            fout.write("%20.16f%4d%4d%4d%4d\n" % (val, 0, 0, 0, 0)) # cannot be ignored even if smaller than thr
+
+    if isinstance(filename, str):
+        f = open(filename, "w", 1024*1024*256)
+    elif isinstance(filename, file):
+        f = filename
+
+    f.write("\n".join(header) + "\n")
+    
+    if integral.restricted and not integral.bogoliubov:
+        insert_ccdd(f, integral.H2["ccdd"], 0)
+        insert_2dArray(f, integral.H1["cd"], 0)
+        insert_H0(f, integral.H0)
+    elif not integral.restricted and not integral.bogoliubov:
+        insert_ccdd(f, integral.H2["ccdd"], 0, symm_spin=False)
+        #insert_H0(f, 0)
+        insert_ccdd(f, integral.H2["ccdd"], 1, symm_spin=False)
+        #insert_H0(f, 0)
+        insert_ccdd(f, integral.H2["ccdd"], 2, symm_spin=False)
+        #insert_H0(f, 0)
+        insert_2dArray(f, integral.H1["cd"], 0, symm_herm=False)
+        #insert_H0(f, 0)
+        insert_2dArray(f, integral.H1["cd"], 1, symm_herm=False)
+        #insert_H0(f, 0)
         insert_H0(f, integral.H0)
     elif integral.restricted and integral.bogoliubov:
         insert_ccdd(f, integral.H2["ccdd"], 0)
@@ -621,7 +923,7 @@ def get_eri_format(eri, nao):
         eri_format = 's8'
         spin_dim = 0
     else:
-        raise ValueError("Unknown ERI shape %s" %(str(eri.shape)))
+        raise ValueError("Unknown ERI shape %s, nao %s" %(str(eri.shape), nao))
     log.eassert(spin_dim in [0, 1, 3], "spin_dim(%s) incorrect", spin_dim)
     return eri_format, spin_dim
 

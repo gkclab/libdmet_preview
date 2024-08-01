@@ -8,16 +8,16 @@ Author:
     Zhi-Hao Cui
 """
 
+from copy import deepcopy
 import numpy as np
 import scipy.linalg as la
-from copy import deepcopy
+from scipy import optimize as opt
 
 from libdmet.solver import block, scf
 from libdmet.system import integral
 from libdmet.utils import logger as log
 from libdmet.utils.misc import mdot
 from libdmet.routine.localizer import Localizer
-from libdmet.utils.munkres import Munkres, make_cost_matrix
 from libdmet.routine.bcs_helper import extractRdm, basisToCanonical, basisToSpin
 from libdmet.integral.integral_emb_casci import transform
 from libdmet.integral.integral_emb_casci_save_mem import transform as transform_save_mem
@@ -35,8 +35,7 @@ def get_BCS_mo(scfsolver, Ham, guess, max_memory=40000, Mu=None):
     scfsolver.set_integral(Ham)
     if Mu is None:
         Mu = 0.0
-    E_HFB, GRho_HFB = scfsolver.HFB(Mu=Mu, tol=1e-10, MaxIter=150, \
-            InitGuess=guess)
+    E_HFB, GRho_HFB = scfsolver.HFB(Mu=Mu, tol=1e-10, MaxIter=150, InitGuess=guess)
     return scfsolver.get_mo(), scfsolver.get_mo_energy()
 
 def get_qps(ncas, algo="nelec", **kwargs):
@@ -44,22 +43,16 @@ def get_qps(ncas, algo="nelec", **kwargs):
     Get a function that returns core, cas and casinfo.
     """
     if algo == "nelec":
-        log.eassert("nelecas" in kwargs, \
-            "number of electrons has to be specified")
-        return lambda mo, mo_e, *args: get_qps_nelec(ncas, \
-                kwargs["nelecas"], mo, mo_e)
+        log.eassert("nelecas" in kwargs, "number of electrons has to be specified")
+        return lambda mo, mo_e, *args: get_qps_nelec(ncas, kwargs["nelecas"], mo, mo_e)
     elif algo == "energy":
         return lambda mo, mo_e, *args: get_qps_energy(ncas, mo, mo_e)
     elif algo == "local":
-        log.eassert("nocc" in kwargs, \
-                "number of core orbitals must be specified")
-        log.eassert("PAOidx" in kwargs, \
-                "candidate PAO indices must be specified")
+        log.eassert("nocc" in kwargs, "number of core orbitals must be specified")
+        log.eassert("PAOidx" in kwargs, "candidate PAO indices must be specified")
         nPAO = ncas - kwargs["nocc"]
-        log.eassert(len(kwargs["PAOidx"]) >= nPAO, \
-                "number of PAO cannot be larger than all PAO candidates")
-        return lambda mo, mo_e, nImp, Ham: get_qps_local(ncas, \
-                nPAO, kwargs["PAOidx"], mo, mo_e, nImp, Ham)
+        log.eassert(len(kwargs["PAOidx"]) >= nPAO, "number of PAO cannot be larger than all PAO candidates")
+        return lambda mo, mo_e, nImp, Ham: get_qps_local(ncas, nPAO, kwargs["PAOidx"], mo, mo_e, nImp, Ham)
     else:
         raise ValueError
 
@@ -79,8 +72,8 @@ def proj_virtual(mo, idx, n):
     u, s, _ = la.svd(p)
     log.debug(1, "projection singular values:\n%s" % s)
     if n < nao:
-        log.warning("using incomplete projected virtual space is an experimental feature," \
-                " use with caution")
+        log.warning("using incomplete projected virtual space is an experimental feature,"
+                    " use with caution")
         log.debug(0, "current projected virtual space cut-off = %10.4f", s[n])
     else:
         log.debug(0, "no cut-off in projected virtual space")
@@ -115,20 +108,19 @@ def get_qps_local(ncas, nPAO, PAOidx, mo, mo_energy, nImp, ImpHam):
 
     # now extract coefficents
     cAO, cAV = mo[:, AO], mo[:, AV]
-    cBO, cBV = np.vstack((mo[norb:, BO], mo[:norb, BO])), \
-            np.vstack((mo[norb:, BV], mo[:norb, BV]))
+    cBO, cBV = np.vstack((mo[norb:, BO], mo[:norb, BO])), np.vstack((mo[norb:, BV], mo[:norb, BV]))
 
     # transform 2eInt (ccdd part only) to occupied basis
     assert ImpHam.H2["cccd"] is None or la.norm(ImpHam.H2["cccd"]) < 1e-10
     assert ImpHam.H2["cccc"] is None or la.norm(ImpHam.H2["cccc"]) < 1e-10
     if settings.save_mem:
-        w = transform_local_qp(cAO[:nImp], cBO[:nImp], \
-                cAO[norb:norb+nImp], cBO[norb:norb+nImp], ImpHam.H2["ccdd"][0])
+        w = transform_local_qp(cAO[:nImp], cBO[:nImp], 
+                               cAO[norb:norb+nImp], cBO[norb:norb+nImp], ImpHam.H2["ccdd"][0])
     else:
         assert la.norm(ImpHam.H2["ccdd"][0] - ImpHam.H2["ccdd"][2]) < 1e-10
         assert la.norm(ImpHam.H2["ccdd"][1] - ImpHam.H2["ccdd"][2]) < 1e-10
-        w = transform_local_qp(cAO[:norb], cBO[:norb], \
-                cAO[norb:], cBO[norb:], ImpHam.H2["ccdd"][2])
+        w = transform_local_qp(cAO[:norb], cBO[:norb], 
+                               cAO[norb:], cBO[norb:], ImpHam.H2["ccdd"][2])
     # now localize the occupied space
     locA, locB = Localizer(w[0]), Localizer(w[1])
     locA.optimize()
@@ -142,12 +134,9 @@ def get_qps_local(ncas, nPAO, PAOidx, mo, mo_energy, nImp, ImpHam):
     # weight on impurity
     wA = np.sum(cAOloc[:nImp]**2, 0) + np.sum(cAOloc[norb:norb+nImp]**2, 0)
     wB = np.sum(cBOloc[:nImp]**2, 0) + np.sum(cBOloc[norb:norb+nImp]**2, 0)
-    ordA, ordB = np.argsort(wA, kind='mergesort'), \
-            np.argsort(wB, kind='mergesort')
-    log.debug(1, "Spin A:\nCoulomb repulsion: \n%s\nImpurity weight: \n%s", \
-            fA[ordA], wA[ordA])
-    log.debug(1, "Spin B:\nCoulomb repulsion: \n%s\nImpurity weight: \n%s", \
-            fB[ordB], wB[ordB])
+    ordA, ordB = np.argsort(wA, kind='mergesort'), np.argsort(wB, kind='mergesort')
+    log.debug(1, "Spin A:\nCoulomb repulsion: \n%s\nImpurity weight: \n%s", fA[ordA], wA[ordA])
+    log.debug(1, "Spin B:\nCoulomb repulsion: \n%s\nImpurity weight: \n%s", fB[ordB], wB[ordB])
     # take out core and cas from occupied set
     coreOA, casOA = cAOloc[:, ordA[:len(AO)-nelecas]], cAOloc[:, ordA[len(AO)-nelecas:]]
     coreOB, casOB = cBOloc[:, ordB[:len(BO)-nelecas]], cBOloc[:, ordB[len(BO)-nelecas:]]
@@ -155,7 +144,7 @@ def get_qps_local(ncas, nPAO, PAOidx, mo, mo_energy, nImp, ImpHam):
     coreVA, casVA = proj_virtual(cAV, PAOidx, nPAO)
     coreVB, casVB = proj_virtual(cBV, PAOidx, nPAO)
     core = np.asarray([
-        np.hstack((coreOA, np.vstack((coreVB[norb:], coreVB[:norb])))), \
+        np.hstack((coreOA, np.vstack((coreVB[norb:], coreVB[:norb])))), 
         np.hstack((coreOB, np.vstack((coreVA[norb:], coreVA[:norb]))))
     ])
     cas = np.asarray([
@@ -233,8 +222,7 @@ def get_qps_nelec(ncas, nelec, mo, mo_energy):
     coreB = np.vstack((
         mo[norb:, coreB_idx],
         mo[:norb, coreB_idx]))
-    return np.asarray([coreA, coreB]), np.asarray([casA, casB]), \
-            casinfo
+    return np.asarray([coreA, coreB]), np.asarray([casA, casB]), casinfo
 
 def get_qps_energy(ncas, mo, mo_energy):
     """
@@ -243,11 +231,11 @@ def get_qps_energy(ncas, mo, mo_energy):
     """
     norb = mo_energy.size // 2
     log.info("ncore = %d ncas = %d", norb-ncas, ncas)
-    log.info("core orbital energy cut-off = %20.12f", \
-            max(mo_energy[norb-ncas-1], mo_energy[norb+ncas]) \
-            if ncas < norb else float("Inf"))
-    log.info("active orbital energy cut-off = %20.12f", \
-            max(mo_energy[norb-ncas], mo_energy[norb+ncas-1]))
+    log.info("core orbital energy cut-off = %20.12f", 
+             max(mo_energy[norb-ncas-1], mo_energy[norb+ncas]) 
+             if ncas < norb else float("Inf"))
+    log.info("active orbital energy cut-off = %20.12f", 
+             max(mo_energy[norb-ncas], mo_energy[norb+ncas-1]))
 
     # generate core
     core = np.empty((2, norb*2, norb - ncas))
@@ -273,24 +261,19 @@ def get_qps_energy(ncas, mo, mo_energy):
             cas[0]['p'].append(cas_temp[:, idx])
     for idx in order[:ncas]: # beta
         if cas_energy[idx] < -1e-4:
-            cas[1]['v'].append(cas_temp[list(range(norb, norb*2)) + \
-                    list(range(norb)), idx])
+            cas[1]['v'].append(cas_temp[list(range(norb, norb*2)) + list(range(norb)), idx])
         elif cas_energy[idx] > 1e-4:
-            cas[1]['o'].append(cas_temp[list(range(norb, norb*2)) + \
-                    list(range(norb)), idx])
+            cas[1]['o'].append(cas_temp[list(range(norb, norb*2)) + list(range(norb)), idx])
         else:
-            cas[1]['p'].append(cas_temp[list(range(norb, norb*2)) + \
-                    list(range(norb)), idx])
-    casinfo = [(len(cas[i]['o']), len(cas[i]['p']), len(cas[i]['v'])) \
-               for i in range(2)]
-    cas = np.asarray([(np.asarray(cas[i]['o'] + cas[i]['p'] + cas[i]['v']).T) \
-            for i in range(2)])
+            cas[1]['p'].append(cas_temp[list(range(norb, norb*2)) + list(range(norb)), idx])
+    casinfo = [(len(cas[i]['o']), len(cas[i]['p']), len(cas[i]['v'])) for i in range(2)]
+    cas = np.asarray([(np.asarray(cas[i]['o'] + cas[i]['p'] + cas[i]['v']).T) for i in range(2)])
 
     for s in range(2):
         log.info("In CAS (spin %d):\n"
-                "Occupied (e<mu): %d\n""Virtual  (e>mu): %d\n"
-                "Partial Occupied: %d\n", s, casinfo[s][0], \
-                casinfo[s][2], casinfo[s][1])
+                 "Occupied (e<mu): %d\n""Virtual  (e>mu): %d\n"
+                 "Partial Occupied: %d\n", s, casinfo[s][0], 
+                 casinfo[s][2], casinfo[s][1])
     return core, np.asarray(cas), casinfo
 
 def buildCASHamiltonian(Ham, core, cas, Mu=None):
@@ -298,8 +281,7 @@ def buildCASHamiltonian(Ham, core, cas, Mu=None):
     Construct CAS Hamiltonian based on Ham, core and cas orbitals.
     """
     norb = Ham.norb
-    cVA, cVB, cUA, cUB = core[0, :norb], core[1, :norb], \
-            core[1, norb:], core[0, norb:]
+    cVA, cVB, cUA, cUB = core[0, :norb], core[1, :norb], core[1, norb:], core[0, norb:]
     cRhoA = np.dot(cVA, cVA.T)
     cRhoB = np.dot(cVB, cVB.T)
     cKappaBA = np.dot(cUB, cVA.T)
@@ -397,10 +379,9 @@ def split_localize(orbs, info, Ham, basis = None):
         localbasis1 = np.sqrt(localbasis[1,:,:nscsites]**2 + localbasis[1,:,nscsites:]**2)
         ovlp = np.tensordot(localbasis0, localbasis1, ((0,1), (0,1)))
         ovlp_sq = ovlp ** 2
-        cost_matrix = make_cost_matrix(ovlp_sq, lambda cost: 1. - cost)
-        m = Munkres()
-        indices = m.compute(cost_matrix)
-        indices = sorted(indices, key=lambda idx: idx[0])
+        
+        idx1, idx2 = opt.linear_sum_assignment(1.0 - ovlp_sq)
+        indices = list(zip(idx1, idx2))
         vals = [ovlp_sq[idx] for idx in indices]
         log.debug(1, "Quasiparticle pairs and their overlap:")
         for i in range(norbs):
@@ -430,14 +411,12 @@ def momopt(old_basis, new_basis):
     # use Hungarian algorithm to match the basis
     ovlp = 0.5 * np.tensordot(np.abs(old_basis1), np.abs(new_basis1), ((0,1,2), (0,1,2)))
     ovlp_sq = ovlp ** 2
-    cost_matrix = make_cost_matrix(ovlp_sq, lambda cost: 1. - cost)
-
-    m = Munkres()
-    indices = m.compute(cost_matrix)
-    indices = sorted(indices, key = lambda idx: idx[0])
+    
+    idx1, idx2 = opt.linear_sum_assignment(1.0 - ovlp_sq)
+    indices = list(zip(idx1, idx2))
     vals = [ovlp_sq[idx] for idx in indices]
-    log.info("MOM reorder quality: max %5.2f min %5.2f ave %5.2f", \
-            np.max(vals), np.min(vals), np.average(vals))
+    log.info("MOM reorder quality: max %5.2f min %5.2f ave %5.2f", 
+             np.max(vals), np.min(vals), np.average(vals))
 
     reorder = [idx[1] for idx in indices]
     return reorder, np.average(vals)
@@ -469,8 +448,8 @@ def reorder(order, Ham, orbs, rot = None):
         return Ham, orbs
 
 class BCSDmrgCI(object):
-    def __init__(self, ncas, splitloc=False, cisolver=None, \
-            mom_reorder=True, algo="nelec", tmpDir="./tmp", **kwargs):
+    def __init__(self, ncas, splitloc=False, cisolver=None, mom_reorder=True,
+                 algo="nelec", tmpDir="./tmp", **kwargs):
         """
         BCS DMRG-CI solver.
 
@@ -484,16 +463,16 @@ class BCSDmrgCI(object):
 
         self.ncas = ncas
         self.splitloc = splitloc
-        log.eassert(cisolver is not None, "No default ci solver is available" \
-                " with CASCI, you have to use Block")
+        log.eassert(cisolver is not None, "No default ci solver is available"
+                    " with CASCI, you have to use Block")
         self.cisolver = cisolver
         self.scfsolver = scf.SCF()
 
         # reorder scheme for restart block calculations
         if mom_reorder:
             if block.Block.reorder:
-                log.warning("Using maximal overlap method (MOM) to reorder localized "\
-                        "orbitals, turning off Block reorder option")
+                log.warning("Using maximal overlap method (MOM) to reorder localized "
+                            "orbitals, turning off Block reorder option")
                 block.Block.reorder = False
 
         self.mom_reorder = mom_reorder
@@ -502,7 +481,7 @@ class BCSDmrgCI(object):
         self.core = None
         self.tmpDir = tmpDir
 
-    def run(self, Ham, ci_args={}, guess=None, basis=None, similar=False, \
+    def run(self, Ham, ci_args={}, guess=None, basis=None, similar=False, 
             scf=True, Mu=None):
         # ci_args is a list or dict for ci solver, or None
         if scf:
@@ -514,8 +493,7 @@ class BCSDmrgCI(object):
             GRhoHFB = np.dot(mo[:, :nmodes], mo[:, :nmodes].T)
             nImp = basis.shape[-2] // 2
             nbasis = basis.shape[-1]
-            nA_HFB, nB_HFB = np.sum(np.diag(GRhoHFB)[:nImp]), \
-                    np.sum(1. - np.diag(GRhoHFB)[nbasis:nbasis+nImp])
+            nA_HFB, nB_HFB = np.sum(np.diag(GRhoHFB)[:nImp]), np.sum(1. - np.diag(GRhoHFB)[nbasis:nbasis+nImp])
             log.info("nelec (HFB) = %20.12f" % (nA_HFB + nB_HFB))
             core, cas, casinfo = self.get_qps(mo, mo_energy, basis.shape[-2] // 2, Ham)
         else:
@@ -527,14 +505,13 @@ class BCSDmrgCI(object):
             casHam, cas, _ = split_localize(cas, casinfo, casHam, basis=basis)
 
         if self.mom_reorder:
-            log.eassert(basis is not None, \
-                    "maximum overlap method (MOM) requires embedding basis")
+            log.eassert(basis is not None, "maximum overlap method (MOM) requires embedding basis")
             if self.localized_cas is None:
                 order = gaopt(casHam, tmp = self.tmpDir)
             else:
                 # define cas_basis
-                cas_basis = basisToSpin(np.tensordot(basisToCanonical(basis), \
-                        basisToCanonical(cas), (2,0)))
+                cas_basis = basisToSpin(np.tensordot(basisToCanonical(basis), 
+                                        basisToCanonical(cas), (2,0)))
                 # cas_basis and self.localized_cas are both in
                 # atomic representation now
                 order, q = momopt(self.localized_cas, cas_basis)
@@ -548,8 +525,8 @@ class BCSDmrgCI(object):
             # reorder casHam and cas
             casHam, cas = reorder(order, casHam, cas)
             # store cas in atomic basis
-            self.localized_cas = basisToSpin(np.tensordot(basisToCanonical(basis), \
-                        basisToCanonical(cas), (2,0)))
+            self.localized_cas = basisToSpin(np.tensordot(basisToCanonical(basis), 
+                                             basisToCanonical(cas), (2,0)))
 
         # save cas orbital and core for interacting bath
         self.cas = cas 
@@ -574,8 +551,7 @@ class BCSDmrgCI(object):
         """
         # ci_args is a list or dict for ci solver, or None
         spin = Ham.H1["cd"].shape[0]
-        log.eassert(spin == 2, \
-                "spin-restricted CASCI solver is not implemented")
+        log.eassert(spin == 2, "spin-restricted CASCI solver is not implemented")
         core = self.core
         cas = self.cas
         #coreRho = np.asarray([np.dot(core[0], core[0].T), \

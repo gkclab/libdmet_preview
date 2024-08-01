@@ -22,6 +22,7 @@ from pyscf.lib import logger
 from pyscf.scf import hf
 from pyscf.lo import edmiston
 from pyscf.soscf import ciah
+from pyscf.tools import mo_mapping
 
 from libdmet.lo import scdm
 from libdmet.utils import logger as log
@@ -92,23 +93,25 @@ def kernel(localizer, mo_coeff=None, callback=None, verbose=None):
              (imacro+1)*2, tot_kf+imacro+1, tot_hop)
 # Sort the localized orbitals, to make each localized orbitals as close as
 # possible to the corresponding input orbitals
-    # ZHC NOTE I think this map should be commented out
-    #sorted_idx = mo_mapping.mo_1to1map(u0)
-    #localizer.mo_coeff = lib.dot(localizer.mo_coeff, u0[:,sorted_idx])
-    localizer.mo_coeff = lib.dot(localizer.mo_coeff, u0)
+    sorted_idx = mo_mapping.mo_1to1map(u0)
+    localizer.mo_coeff = lib.dot(localizer.mo_coeff, u0[:,sorted_idx])
     return localizer.mo_coeff
 
 class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
     """
     ER localization with CIAH newton minimizer.
     """
-    def __init__(self, mol=None, mo_coeff=None, eri=None, jk_func=None, \
-            ovlp=None):
+    def __init__(self, mol=None, mo_coeff=None, eri=None, jk_func=None, 
+                 ovlp=None):
         """
         Support customized eri and jk_func.
         jk_func should take two arguments dm and eri.
         """
-        ciah.CIAHOptimizer.__init__(self)
+        try:
+            from pyscf.soscf.ciah import CIAHOptimizerMixin
+        except ImportError or AttributeError:
+            from pyscf.soscf.ciah import CIAHOptimizer as CIAHOptimizerMixin
+        CIAHOptimizerMixin.__init__(self)
         
         self.mo_coeff = np.array(mo_coeff, copy=True)
         nao, nmo = self.mo_coeff.shape
@@ -182,8 +185,8 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
             u0 = boys.atomic_init_guess(self.mol, self.mo_coeff)
         elif isinstance(key, str) and key.lower() == 'scdm':
             log.info("Using SCDM orbitals (mol) as ER initial guess.")
-            u0 = scdm.scdm_mol(self.mol, self.mo_coeff, \
-                    return_C_mo_lo=True)[1][0]
+            u0 = scdm.scdm_mol(self.mol, self.mo_coeff, 
+                               return_C_mo_lo=True)[1][0]
         else:
             log.warn("Using identity as ER initial guess.")
             u0 = np.eye(nmo)
@@ -193,8 +196,8 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
             u_noise = u0.dot(self.extract_rotation(dr))
             u0 = u0.dot(u_noise)
         if nmo > 2:
-            log.info("Init cost func: %.13f, |g|: %.5e", self.cost_function(u0), \
-                    la.norm(self.get_grad(u0)))
+            log.info("Init cost func: %.13f, |g|: %.5e", self.cost_function(u0), 
+                     la.norm(self.get_grad(u0)))
         else:
             log.info("Init cost func: %.13f, |g|: 0.0", self.cost_function(u0))
 
@@ -204,8 +207,8 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
 
 ER = Edmiston = EdmistonRuedenberg
 
-def ER_model(mo_coeff, eri, jk_func=None, num_rand=5, noise=1.0, guess=None, \
-        conv_tol=1e-10):
+def ER_model(mo_coeff, eri, jk_func=None, num_rand=5, noise=1.0, guess=None, 
+             conv_tol=1e-10):
     """
     ER localization wrapper for model Hamiltonian.
     """
@@ -286,8 +289,8 @@ class Localizer(object):
         delta = np.asarray([[cos(theta)-1, sin(theta)],[-sin(theta), cos(theta)-1]])
         # four index part O(1)
         g4 = self.Int2e[np.ix_([i, j],[i, j],[i, j],[i, j])]
-        g4 = np.einsum("pi, qj, rk, sl, ijkl -> pqrs", \
-                delta, delta, delta, delta, g4, optimize=True)
+        g4 = np.einsum("pi, qj, rk, sl, ijkl -> pqrs", 
+                       delta, delta, delta, delta, g4, optimize=True)
         # three index part O(n)
         g3_1 = self.Int2e[np.ix_(range(self.norbs), [i, j], [i, j], [i, j])]
         g3_1 = np.einsum("qj, rk, sl, pjkl -> pqrs", delta, delta, delta, g3_1, optimize=True)
@@ -382,8 +385,7 @@ class Localizer(object):
         return get_theta()
 
     def getL(self):
-        #return np.sum([self.Int2e[i, i, i, i] for i in range(self.norbs)])
-        return np.einsum('iiii ->', self.Int2e)
+        return np.einsum('iiii ->', self.Int2e, optimize=True)
 
     def optimize(self, thr=1e-7, MaxIter=50000):
         r"""
@@ -403,8 +405,8 @@ class Localizer(object):
             sweep.append((i, j) + self.predictor(i, j))
         sweep.sort(key = lambda x: x[3])
         i, j, theta, dL = sweep[-1]
-        log.debug(1, "%4d %12.6g %12.6g %3d %3d  %10.6g", \
-                Iter, self.getL(), dL, i, j, theta/pi)
+        log.debug(1, "%4d %12.6g %12.6g %3d %3d  %10.6g", 
+                  Iter, self.getL(), dL, i, j, theta/pi)
         while dL > thr and Iter < MaxIter:
             self.transformInt(i, j, theta)
             self.transformCoef(i, j, theta)
@@ -414,8 +416,13 @@ class Localizer(object):
                 sweep.append((i, j) + self.predictor(i, j))
             sweep.sort(key = lambda x: x[3])
             i, j, theta, dL = sweep[-1]
-            log.debug(1, "%4d %12.6g %12.6g %3d %3d  %10.6g", \
-                    Iter, self.getL(), dL, i, j, theta/pi)
+            log.debug(1, "%4d %12.6g %12.6g %3d %3d  %10.6g", 
+                      Iter, self.getL(), dL, i, j, theta/pi)
+        
+        # mapping to original orbitals
+#        sorted_idx = mo_mapping.mo_1to1map(self.coefs.T)
+#        self.coefs = self.coefs[sorted_idx]
+        
         log.info("Localization converged after %4d iterations", Iter)
         log.info("Cost function: init %12.6g   final %12.6g", initL, self.getL())
 

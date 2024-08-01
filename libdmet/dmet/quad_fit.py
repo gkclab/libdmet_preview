@@ -150,7 +150,7 @@ def quad_fit(mu, dnelecs, tol=1e-12):
                       "[%15.6f, %15.6f] \nroots: %s", left, right, roots)
             return 0, False
 
-def has_duplicate(dmu, mus, tol=1e-6):
+def has_duplicate(dmu, mus, tol=1e-7):
     dmus_abs = np.abs(mus - dmu)
     return (dmus_abs < tol).any()
 
@@ -204,9 +204,9 @@ def quad_fit_mu(mus, nelecs, filling, step):
         slope, intercept, r_value, p_value, std_err = stats.linregress(dnelec_sub, mus_sub)
         dmu = intercept
         if violate_previous_mu(dmu, mus, target, nelecs):
-            log.info("predicted mu from linear regression also violates. use finite step.")
-            step = min(step, 1e-3)
-            dmu = math.copysign(step, (target - nelecs[-1])) +  mus[-1]
+            log.info("predicted mu from linear regression also violates. use finite step (%10.5g).",
+                     max(step, 1e-3))
+            dmu = math.copysign(max(step, 1e-3), (target - nelecs[-1])) +  mus[-1]
 
     if abs(dmu - mus[-1]) > step:
         log.info("extrapolation dMu %20.12f more than trust step %20.12f", dmu - mus[-1], step)

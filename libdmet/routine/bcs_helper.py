@@ -1,9 +1,12 @@
 #! /usr/bin/env python
 
+from functools import reduce
+import itertools as it
+
 import numpy as np
 import scipy.linalg as la
-import itertools as it
-from functools import reduce
+from scipy.optimize import brentq
+
 from libdmet.utils import logger as log
 from libdmet.utils.misc import mdot
 from libdmet.settings import IMAG_DISCARD_TOL 
@@ -66,7 +69,7 @@ def basisToSpin(basis):
             basis[...,nsites:,nbasis:], basis[...,:nsites,nbasis:]
     return newbasis
 
-def mono_fit(fn, y0, x0, thr, increase=True):
+def mono_fit(fn, y0, x0, thr, increase=True, dx=1.0, verbose=True):
     if not increase:
         return mono_fit(lambda x: -fn(x), -y0, x0, thr, True)
 
@@ -74,11 +77,13 @@ def mono_fit(fn, y0, x0, thr, increase=True):
     @counted
     def evaluate(xx):
         yy = fn(xx)
-        log.debug(1, "Iter %2d, x = %20.12f, f(x) = %20.12f", \
-                evaluate.count-1, xx, yy)
+        if verbose:
+            log.debug(1, "Iter %2d, x = %20.12f, f(x) = %20.12f", \
+                    evaluate.count-1, xx, yy)
         return yy
-
-    log.debug(0, "target f(x) = %20.12f", y0)
+    
+    if verbose:
+        log.debug(0, "target f(x) = %20.12f", y0)
     # first section search
     x = x0
     y = evaluate(x)
@@ -86,9 +91,7 @@ def mono_fit(fn, y0, x0, thr, increase=True):
         return x
 
     if y > y0:
-        dx = -1.
-    else:
-        dx = 1.
+        dx = -dx
 
     while 1:
         x1 = x + dx
@@ -124,6 +127,51 @@ def mono_fit(fn, y0, x0, thr, increase=True):
             sec_y = [y1, sec_y[1]]
     
     return 0.5 * (sec_x[0] + sec_x[1])
+
+def mono_fit_2(fn, y0, x0, thr, increase=True, dx=1.0, verbose=True, maxiter=1000):
+    if not increase:
+        return mono_fit(lambda x: -fn(x), -y0, x0, thr, True)
+    
+    if verbose:
+        log.debug(0, "target f(x) = %20.12f", y0)
+    x = x0
+    y = fn(x)
+    if abs(y - y0) < thr:
+        return x
+
+    if y > y0:
+        dx = -dx
+
+    for i in range(maxiter * 50):
+        x1 = x + dx
+        y1 = fn(x1)
+        if abs(y1 - y0) < thr:
+            return x1
+        if (y-y0) * (y1-y0) < 0:
+            break
+        else:
+            x = x1
+            y = y1
+    else:
+        raise RuntimeError("Cannot find the section.")
+
+    if x < x1:
+        sec_x = [x, x1]
+    else:
+        sec_x = [x1, x]
+    
+    def error(xx):
+        yy = fn(xx)
+        return yy - y0
+    
+    res = brentq(error, sec_x[0], sec_x[1], xtol=thr, rtol=thr,
+                 maxiter=maxiter, full_output=True, disp=False)
+    mu = res[0]
+    if not res[1].converged:
+        log.warn("mono_fit_2: brentq fails. x: %s, y: %s", mu, error(mu))
+    if verbose:
+        log.debug(2, "mono_fit_2: brentq res:\n%s", res[1])
+    return mu
 
 def separate_basis(basis):
     nscsites = basis.shape[2] // 2

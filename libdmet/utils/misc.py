@@ -155,7 +155,7 @@ def reshape_list_list_array(lst2, lst1_shape, lst2_shape):
 def search_idx1d(a, b):
     """
     For each element in a, find its (first) index in b.
-    E.g.,
+    e.g.,
     a = [1, 5, 2, 3, 6, 7]
     b = [9, 2, 3, 5, 1, 4, 7, 8, 0, 1, 1, 2, 6]
     would return 
@@ -374,7 +374,7 @@ def take_eri(eri, list1, list2, list3, list4, compact=False):
           or 8-fold symmetrized ERI, (nao_pair_pair,) 
         list1, list2, list3, list4: list of indices, can be negative.
         compact: only return the compact form of eri, only valid when lists
-                 obey the permutation symmetry (only list1 is used)
+                 obey the permutation symmetry (only list1, list3 are used)
 
     Returns:
         res: (len(list1), len(list2), len(list3), len(list4)) if not compact
@@ -392,8 +392,8 @@ def take_eri(eri, list1, list2, list3, list4, compact=False):
         if compact:
             res = eri[np.ix_(idx1, idx2)]
         else:
-            res = eri[np.ix_(idx1, idx2)].reshape(len(list1), len(list2), \
-                    len(list3), len(list4))
+            res = eri[np.ix_(idx1, idx2)].reshape(len(list1), len(list2), 
+                                                  len(list3), len(list4))
     elif eri.ndim == 1: # 8-fold
         nao = int(np.sqrt(int(np.sqrt(eri.shape[-1] * 2)) * 2))
         list1 = np.asarray(list1) % nao
@@ -405,8 +405,8 @@ def take_eri(eri, list1, list2, list3, list4, compact=False):
         if compact:
             res = eri[tril_take_idx(idx1, idx2, compact=compact)]
         else:
-            res = eri[tril_take_idx(idx1, idx2)].reshape(len(list1), len(list2), \
-                    len(list3), len(list4))
+            res = eri[tril_take_idx(idx1, idx2)].reshape(len(list1), len(list2), 
+                                                         len(list3), len(list4))
     else: # 1-fold
         res = eri[np.ix_(list1, list2, list3, list4)]
     return res
@@ -459,7 +459,7 @@ def untile_eri(eri):
         eri_bb = eri[nao:, nao:, nao:, nao:]
         eri_ab = eri[:nao, :nao, nao:, nao:]
     else:
-        raise ValueError("eri shape (%s)  is not supported" % (str(eri.shape)))
+        raise ValueError("eri shape (%s) is not supported" % (str(eri.shape)))
     return eri_aa, eri_bb, eri_ab
 
 def cart2sph(x, y, z):
@@ -516,12 +516,10 @@ def get_cart_prod_idx(cart_prod, mesh, order='C'):
     cart_prod = np.asarray(cart_prod)
     if order == 'C':
         mesh = np.cumprod(mesh[::-1])[::-1]
-        res = (np.dot(cart_prod[..., :-1], mesh[1:]) + cart_prod[..., -1])\
-                .astype(int)
+        res = (np.dot(cart_prod[..., :-1], mesh[1:]) + cart_prod[..., -1]).astype(int)
     else:
         mesh = np.cumprod(mesh)
-        res = (np.dot(cart_prod[..., 1:], mesh[:-1]) + cart_prod[..., 0])\
-                .astype(int)
+        res = (np.dot(cart_prod[..., 1:], mesh[:-1]) + cart_prod[..., 0]).astype(int)
     return res
 
 # ******************************************************************

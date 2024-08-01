@@ -22,6 +22,7 @@ import itertools as it
 
 import numpy as np
 import scipy.linalg as la
+from scipy import optimize as opt
 
 from pyscf import ao2mo
 
@@ -31,7 +32,6 @@ from libdmet.system import integral
 from libdmet.lo import scdm
 from libdmet.lo import edmiston
 from libdmet.basis_transform.make_basis import find_closest_mo
-from libdmet.utils.munkres import Munkres, make_cost_matrix
 from libdmet.utils.misc import mdot, max_abs, grep, eri_idx, take_eri, Iterable
 from libdmet.utils import logger as log
 
@@ -64,7 +64,7 @@ def check_sanity_cas(norbs, nelec, ncas, nelecas):
     log.eassert(nelecas <= nelec, "nelecas:  %s should <= nelec: %s", nelecas, nelec)
     log.eassert(nelecas <= ncas,  "nelecas:  %s should <= ncas: %s", nelecas, ncas)
 
-def cas_from_rdm1(rdm1, ncas, nelecas, nelec, order=None):
+def cas_from_rdm1(rdm1, ncas, nelecas, nelec, order=None, tol=0.3):
     """
     Define core, cas, virt and casinfo from rdm1.
     NOTE: this is for one spin sector.
@@ -99,10 +99,10 @@ def cas_from_rdm1(rdm1, ncas, nelecas, nelec, order=None):
     ncore = nelec - nelecas
     nvirt = norbs - ncore - ncas
     log.info("ncore = %d nvirt = %d ncas = %d", ncore, nvirt, ncas)
-    log.info("core orbital occupation cut-off = %20.12f", \
-            natocc[ncore-1] if ncore > 0 else 1)
-    log.info("virt orbital occupation cut-off = %20.12f", \
-            natocc[-nvirt] if nvirt > 0 else 0)
+    log.info("core orbital occupation cut-off = %20.12f", 
+             natocc[ncore-1] if ncore > 0 else 1)
+    log.info("virt orbital occupation cut-off = %20.12f", 
+             natocc[-nvirt] if nvirt > 0 else 0)
     log.eassert(ncore >= 0, "ncore: %s should >= 0", ncore)
     log.eassert(nvirt >= 0, "nvirt: %s should >= 0", nvirt)
     
@@ -113,12 +113,12 @@ def cas_from_rdm1(rdm1, ncas, nelecas, nelec, order=None):
     # further partition the cas to cas_core, cas_partial, cas_virt
     # casinfo
     casocc = natocc[ncore:norbs-nvirt]
-    _nvirt = np.sum(casocc < 0.3)
-    _ncore = np.sum(casocc > 0.7)
-    _npart = np.sum((casocc >= 0.3) * (casocc <= 0.7))
+    _nvirt = np.sum(casocc < tol)
+    _ncore = np.sum(casocc > (1.0 - tol))
+    _npart = np.sum((casocc >= tol) * (casocc <= (1.0 - tol)))
     log.info("In CAS:\n"
-            "Occupied (n > 0.7): %d\n""Virtual  (n < 0.3): %d\n"
-            "Partial Occupied: %d\n", _ncore, _nvirt, _npart)
+             "Occupied (n > %.2g): %d\n""Virtual  (n < %.2g): %d\n"
+             "Partial Occupied: %d\n", (1.0 - tol), _ncore, tol, _nvirt, _npart)
     return core, cas, virt, (_ncore, _npart, _nvirt)
 
 cas_from_1pdm = cas_from_rdm1
@@ -148,10 +148,10 @@ def cas_from_energy(mo_coeff, mo_energy, ncas, nelecas, nelec):
     ncore = nelec - nelecas
     nvirt = norbs - ncore - ncas
     log.info("ncore = %d nvirt = %d ncas = %d", ncore, nvirt, ncas)
-    log.info("core orbital energy cut-off = %20.12f", \
-            mo_energy[ncore-1] if ncore > 0 else float("Inf"))
-    log.info("virt orbital eneryg cut-off = %20.12f", \
-            mo_energy[-nvirt] if nvirt > 0 else -float("Inf"))
+    log.info("core orbital energy cut-off = %20.12f",
+             mo_energy[ncore-1] if ncore > 0 else float("Inf"))
+    log.info("virt orbital eneryg cut-off = %20.12f", 
+             mo_energy[-nvirt] if nvirt > 0 else -float("Inf"))
     log.eassert(ncore >= 0, "ncore: %s should >= 0", ncore)
     log.eassert(nvirt >= 0, "nvirt: %s should >= 0", nvirt)
     
@@ -172,8 +172,8 @@ def cas_from_energy(mo_coeff, mo_energy, ncas, nelecas, nelec):
     _ncore = np.sum(casenergy < mu-1e-4)
     _npart = np.sum((casenergy >= mu-1e-4) * (casenergy <= mu+1e-4))
     log.info("In CAS:\n"
-            "Occupied (e < mu): %d\n""Virtual  (e > mu): %d\n"
-            "Partial Occupied: %d\n", _ncore, _nvirt, _npart)
+             "Occupied (e < mu): %d\n""Virtual  (e > mu): %d\n"
+             "Partial Occupied: %d\n", _ncore, _nvirt, _npart)
     return core, cas, virt, (_ncore, _npart, _nvirt)
 
 def get_orbs(casci, Ham, guess, nelec, return_rdm1=False, scf_tol=1e-12, 
@@ -215,8 +215,10 @@ def get_orbs(casci, Ham, guess, nelec, return_rdm1=False, scf_tol=1e-12,
 
     if casci.spinAverage:
         assert casci.Sz == 0
-        core, cas, virt, casinfo = cas_from_rdm1(0.5 * (rdm1[0] + rdm1[1]), \
-                casci.ncas, casci.nelecas // 2, nelec // 2, order=order[0])
+        core, cas, virt, casinfo = cas_from_rdm1(0.5 * (rdm1[0] + rdm1[1]), 
+                                                 casci.ncas,
+                                                 casci.nelecas // 2,
+                                                 nelec // 2, order=order[0])
     else:
         core    = [None for s in range(spin)]
         cas     = [None for s in range(spin)]
@@ -226,13 +228,17 @@ def get_orbs(casci, Ham, guess, nelec, return_rdm1=False, scf_tol=1e-12,
             for s in range(spin):
                 log.info("Spin %d", s)
                 if s == 0: # alpha
-                    core[s], cas[s], virt[s], casinfo[s] = cas_from_rdm1(rdm1[s], \
-                            casci.ncas, (casci.nelecas + casci.Sz) // 2, \
-                            (nelec + casci.Sz) // 2, order=order[s])
+                    core[s], cas[s], virt[s], casinfo[s] = \
+                            cas_from_rdm1(rdm1[s], casci.ncas,
+                                          (casci.nelecas + casci.Sz) // 2,
+                                          (nelec + casci.Sz) // 2,
+                                          order=order[s])
                 else: # beta
-                    core[s], cas[s], virt[s], casinfo[s] = cas_from_rdm1(rdm1[s], \
-                            casci.ncas, (casci.nelecas - casci.Sz) // 2, \
-                            (nelec - casci.Sz) // 2, order=order[s])
+                    core[s], cas[s], virt[s], casinfo[s] = \
+                            cas_from_rdm1(rdm1[s], casci.ncas, 
+                                          (casci.nelecas - casci.Sz) // 2,
+                                          (nelec - casci.Sz) // 2,
+                                          order=order[s])
         else:
             # use hartree-fock orbitals, we need orbital energy or order in this case
             mo = casci.scfsolver.get_mo()
@@ -240,13 +246,15 @@ def get_orbs(casci, Ham, guess, nelec, return_rdm1=False, scf_tol=1e-12,
             for s in range(spin):
                 log.info("Spin %d", s)
                 if s == 0: # alpha
-                    core[s], cas[s], virt[s], casinfo[s] = cas_from_energy(mo[s], \
-                            mo_energy[s], casci.ncas, \
-                            (casci.nelecas + casci.Sz) // 2, (nelec + casci.Sz) // 2)
+                    core[s], cas[s], virt[s], casinfo[s] = \
+                            cas_from_energy(mo[s], mo_energy[s], casci.ncas, 
+                                            (casci.nelecas + casci.Sz) // 2,
+                                            (nelec + casci.Sz) // 2)
                 else: # beta
-                    core[s], cas[s], virt[s], casinfo[s] = cas_from_energy(mo[s], \
-                            mo_energy[s], casci.ncas, \
-                            (casci.nelecas - casci.Sz) // 2, (nelec - casci.Sz) // 2)
+                    core[s], cas[s], virt[s], casinfo[s] = \
+                            cas_from_energy(mo[s], mo_energy[s], casci.ncas, 
+                                            (casci.nelecas - casci.Sz) // 2,
+                                            (nelec - casci.Sz) // 2)
 
         core = np.asarray(core)
         cas  = np.asarray(cas)
@@ -256,7 +264,7 @@ def get_orbs(casci, Ham, guess, nelec, return_rdm1=False, scf_tol=1e-12,
     else:
         return core, cas, virt, casinfo
 
-def buildCASHamiltonian(Ham, core, cas):
+def buildCASHamiltonian(Ham, core, cas, rdm1_core=None):
     """
     Build CAS Hamiltonian.
 
@@ -277,15 +285,16 @@ def buildCASHamiltonian(Ham, core, cas):
         if core.ndim == 2:
             core = np.asarray((core, core))
             cas  = np.asarray((cas, cas))
-        rdm1_core = np.asarray((np.dot(core[0], core[0].conj().T), \
-                                np.dot(core[1], core[1].conj().T)))
+        if rdm1_core is None: 
+            rdm1_core = np.asarray((np.dot(core[0], core[0].conj().T), 
+                                    np.dot(core[1], core[1].conj().T)))
         # core-fock
         veff = _get_veff(rdm1_core, Ham.H2["ccdd"])
         
         # zero-energy
         # note the half factor for HF energy
-        H0 = Ham.H0 + np.einsum("spq, sqp ->", (Ham.H1["cd"] + veff * 0.5), \
-                rdm1_core)
+        H0 = Ham.H0 + np.einsum("spq, sqp ->", (Ham.H1["cd"] + veff * 0.5),
+                                rdm1_core)
          
         H1 = {
             "cd": np.asarray((
@@ -294,34 +303,38 @@ def buildCASHamiltonian(Ham, core, cas):
         }
         
         H2 = {
-            "ccdd": scf.incore_transform(Ham.H2["ccdd"], \
-                    (cas, cas, cas, cas), compact=(eri_format != 's1'))
+            "ccdd": scf.incore_transform(Ham.H2["ccdd"], 
+                                         (cas, cas, cas, cas),
+                                         compact=(eri_format != 's1'))
         }
     else: # restricted
         if core.ndim == 2:
             core = core[None]
             cas = cas[None]
-        rdm1_core = np.dot(core[0], core[0].conj().T)[None] * 2.0 # spin traced
+        if rdm1_core is None:
+            rdm1_core = np.dot(core[0], core[0].conj().T)[None] * 2.0 # spin traced
         
         # veff
         veff = _get_veff(rdm1_core, Ham.H2["ccdd"])
         
         # zero-energy
-        H0 = Ham.H0 + np.einsum("pq, qp ->", Ham.H1["cd"][0] + veff[0] * 0.5, \
-                rdm1_core[0])
+        H0 = Ham.H0 + np.einsum("pq, qp ->", Ham.H1["cd"][0] + veff[0] * 0.5, 
+                                rdm1_core[0])
 
         H1 = {
             "cd": mdot(cas[0].conj().T, Ham.H1["cd"][0] + veff[0], cas[0])[None]
         }
         
         H2 = {
-            "ccdd": scf.incore_transform(Ham.H2["ccdd"][0], \
-                    (cas, cas, cas, cas), compact=(eri_format != 's1'))
+            "ccdd": scf.incore_transform(Ham.H2["ccdd"][0], 
+                                         (cas, cas, cas, cas),
+                                         compact=(eri_format != 's1'))
         }
     return integral.Integral(cas.shape[2], spin==1, False, H0, H1, H2)
 
 def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi', 
-                   guess=None, match_basis=False, tol=1e-7, return_Ham=True):
+                   guess=None, match_basis=False, match_basis_ghf=False, 
+                   tol=1e-7, return_Ham=True):
     """
     Split localization of the CAS orbitals.
     
@@ -362,8 +375,6 @@ def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi',
             else:
                 guess_occ = guess[s, :occ, :occ].copy()
             if method == 'jacobi': 
-                # ZHC FIXME now only s1 is
-                # supported for Jacobi rotation optimization
                 if guess is None:
                     #guess_occ = np.eye(occ)
                     guess_occ = scdm.scdm_model(orbs[s, :, :occ], return_C_mo_lo=True)[1][0]
@@ -382,9 +393,9 @@ def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi',
                 u_occ = localizer.coefs.T
                 localizer = None
             else: 
-                u_occ = edmiston.ER_model(mo_coeff=orbs[s, :, :occ], \
-                        eri=Ham_eo.H2["ccdd"][s], guess=guess_occ, \
-                        conv_tol=tol)[1]
+                u_occ = edmiston.ER_model(mo_coeff=orbs[s, :, :occ], 
+                                          eri=Ham_eo.H2["ccdd"][s],
+                                          guess=guess_occ, conv_tol=tol)[1]
             C_eo_lmo[s, :, :occ] = np.dot(orbs[s, :, :occ], u_occ)
             C_mo_lmo[s, :occ, :occ] = u_occ
         if virt > 0:
@@ -407,15 +418,16 @@ def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi',
                             compact=False).reshape(virt, virt, virt, virt)
                 else:
                     eri_lo = ao2mo.restore(1, eri_lo, virt)
+
                 localizer = edmiston.Localizer(eri_lo, C_mo_lo=guess_virt, copy=False)
                 eri_lo = None
                 localizer.optimize(thr=tol)
                 u_virt = localizer.coefs.T
                 localizer = None
             else:
-                u_virt = edmiston.ER_model(mo_coeff=orbs[s, :, -virt:], \
-                        eri=Ham_eo.H2["ccdd"][s], guess=guess_virt, \
-                        conv_tol=tol)[1]
+                u_virt = edmiston.ER_model(mo_coeff=orbs[s, :, -virt:], 
+                                           eri=Ham_eo.H2["ccdd"][s],
+                                           guess=guess_virt, conv_tol=tol)[1]
             C_eo_lmo[s, :, -virt:] = np.dot(orbs[s, :, -virt:], u_virt)
             C_mo_lmo[s, -virt:, -virt:] = u_virt
         if part > 0:
@@ -427,7 +439,8 @@ def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi',
             if method == 'jacobi':
                 if guess is None:
                     #guess_part = np.eye(part)
-                    guess_part = scdm.scdm_model(orbs[s, :, occ:(norbs-virt)], return_C_mo_lo=True)[1][0]
+                    guess_part = scdm.scdm_model(orbs[s, :, occ:(norbs-virt)],
+                                                 return_C_mo_lo=True)[1][0]
                 eri_lo = take_eri(Ham.H2["ccdd"][s], 
                                   range(occ, norbs-virt), range(occ, norbs-virt), 
                                   range(occ, norbs-virt), range(occ, norbs-virt), 
@@ -439,15 +452,16 @@ def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi',
                 else:
                     eri_lo = ao2mo.restore(1, eri_lo, part)
                 
-                localizer = edmiston.Localizer(eri_lo, C_mo_lo=guess_part, copy=False)
+                localizer = edmiston.Localizer(eri_lo, C_mo_lo=guess_part,
+                                               copy=False)
                 eri_lo = None
                 localizer.optimize(thr=tol)
                 u_part = localizer.coefs.T
                 localizer = None
             else: 
-                u_part = edmiston.ER_model(mo_coeff=orbs[s, :, occ:norbs-virt], \
-                        eri=Ham_eo.H2["ccdd"][s], guess=guess_part, \
-                        conv_tol=tol)[1]
+                u_part = edmiston.ER_model(mo_coeff=orbs[s, :, occ:norbs-virt],
+                                           eri=Ham_eo.H2["ccdd"][s],
+                                           guess=guess_part, conv_tol=tol)[1]
             C_eo_lmo[s, :, occ:norbs-virt] = np.dot(orbs[s,:, occ:norbs-virt], u_part)
             C_mo_lmo[s, occ:norbs-virt, occ:norbs-virt] = u_part
     
@@ -469,16 +483,15 @@ def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi',
             ])
             ovlp = np.tensordot(np.abs(localbasis[0]), np.abs(localbasis[1]), ((0,1), (0,1)))
             ovlp_sq = ovlp ** 2
-            cost_matrix = make_cost_matrix(ovlp_sq, lambda cost: 1.0 - cost)
-            m = Munkres()
-            indices = m.compute(cost_matrix)
-            indices = sorted(indices, key=lambda idx: idx[0])
+            
+            idx1, idx2 = opt.linear_sum_assignment(1.0 - ovlp_sq)
+            indices = list(zip(idx1, idx2))
             vals = [ovlp_sq[idx] for idx in indices]
             log.debug(1, "Orbital pairs and their overlap:")
             for i in range(norbs):
                 log.debug(1, "(%2d, %2d) -> %12.6f", indices[i][0], indices[i][1], vals[i])
-            log.info("Match localized orbitals: max %5.2f min %5.2f ave %5.2f", \
-                    np.max(vals), np.min(vals), np.average(vals))
+            log.info("Match localized orbitals: max %5.2f min %5.2f ave %5.2f", 
+                     np.max(vals), np.min(vals), np.average(vals))
 
             # update C_eo_lmo and C_mo_lmo
             orderb = [idx[1] for idx in indices]
@@ -500,18 +513,56 @@ def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi',
                         mdot(C_mo_lmo[1].T, Ham.H1["cd"][1], C_mo_lmo[1])
             ])}
             H2 = {
-                "ccdd": scf.incore_transform(Ham.H2["ccdd"], \
-                        (C_mo_lmo, C_mo_lmo, C_mo_lmo, C_mo_lmo), compact=(eri_format != 's1'))
+                "ccdd": scf.incore_transform(Ham.H2["ccdd"], 
+                                             (C_mo_lmo, C_mo_lmo, C_mo_lmo, C_mo_lmo),
+                                             compact=(eri_format != 's1'))
             }
     else: # restricted
+        if match_basis_ghf and basis is not None:
+            log.info("Match quasi-particle alpha and beta basis:")
+
+            local_basis = np.einsum('Rpm, mn -> Rpn', basis[0], C_eo_lmo[0],
+                                    optimize=True)
+            ncells, nso, neo = local_basis.shape
+            nlo = nso // 2
+            nocc = neo // 2
+            orb_o = local_basis[:, :, :nocc]
+            orb_v = local_basis[:, :, nocc:]
+            orb_v[:, :nlo], orb_v[:, nlo:] = orb_v[:, nlo:].copy(), orb_v[:, :nlo].copy()
+            
+            #ovlp = np.tensordot(np.abs(orb_o), np.abs(orb_v), ((0,1), (0,1)))
+            ovlp = np.tensordot(orb_o, orb_v, ((0, 1), (0, 1)))
+            ovlp_sq = ovlp ** 2
+            
+            idx1, idx2 = opt.linear_sum_assignment(1.0 - ovlp_sq)
+            indices = list(zip(idx1, idx2))
+            vals = [ovlp_sq[idx] for idx in indices]
+            log.debug(1, "Orbital pairs and their overlap:")
+            for i in range(nocc):
+                log.debug(1, "(%2d, %2d) -> %12.6f", indices[i][0],
+                          indices[i][1] + nocc, vals[i])
+            log.info("Match localized orbitals: max %5.2f min %5.2f ave %5.2f", 
+                     np.max(vals), np.min(vals), np.average(vals))
+            
+            # update C_eo_lmo and C_mo_lmo
+            # order is ab ab ab ...
+            order = []
+            for idx in indices:
+                order.extend([idx[0], idx[1] + nocc])
+
+            C_eo_lmo = C_eo_lmo[:, :, order]
+            C_mo_lmo = C_mo_lmo[:, :, order]
+            Ham.pair_idx = indices
+
         if return_Ham:
             H1 = {
                 "cd":np.asarray([
                         mdot(C_mo_lmo[0].T, Ham.H1["cd"][0], C_mo_lmo[0])
             ])}
             H2 = {
-                "ccdd": scf.incore_transform(Ham.H2["ccdd"][0], \
-                        (C_mo_lmo, C_mo_lmo, C_mo_lmo, C_mo_lmo), compact=(eri_format != 's1'))
+                "ccdd": scf.incore_transform(Ham.H2["ccdd"][0], 
+                                             (C_mo_lmo, C_mo_lmo, C_mo_lmo, C_mo_lmo),
+                                             compact=(eri_format != 's1'))
             }
     
     if return_Ham:
@@ -520,7 +571,8 @@ def split_localize(orbs, info, Ham, basis=None, Ham_eo=None, method='jacobi',
         HamLocal = None
     return HamLocal, C_eo_lmo, C_mo_lmo, C_mo_lmo_no_reorder
 
-def gaopt(Ham, tmp="./tmp", only_file=False, nproc=28):
+def gaopt(Ham, tmp="./tmp", only_file=False, nproc=1, fiedler=False,
+          select_idx=None):
     """
     Generate reorder array using genetic algorithm.
 
@@ -528,36 +580,41 @@ def gaopt(Ham, tmp="./tmp", only_file=False, nproc=28):
         Ham: integral
         tmp: the directory to generate input files and run GAOpt.
         only_file: only generate files and return K, without running GAOpt.
+        select_idx: list, selected indices to reorder.
 
     Returns:
         order array if only_file is False, else return K.
     """
     norbs = Ham.norb
     # build K matrix
+    if select_idx is None:
+        select_idx = np.arange(norbs)
+    nselect = len(select_idx)
     K = np.empty((norbs, norbs))
     Int2e = Ham.H2["ccdd"]
     spin = Int2e.shape[0]
     eri_format, spin_dim = integral.get_eri_format(Int2e, norbs)
     IDX = lambda i, j, k, l: eri_idx(i, j, k, l, norbs, eri_format) 
     if spin > 1:
-        for i, j in it.product(range(norbs), repeat=2):
+        for i, j in it.product(select_idx, repeat=2):
             K[i, j]  = abs(Int2e[0][IDX(i, j, i, j)]) * 0.5 + \
                        abs(Int2e[1][IDX(i, j, i, j)]) * 0.5 + \
                        abs(Int2e[2][IDX(i, j, i, j)])
             K[i, j] += (abs(Ham.H1["cd"][0, i, j]) + \
                         abs(Ham.H1["cd"][1, i, j])) * 1e-7
     else: # restricted case
-        for i, j in it.product(range(norbs), repeat=2):
+        for i, j in it.product(select_idx, repeat=2):
             K[i, j]  = abs(Int2e[0][IDX(i, j, i, j)])
             K[i, j] += abs(Ham.H1["cd"][0, i, j]) * 1e-7
+    K = K[np.ix_(select_idx, select_idx)]
 
     # write K matrix
     wd = mkdtemp(prefix="GAOpt", dir=tmp)
     log.debug(0, "gaopt temporary file: %s", wd)
     with open(os.path.join(wd, "Kmat"), "w") as f:
-        f.write("%d\n" % norbs)
-        for i in range(norbs):
-            for j in range(norbs):
+        f.write("%d\n" % nselect)
+        for i in range(nselect):
+            for j in range(nselect):
                 f.write(" %24.16f" % K[i, j])
             f.write("\n")
 
@@ -565,7 +622,7 @@ def gaopt(Ham, tmp="./tmp", only_file=False, nproc=28):
     with open(os.path.join(wd, "ga.conf"), "w") as f:
         f.write("maxcomm 32\n")
         f.write("maxgen 20000\n")
-        f.write("maxcell %d\n" % (norbs * 2))
+        f.write("maxcell %d\n" % (nselect * 2))
         f.write("cloning 0.90\n")
         f.write("mutation 0.10\n")
         f.write("elite 1\n")
@@ -581,16 +638,28 @@ def gaopt(Ham, tmp="./tmp", only_file=False, nproc=28):
         with open(os.path.join(wd, "output"), "w") as f:
             #if block.Block.env_slurm:
             if False:
-                log.info( " ".join([ executable, "-s", "-config", os.path.join(wd, "ga.conf"), \
-                     "-integral", os.path.join(wd, "Kmat")]))
-                sub.check_call(" ".join([ executable, "-s", "-config", os.path.join(wd, "ga.conf"), \
-                        "-integral", os.path.join(wd, "Kmat")]), stdout=f, shell=True)
+                log.info(" ".join([executable, "-s", "-config", 
+                                   os.path.join(wd, "ga.conf"), 
+                                   "-integral", os.path.join(wd, "Kmat")]))
+                sub.check_call(" ".join([executable, "-s", "-config",
+                                         os.path.join(wd, "ga.conf"),
+                                         "-integral",
+                                         os.path.join(wd, "Kmat")]), 
+                               stdout=f, shell=True)
             else:
-                sub.check_call(["mpirun", "-np", "%d"%(nproc), executable, 
-                                "-s", "-config", os.path.join(wd, "ga.conf"), 
-                                "-integral", os.path.join(wd, "Kmat")], stdout=f)
+                if fiedler:
+                    sub.check_call(["mpirun", "-np", "%d"%(nproc), executable, 
+                                    "-s", "-fiedler", 
+                                    "-integral", os.path.join(wd, "Kmat")], 
+                                   stdout=f)
+                else:
+                    sub.check_call(["mpirun", "-np", "%d"%(nproc), executable, 
+                                    "-s", "-config", os.path.join(wd, "ga.conf"), 
+                                    "-integral", os.path.join(wd, "Kmat")], 
+                                   stdout=f)
         
-        result = grep("DMRG REORDER FORMAT", os.path.join(wd, "output"), A=1).split("\n")[1]
+        result = grep("DMRG REORDER FORMAT", os.path.join(wd, "output"),
+                      A=1).split("\n")[1]
         log.debug(1, "gaopt result: %s", result)
         reorder = [int(i)-1 for i in result.split(',')]
         #sub.check_call(["rm", "-rf", wd])
@@ -614,17 +683,15 @@ def momopt(old_basis, new_basis):
     """
     assert old_basis.ndim == 4
     factor = 1.0 / old_basis.shape[0]
-    ovlp = factor * np.tensordot(np.abs(old_basis), np.abs(new_basis), \
-            ((0, 1, 2), (0, 1, 2)))
+    ovlp = factor * np.tensordot(np.abs(old_basis), np.abs(new_basis), 
+                                 ((0, 1, 2), (0, 1, 2)))
     ovlp_sq = ovlp ** 2
-    cost_matrix = make_cost_matrix(ovlp_sq, lambda cost: 1.0 - cost)
 
-    m = Munkres()
-    indices = m.compute(cost_matrix)
-    indices = sorted(indices, key=lambda idx: idx[0])
+    idx1, idx2 = opt.linear_sum_assignment(1.0 - ovlp_sq)
+    indices = list(zip(idx1, idx2))
     vals = [ovlp_sq[idx] for idx in indices]
-    log.info("MOM reorder quality: max %5.2f min %5.2f ave %5.2f", \
-            np.max(vals), np.min(vals), np.average(vals))
+    log.info("MOM reorder quality: max %5.2f min %5.2f ave %5.2f", 
+             np.max(vals), np.min(vals), np.average(vals))
 
     order = [idx[1] for idx in indices]
     return order, np.average(vals)
@@ -689,28 +756,29 @@ def match_cas_basis(C_lo_eo, C_eo_mo, C_lo_eo_old, C_eo_mo_old, casinfo):
     for s in range(spin):
         nocc, npart, nvirt = casinfo[s]
         C_lo_mo = np.dot(C_lo_eo[s].reshape(ncells * nlo, neo), C_eo_mo[s])
-        C_lo_mo_old = np.dot(C_lo_eo_old[s].reshape(ncells * nlo, neo), \
-                C_eo_mo_old[s])
+        C_lo_mo_old = np.dot(C_lo_eo_old[s].reshape(ncells * nlo, neo),
+                             C_eo_mo_old[s])
         C_lo_mo_col.append(C_lo_mo.reshape(ncells, nlo, nmo))
         C_lo_mo_old_col.append(C_lo_mo_old.reshape(ncells, nlo, nmo))
         
         # split matching
         if nocc > 0:
-            u_occ = find_closest_mo(C_lo_mo[:, :nocc], \
-                    C_lo_mo_old[:, :nocc], ovlp=None, return_rotmat=True)[1]
+            u_occ = find_closest_mo(C_lo_mo[:, :nocc], C_lo_mo_old[:, :nocc],
+                                    ovlp=None, return_rotmat=True)[1]
         else:
             u_occ = np.zeros((0, 0))
         
         if npart > 0:
-            u_part = find_closest_mo(C_lo_mo[:, nocc:nocc+npart], \
-                    C_lo_mo_old[:, nocc:nocc+npart], ovlp=None, \
-                    return_rotmat=True)[1]
+            u_part = find_closest_mo(C_lo_mo[:, nocc:nocc+npart], 
+                                     C_lo_mo_old[:, nocc:nocc+npart],
+                                     ovlp=None, return_rotmat=True)[1]
         else:
             u_part = np.zeros((0, 0))
         
         if nvirt > 0:
-            u_virt = find_closest_mo(C_lo_mo[:, -nvirt:], \
-                    C_lo_mo_old[:, -nvirt:], ovlp=None, return_rotmat=True)[1]
+            u_virt = find_closest_mo(C_lo_mo[:, -nvirt:],
+                                     C_lo_mo_old[:, -nvirt:], ovlp=None,
+                                     return_rotmat=True)[1]
         else:
             u_virt = np.zeros((0, 0))
         u_mat.append(la.block_diag(u_occ, u_part, u_virt))
@@ -727,6 +795,17 @@ def match_cas_basis(C_lo_eo, C_eo_mo, C_lo_eo_old, C_eo_mo_old, casinfo):
     log.info("difference after matching : %s", diff_after)
     return u_mat, diff_after
 
+def orbital_reorder_subspace(order, ncore, nvirt):
+    """
+    keep the order in the subspace.
+    """
+    order = np.asarray(order)
+    nact = len(order) - ncore - nvirt
+    idx = np.concatenate((order[order < ncore], 
+                          order[(order >= ncore) & (order < nact+ncore)],
+                          order[order >= nact+ncore]), axis=0)
+    return idx
+
 class CASCI(object):
     """
     CASCI solver.
@@ -738,9 +817,11 @@ class CASCI(object):
         split localization (using Jacobi rotation or CIAH newton optimizer).
         CAS basis matching / reordering for efficient restart calculation of DMET.
     """
-    def __init__(self, ncas, nelecas, Sz=0, MP2natorb=False, spinAverage=False, \
-            splitloc=True, cisolver=None, mom_reorder=True, tmpDir="./tmp", \
-            loc_method='jacobi', loc_conv_tol=1e-7, max_memory=120000):
+    def __init__(self, ncas, nelecas, Sz=0, MP2natorb=False, spinAverage=False, 
+                 splitloc=True, cisolver=None, mom_reorder=True,
+                 tmpDir="./tmp", loc_method='jacobi', loc_conv_tol=1e-7,
+                 max_memory=120000, scf_newton=True, dyn_corr_method=None,
+                 fiedler=False):
         """
         Args:
             ncas: number of CAS orbitals (spatial).
@@ -754,6 +835,7 @@ class CASCI(object):
                       cleanup), additional arguments are passed by ci_args in 
                       run function.
             mom_reorder: use MOM method to reorder the orbitals.
+            fiedler: Use fiedler reordering.
             tmpDir: temp directory.
             loc_method: jacobi: use Jacobi rotation optimizer; ciah: use CIAH
                         as optimizer.
@@ -776,19 +858,20 @@ class CASCI(object):
         self.loc_guess = None
         self.max_memory = max_memory
 
-        log.eassert(cisolver is not None, "No default ci solver is available" \
-                " with CASCI, you have to use specify one.")
+        log.eassert(cisolver is not None, "No default ci solver is available "
+                    "with CASCI, you have to use specify one.")
         self.cisolver = cisolver
-        self.scfsolver = scf.SCF(newton_ah=True)
+        self.scfsolver = scf.SCF(newton_ah=scf_newton)
 
         # reorder scheme for restart block DMRG calculations
         if mom_reorder:
             if block.Block.reorder:
-                log.warning("Using maximal overlap method (MOM) to reorder localized "\
-                        "orbitals, turning off Block reorder option")
+                log.warning("Using maximal overlap method (MOM) to reorder localized "
+                            "orbitals, turning off Block reorder option")
                 block.Block.reorder = False
         self.mom_reorder = mom_reorder
         self.gaopt_nthreads = 1
+        self.fiedler = fiedler
         self.tmpDir = tmpDir
         
         # store orbitals for basis matching
@@ -804,11 +887,14 @@ class CASCI(object):
         self.cas  = None
         self.name = "dmrgci"
 
+        # support using MRCI as solver
+        self.dyn_corr_method = dyn_corr_method
+
     get_orbs = get_orbs
 
     def run(self, Ham, ci_args={}, guess=None, nelec=None, basis=None, 
             mom_tol=0.7, ham_only=False, hf_occ=True, order=None, 
-            orbs=None, **kwargs): 
+            orbs=None, warmup_occ=False, **kwargs): 
         """
         Main kernel of CASCI.
 
@@ -839,7 +925,9 @@ class CASCI(object):
             core, cas, virt, casinfo, dm = self.get_orbs(Ham, guess, nelec, 
                                                          return_rdm1=True,
                                                          order=order)
-            rdm1_core = np.array([np.dot(core[s], core[s].conj().T) for s in range(spin)])
+            rdm1_core = kwargs.get("rdm1_core", 
+                                   np.array([np.dot(core[s], core[s].conj().T)
+                                             for s in range(spin)]))
         else:
             # core, cas, virt can be specified manually
             log.info("CASCI: use customized core, cas, virt")
@@ -876,7 +964,9 @@ class CASCI(object):
                 else:
                     check_sanity_cas(norbs, nelec_b, ncas, nelecas_b)
             
-            rdm1_core = np.array([np.dot(core[s], core[s].conj().T) for s in range(spin)])
+            rdm1_core = kwargs.get("rdm1_core",
+                                   np.array([np.dot(core[s], core[s].conj().T) 
+                                             for s in range(spin)]))
             if dm is None:
                 dm = np.array([np.dot(cas[s][:, :nelecas[s]], 
                                       cas[s][:, :nelecas[s]].conj().T) 
@@ -885,6 +975,14 @@ class CASCI(object):
             if casinfo is None:
                 casinfo = [(nelecas[s], 0, ncas - nelecas[s]) for s in range(spin)]
         
+        # ZHC NOTE casinfo can be manually set
+        if self.dyn_corr_method is not None:
+            log.eassert(kwargs.get("casinfo", None) is not None, 
+                        "dyn_corr_method needs casinfo in run().")
+        if kwargs.get("casinfo", None):
+            log.info("You are using casinfo from input...")
+            casinfo = kwargs.get("casinfo")
+
         # check the basis shape are the same.
         basis_shape_unchanged = (self.basis_old is not None) and \
                                 (self.basis_old.shape == basis.shape)
@@ -898,12 +996,12 @@ class CASCI(object):
             if self.basis_old is not None:
                 log.warn("CASCI solver: basis shape changes [from %s to %s],\n"
                          "this is usually due to the truncation of bath. \n"
-                         "Make sure the nelec (%s) is set correctly!", \
+                         "Make sure the nelec (%s) is set correctly!", 
                          str(self.basis_old.shape), str(basis.shape), nelec)
         if basis is not None:
             self.basis_old = np.array(basis)
         self.C_eo_mo_old = np.array(cas, copy=True)
-        casHam = buildCASHamiltonian(Ham, core, cas)
+        casHam = buildCASHamiltonian(Ham, core, cas, rdm1_core=rdm1_core)
         
         if isinstance(hf_occ, str):
             hf_occ = hf_occ
@@ -919,7 +1017,7 @@ class CASCI(object):
                 hf_occ.append(int(i < self.nelecas_a))
                 hf_occ[-1] += int(i < self.nelecas_b)
             hf_occ = np.asarray(hf_occ, dtype=int)
-
+        
         # split localization
         # and save the C_mo_lmo_old for the next step guess.
         if self.splitloc:
@@ -934,20 +1032,23 @@ class CASCI(object):
                                    guess=loc_guess, tol=self.loc_conv_tol, 
                                    return_Ham=False)[1:]
             casHam = None
-            casHam = buildCASHamiltonian(Ham, core, cas)
+            casHam = buildCASHamiltonian(Ham, core, cas, rdm1_core=rdm1_core)
             self.C_mo_lmo_old = C_mo_lmo_no_reorder.copy()
         
         # MOM reorder compared with old basis
+        restart_flag = ci_args.get("restart", False)
         if self.mom_reorder:
-            log.eassert(basis is not None, \
-                    "maximum overlap method (MOM) requires embedding basis")
+            log.eassert(basis is not None, 
+                        "maximum overlap method (MOM) requires embedding basis")
             if self.C_lo_lmo_old is None or (not basis_shape_unchanged):
-                order = gaopt(casHam, tmp=self.tmpDir, nproc=self.gaopt_nthreads)
+                order = gaopt(casHam, tmp=self.tmpDir, nproc=self.gaopt_nthreads,
+                              fiedler=self.fiedler)
                 if "restart" in ci_args:
                     ci_args["restart"] = False
             else:
                 # define C_lo_lmo
-                C_lo_lmo = np.array([np.tensordot(basis[s], cas[s], (2, 0)) for s in range(spin)])
+                C_lo_lmo = np.array([np.tensordot(basis[s], cas[s], (2, 0))
+                                     for s in range(spin)])
                 # C_lo_lmo and self.C_lo_lmo_old are both in
                 # atomic representation now
                 order, q = momopt(self.C_lo_lmo_old, C_lo_lmo)
@@ -955,15 +1056,25 @@ class CASCI(object):
                 # using genetic algorithm
                 # FIXME seems larger q is a better choice
                 if q < mom_tol:
-                    order = gaopt(casHam, tmp=self.tmpDir, nproc=self.gaopt_nthreads)
+                    order = gaopt(casHam, tmp=self.tmpDir, nproc=self.gaopt_nthreads,
+                                  fiedler=self.fiedler)
                     if "restart" in ci_args:
                         ci_args["restart"] = False
             
+            if self.dyn_corr_method:
+                # ZHC NOTE reorder according to the subspace
+                if len(casinfo) == 2:
+                    assert casinfo[0] == casinfo[1]
+                    order = orbital_reorder_subspace(order, casinfo[0][0], casinfo[0][-1])
+                else:
+                    order = orbital_reorder_subspace(order, casinfo[0], casinfo[-1])
+                
             log.info("Orbital order: %s", order)
             # reorder casHam and cas
             casHam, cas = reorder(order, casHam, cas)
             # store cas in atomic basis
-            self.C_lo_lmo_old = np.array([np.tensordot(basis[s], cas[s], (2, 0)) for s in range(spin)])
+            self.C_lo_lmo_old = np.array([np.tensordot(basis[s], cas[s], (2, 0))
+                                          for s in range(spin)])
             # reorder hf_occ for DMRG
             if isinstance(hf_occ, Iterable) and (not isinstance(hf_occ, str)):
                 hf_occ = hf_occ[order]
@@ -975,13 +1086,20 @@ class CASCI(object):
 
         # check if solver needs restart and basis
         if ci_args.get("restart", False):
-            ci_args["basis"] = np.array([np.tensordot(basis[s], self.cas[s], (2, 0)) \
-                    for s in range(spin)])
+            ci_args["basis"] = np.array([np.tensordot(basis[s], self.cas[s], (2, 0)) 
+                                         for s in range(spin)])
         
         # hf_occ for DMRG solver
         log.debug(1, "hf_occ: %s", hf_occ)
         ci_args["hf_occ"] = hf_occ
+        if warmup_occ:
+            ci_args["occ"] = hf_occ
         
+        # casinfo for DMRG MRCI
+        if self.dyn_corr_method is not None:
+            ci_args["dyn_corr_method"] = self.dyn_corr_method
+            ci_args["casinfo"] = casinfo
+
         # initial dm0 guess for possible addtional mf in the cas solver.
         # assume ovlp is indentity.
         dm0_cas = np.array([mdot(self.cas[s].conj().T, dm[s] - rdm1_core[s], 
@@ -1004,11 +1122,14 @@ class CASCI(object):
             # run CI solver, and rotate back dm, 
             # cisolver.run should return dm per spin channel.
             rdm1_cas, E = self.cisolver.run(casHam, nelec=self.nelecas, **ci_args)
-            rdm1 = np.array([mdot(cas[s], rdm1_cas[s], cas[s].conj().T) \
-                    for s in range(spin)]) + rdm1_core
+            rdm1 = np.array([mdot(cas[s], rdm1_cas[s], cas[s].conj().T) 
+                             for s in range(spin)]) + rdm1_core
             
             # remove "dm0" for possible reuse
             ci_args.pop("dm0", None)
+            # resume the old restart flag
+            if "restart" in ci_args:
+                ci_args["restart"] = restart_flag
             return rdm1, E
     
     kernel = run
@@ -1026,7 +1147,8 @@ class CASCI(object):
             E: DMET energy.
         """
         # rebuild the Ham since scaled Ham is different.
-        casHam = buildCASHamiltonian(Ham, self.core, self.cas)
+        rdm1_core = kwargs.get("rdm1_core", None)
+        casHam = buildCASHamiltonian(Ham, self.core, self.cas, rdm1_core=rdm1_core)
         E = self.cisolver.run_dmet_ham(casHam, **ci_args)
         # clean up for better memory footprint
         self._finalize()

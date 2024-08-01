@@ -15,6 +15,7 @@ from pyscf import lib
 from pyscf.lib import logger
 from pyscf.pbc.scf import khf
 from pyscf.pbc.scf import kuhf
+from pyscf.pbc.scf import kghf
 from pyscf.pbc.dft import gen_grid
 from pyscf.pbc.dft import rks
 from pyscf.pbc.dft import multigrid
@@ -25,6 +26,8 @@ from pyscf import __config__
 from libdmet.basis_transform import make_basis
 from libdmet.routine import krkspu
 from libdmet.routine import kukspu
+# ZHC NOTE merge this module to pyscf
+from libdmet.routine import kgks
 try:
     from libdmet.routine import krkspu_ksymm
     from libdmet.routine import kukspu_ksymm
@@ -64,7 +67,11 @@ def get_hybrid_param(ks):
     Get omega, alpha = LR_HFX, hyb = SR_HFX for a KS object.
     """
     mol = getattr(ks, "cell", ks.mol)
-    omega, alpha, hyb = ks._numint.rsh_and_hybrid_coeff(ks.xc, spin=mol.spin)
+    if hasattr(ks, "_numint"):
+        omega, alpha, hyb = ks._numint.rsh_and_hybrid_coeff(ks.xc, spin=mol.spin)
+    else: # HF
+        omega = 0.0
+        alpha = hyb = 1.0
     return omega, alpha, hyb
 
 def get_veff(kmf, vj, vk, vxc=None):
@@ -72,18 +79,21 @@ def get_veff(kmf, vj, vk, vxc=None):
     vk = np.asarray(vk)
     if vxc is not None:
         vxc = np.asarray(vxc)
-        if isinstance(kmf, kuks.KUKS):
-            omega, alpha, hyb = get_hybrid_param(kmf)
-            if omega > 0.0:
-                raise NotImplementedError
+        omega, alpha, hyb = get_hybrid_param(kmf)
+        if omega > 0.0:
+            raise NotImplementedError
+
+        if isinstance(kmf, kgks.KGKS):
+            if hyb == 0.0:
+                veff = vj + vxc
+            else:
+                veff = vj - (vk * hyb) + vxc
+        elif isinstance(kmf, kuks.KUKS):
             if hyb == 0.0:
                 veff = vj[0] + vj[1] + vxc
             else:
                 veff = vj[0] + vj[1] - (vk * hyb) + vxc
         elif isinstance(kmf, krks.KRKS):
-            omega, alpha, hyb = get_hybrid_param(kmf)
-            if omega > 0.0:
-                raise NotImplementedError
             if hyb == 0.0:
                 veff = vj + vxc
             else:
@@ -91,7 +101,9 @@ def get_veff(kmf, vj, vk, vxc=None):
         else:
             raise ValueError
     else:
-        if isinstance(kmf, kuhf.KUHF):
+        if isinstance(kmf, kghf.KGHF):
+            veff = vj - vk
+        elif isinstance(kmf, kuhf.KUHF):
             veff = vj[0] + vj[1] - vk
         elif isinstance(kmf, khf.KRHF):
             veff = vj - vk * 0.5
@@ -100,11 +112,15 @@ def get_veff(kmf, vj, vk, vxc=None):
     return veff
 
 def get_vxc(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
-             kpts=None, kpts_band=None):
+            kpts=None, kpts_band=None):
     """
     Get vxc, no J or K.
     """
-    if isinstance(ks, kuks.KUKS):
+    if isinstance(ks, kgks.KGKS):
+        return kgks.get_veff_ph(ks, cell=cell, dm=dm, dm_last=dm_last,
+                                vhf_last=vhf_last, hermi=hermi, kpts=kpts,
+                                kpts_band=kpts_band, skip_jk=True)
+    elif isinstance(ks, kuks.KUKS):
         return get_vxc_kuks(ks, cell=cell, dm=dm, dm_last=dm_last, 
                             vhf_last=vhf_last, hermi=hermi, kpts=kpts, 
                             kpts_band=kpts_band)
@@ -201,8 +217,8 @@ def get_veff_lo_krks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
         # ZHC NOTE
         #n, exc, vxc = ks._numint.nr_rks(cell, ks.grids, ks.xc, dm, 0,
         #                                kpts, kpts_band)
-        n, exc, vxc = ks._numint.nr_rks(cell, ks.grids, ks.xc, dm_ao, 0,
-                                        kpts, kpts_band)
+        n, exc, vxc = ks._numint.nr_rks(cell, ks.grids, ks.xc, dm_ao, hermi=hermi,
+                                        kpts=kpts, kpts_band=kpts_band)
         if getattr(ks, "C_ao_lo", None) is not None:
             vxc = make_basis.transform_h1_to_lo(vxc, ks.C_ao_lo)
         logger.debug(ks, 'nelec by numeric integration = %s', n)
@@ -285,15 +301,17 @@ def get_vxc_krks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     if hermi == 2:  # because rho = 0
         n, exc, vxc = 0, 0, 0
     else:
-        n, exc, vxc = ks._numint.nr_rks(cell, ks.grids, ks.xc, dm, 0,
-                                        kpts, kpts_band)
+        n, exc, vxc = ks._numint.nr_rks(cell, ks.grids, ks.xc, dm, hermi=hermi,
+                                        kpts=kpts, kpts_band=kpts_band)
         logger.debug(ks, 'nelec by numeric integration = %s', n)
         t0 = logger.timer(ks, 'vxc', *t0)
     
     # ZHC NOTE
     if getattr(ks, "C_ao_lo", None) is not None:
         vxc = make_basis.transform_h1_to_lo(vxc, ks.C_ao_lo)
-    return np.asarray(vxc)
+    
+    vxc = lib.tag_array(vxc, ecoul=0.0, exc=exc, vj=None, vk=None)
+    return vxc
 
 class KRKS_LO(krks.KRKS):
     """
@@ -368,8 +386,8 @@ def get_veff_lo_kuks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     if hermi == 2:  # because rho = 0
         n, exc, vxc = (0,0), 0, 0
     else:
-        n, exc, vxc = ks._numint.nr_uks(cell, ks.grids, ks.xc, dm_ao, 0,
-                                        kpts, kpts_band)
+        n, exc, vxc = ks._numint.nr_uks(cell, ks.grids, ks.xc, dm_ao, hermi=hermi,
+                                        kpts=kpts, kpts_band=kpts_band)
         logger.debug(ks, 'nelec by numeric integration = %s', n)
         t0 = logger.timer(ks, 'vxc', *t0)
         if getattr(ks, "C_ao_lo", None) is not None:
@@ -439,17 +457,18 @@ def get_vxc_kuks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     if hermi == 2:  # because rho = 0
         n, exc, vxc = (0,0), 0, 0
     else:
-        n, exc, vxc = ks._numint.nr_uks(cell, ks.grids, ks.xc, dm, 0,
-                                        kpts, kpts_band)
+        n, exc, vxc = ks._numint.nr_uks(cell, ks.grids, ks.xc, dm, hermi=hermi,
+                                        kpts=kpts, kpts_band=kpts_band)
         logger.debug(ks, 'nelec by numeric integration = %s', n)
         t0 = logger.timer(ks, 'vxc', *t0)
     if getattr(ks, "C_ao_lo", None) is not None:
         vxc = make_basis.transform_h1_to_lo(vxc, ks.C_ao_lo)
-    return np.asarray(vxc)
+    vxc = lib.tag_array(vxc, ecoul=0.0, exc=exc, vj=None, vk=None)
+    return vxc
 
 class KUKS_LO(kuks.KUKS):
     """
-    RKS class adapted for PBCs with k-point sampling, in LO basis and allow frozen core.
+    UKS class adapted for PBCs with k-point sampling, in LO basis and allow frozen core.
     """
     def __init__(self, cell, kpts=np.zeros((1,3)), xc='LDA,VWN', 
                  C_ao_lo=None, dm_core_ao=None):
@@ -472,3 +491,4 @@ class KUKS_LO(kuks.KUKS):
     get_veff = get_veff_lo_kuks
     
     get_vxc = get_vxc_kuks
+

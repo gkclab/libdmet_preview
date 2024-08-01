@@ -8,10 +8,13 @@ Author:
     Tianyu Zhu
 """
 
+import os
+import sys
 import numpy as np
 import scipy.linalg as la
-from libdmet.utils.misc import mdot, kdot, get_spin_dim, add_spin_dim, \
-        max_abs
+from pyscf import lib
+from libdmet.utils.misc import (mdot, kdot, get_spin_dim, add_spin_dim,
+                                max_abs, Iterable)
 from libdmet.utils import logger as log
 from libdmet.lo.proj_wannier import get_proj_string
 
@@ -20,9 +23,9 @@ from libdmet.lo.proj_wannier import get_proj_string
 # Main wrapper: get_C_ao_lo_wannier
 # *****************************************************************************
 
-def get_C_ao_lo_wannier(lattice, kmf, proj_val, proj_virt, \
-        proj_core=None, num_iter=2000, dis_num_iter=0, extra_keywords='', \
-        A_core=None, A_val=None, A_virt=None, full_return=False):
+def get_C_ao_lo_wannier(lattice, kmf, proj_val, proj_virt, proj_core=None,
+                        num_iter=2000, dis_num_iter=0, extra_keywords='',
+                        A_core=None, A_val=None, A_virt=None, full_return=False):
     """
     Main wrapper to get Wannier C_ao_lo.
     
@@ -54,8 +57,8 @@ def get_C_ao_lo_wannier(lattice, kmf, proj_val, proj_virt, \
     # check nmo = ntot
     ntot = ncore + nval + nvirt
     nmo = C_ao_mo.shape[-1]
-    log.eassert(ntot == nmo, "ncore(%s) + nval(%s) + nvirt(%s) != nmo(%s)", \
-            ncore, nval, nvirt, nmo)
+    log.eassert(ntot == nmo, "ncore(%s) + nval(%s) + nvirt(%s) != nmo(%s)",
+                ncore, nval, nvirt, nmo)
 
     string_val, string_virt, string_core = \
             _get_exclude_bands_strings(nval=nval, nvirt=nvirt, ncore=ncore)
@@ -162,8 +165,8 @@ def tile_u_matrix(u_val, u_virt=None, u_core=None):
         u_tiled  = np.zeros((spin, nkpts, nmo, nlo), dtype=u_val.dtype)
         for s in range(spin):
             for k in range(nkpts):
-                u_tiled[s, k] = la.block_diag(u_core[s, k], u_val[s, k], \
-                        u_virt[s, k])
+                u_tiled[s, k] = la.block_diag(u_core[s, k], u_val[s, k],
+                                              u_virt[s, k])
     return u_tiled
 
 def _get_exclude_bands_strings(nval=0, nvirt=0, ncore=0):
@@ -197,8 +200,8 @@ def _get_exclude_bands_strings(nval=0, nvirt=0, ncore=0):
             string_val = 'exclude_bands : %s-%s \n'%(1, ncore) 
         else:
             # exclude core and virt for val
-            string_val = 'exclude_bands : %s-%s, %s-%s \n'%(1, ncore, \
-                    ncore+nval+1, norb) 
+            string_val = 'exclude_bands : %s-%s, %s-%s \n'%(1, ncore,
+                                                            ncore+nval+1, norb) 
     return string_val, string_virt, string_core
 
 # *****************************************************************************
@@ -206,9 +209,10 @@ def _get_exclude_bands_strings(nval=0, nvirt=0, ncore=0):
 # Main wrapper: get_C_ao_lo_iao
 # *****************************************************************************
 
-def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True, \
-        full_virt=False, full_return=False, pmol_val=None, pmol_core=None, \
-        max_ovlp=False, tol=1e-10):
+def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True,
+                    full_virt=False, full_return=False, pmol_val=None,
+                    pmol_core=None, max_ovlp=False, tol=1e-10,
+                    return_labels=False, allow_smearing=False, nocc=None):
     """
     Main wrapper to get IAO C_ao_lo.
 
@@ -223,7 +227,11 @@ def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True, \
         pmol_core: customize IAO core reference
         max_ovlp: use max overlap to define PAOs.
         tol: tolerance for IAO orthogonal check
-
+        allow_smearing: whether allow mo_occ to be fractional occupied mo_occ.
+        nocc: specify the number of orbitals with occupied pattern. 
+              Default is to use mo_occ > 0 as occupied (for allow_smearing=False),
+              mo_occ > 0.5 (for allow_smearing=True).
+              can be a float or array with shape (spin, nkpts). should not include core.
     Returns:
         C_ao_lo if full_return == False, else
         C_ao_lo, C_ao_val, C_ao_virt, (C_ao_core).
@@ -241,29 +249,57 @@ def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True, \
         C_ao_mo = C_ao_mo[np.newaxis]
         mo_occ = mo_occ[np.newaxis]
     spin, nkpts, nao, nmo = C_ao_mo.shape
+    if spin == 1:
+        # RHF case, mo_occ convert to [0, 1]
+        mo_occ = mo_occ * 0.5
     
+    if (any((mo_occ.ravel() != 0.0) & (mo_occ.ravel() != 1.0))) and (nocc is None):
+        if allow_smearing:
+            log.debug(0, "IAO construction with fractional occupation.")
+        else:
+            log.debug(0, "IAO construction without fractional occupation.")
+            log.warn("IAO construction has fractional occupation, "
+                     "please set allow_smearing=True .")
+
     ncore = lattice.ncore
     if ncore > 0:
         # First treat core
-        log.debug(2, "IAO core")
+        log.debug(1, "IAO core")
         assert pmol_core is not None
         assert pmol_val  is not None
         C_ao_core = C_ao_mo[:, :, :, :ncore]
         C_ao_lo_core = np.zeros_like(C_ao_core)
         for s in range(spin):
-            C_ao_lo_core[s] = iao.iao(cell, C_ao_core[s], minao=None, \
-                    kpts=kpts, pmol=pmol_core, mo_coeff_B1=C_ao_core[s])
+            # remove warning in cell.build
+            with lib.temporary_env(sys, stderr=open(os.devnull, "w")):
+                C_ao_lo_core[s] = iao.iao(cell, C_ao_core[s], minao=None,
+                                          kpts=kpts, pmol=pmol_core,
+                                          mo_coeff_B1=C_ao_core[s])
             C_ao_lo_core[s] = iao.vec_lowdin_k(C_ao_lo_core[s], ovlp)
-        
+        core_labels = pmol_core.ao_labels()
+        log.debug(1, "-" * 79)
+        log.debug(1, "core labels")
+        for lab in core_labels:
+            log.debug(1, "%s", lab)
+        log.debug(1, "-" * 79)
+
         # Then valence
-        log.debug(2, "IAO valence")
+        log.debug(1, "IAO valence")
         nval = pmol_val.nao_nr()
         if full_virt: # all PAO
             nvirt = nao - ncore
         else: # part of PAO
             nvirt = nao - ncore - nval
         log.eassert(nvirt >= 0, "IAO nvirt (%s) should be non-negative! "
-                "Please check your IAO reference.", nvirt)
+                    "Please check your IAO reference.", nvirt)
+        
+        val_labels = pmol_val.ao_labels()
+        log.debug(1, "-" * 79)
+        log.debug(1, "val labels")
+        for lab in val_labels:
+            log.debug(1, "%s", lab)
+        log.debug(1, "-" * 79)
+        
         nlo = ncore + nval + nvirt
         nxcore = nval + nvirt
         C_ao_mo = C_ao_mo[:, :, :, ncore:]
@@ -274,11 +310,30 @@ def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True, \
         C_ao_lo_val = np.zeros((spin, nkpts, nao, nval), dtype=np.complex128)
         C_ao_lo_virt = np.zeros((spin, nkpts, nao, nvirt), dtype=np.complex128)
         for s in range(spin):
-            mo_coeff_occ = [C_ao_mo[s, k][:, mo_occ[s, k] > 0] \
-                    for k in range(nkpts)]
             # IAO valence
-            C_val = iao.iao(cell, mo_coeff_occ, minao=None, kpts=kpts, \
-                    pmol=pmol_val, mo_coeff_B1=C_ao_mo[s])
+            with lib.temporary_env(sys, stderr=open(os.devnull, "w")): 
+                if allow_smearing:
+                    if isinstance(nocc, Iterable):
+                        nocc_ = nocc[s]
+                    else:
+                        nocc_ = nocc
+                    C_val = iao.iao(cell, C_ao_mo[s], minao=None, kpts=kpts,
+                                    pmol=pmol_val, mo_coeff_B1=C_ao_mo[s],
+                                    mo_occ=mo_occ[s], nocc=nocc_)
+                else:
+                    if nocc is None:
+                        mo_coeff_occ = [C_ao_mo[s, k][:, mo_occ[s, k] > 0]
+                                        for k in range(nkpts)]
+                    else:
+                        if isinstance(nocc, Iterable):
+                            mo_coeff_occ = [C_ao_mo[s, k][:, :nocc[s][k]]
+                                            for k in range(nkpts)]
+                        else:
+                            mo_coeff_occ = [C_ao_mo[s, k][:, :nocc]
+                                            for k in range(nkpts)]
+
+                    C_val = iao.iao(cell, mo_coeff_occ, minao=None, kpts=kpts,
+                                    pmol=pmol_val, mo_coeff_B1=C_ao_mo[s])
             C_val = iao.vec_lowdin_k(C_val, ovlp)
             
             # IAO virtual
@@ -287,8 +342,10 @@ def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True, \
             if C_val.shape[-1] == nao - ncore: # no virtual
                 C_virt = None
             else:
-                C_virt = iao.get_iao_virt(cell, C_core_val, ovlp, \
-                        minao=minao, full_virt=full_virt, max_ovlp=max_ovlp)
+                with lib.temporary_env(sys, stderr=open(os.devnull, "w")): 
+                    C_virt = iao.get_iao_virt(cell, C_core_val, ovlp, minao=minao,
+                                              full_virt=full_virt,
+                                              max_ovlp=max_ovlp, verbose=(s==0))
                 if orth_virt: # orthogonalize virtual
                     assert full_virt == False
                     C_virt = iao.vec_lowdin_k(C_virt, ovlp)
@@ -299,7 +356,15 @@ def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True, \
     else:
         C_ao_lo_core = [None for s in range(spin)]
         if pmol_val is None:
-            pmol_val = iao.reference_mol(cell, minao)
+            with lib.temporary_env(sys, stderr=open(os.devnull, "w")): 
+                pmol_val = iao.reference_mol(cell, minao)
+        
+        val_labels = pmol_val.ao_labels()
+        log.debug(1, "-" * 79)
+        log.debug(1, "val labels")
+        for lab in val_labels:
+            log.debug(1, "%s", lab)
+        log.debug(1, "-" * 79)
         
         nval = pmol_val.nao_nr()
         if full_virt: # all PAO
@@ -307,25 +372,44 @@ def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True, \
         else: # part of PAO
             nvirt = nao - ncore - nval
         log.eassert(nvirt >= 0, "IAO nvirt (%s) should be non-negative! "
-                "Please check your IAO reference.", nvirt)
+                    "Please check your IAO reference.", nvirt)
         nlo = ncore + nval + nvirt
 
         C_ao_lo = np.zeros((spin, nkpts, nao, nlo), dtype=np.complex128)
         C_ao_lo_val = np.zeros((spin, nkpts, nao, nval), dtype=np.complex128)
         C_ao_lo_virt = np.zeros((spin, nkpts, nao, nvirt), dtype=np.complex128)
         for s in range(spin):
-            mo_coeff_occ = [C_ao_mo[s, k][:, mo_occ[s, k]>0] for k in range(nkpts)]
             # IAO valence
-            C_val = iao.iao(cell, mo_coeff_occ, minao=None, kpts=kpts, \
-                    pmol=pmol_val)
+            with lib.temporary_env(sys, stderr=open(os.devnull, "w")): 
+                if allow_smearing:
+                    if isinstance(nocc, Iterable):
+                        nocc_ = nocc[s]
+                    else:
+                        nocc_ = nocc
+                    C_val = iao.iao(cell, C_ao_mo[s], minao=None, kpts=kpts,
+                                    pmol=pmol_val, mo_occ=mo_occ[s], nocc=nocc_)
+                else:
+                    if nocc is None:
+                        mo_coeff_occ = [C_ao_mo[s, k][:, mo_occ[s, k]>0]
+                                        for k in range(nkpts)]
+                    else:
+                        if isinstance(nocc, Iterable):
+                            mo_coeff_occ = [C_ao_mo[s, k][:, :nocc[s][k]]
+                                            for k in range(nkpts)]
+                        else:
+                            mo_coeff_occ = [C_ao_mo[s, k][:, :nocc]
+                                            for k in range(nkpts)]
+                    C_val = iao.iao(cell, mo_coeff_occ, minao=None, kpts=kpts,
+                                    pmol=pmol_val)
             C_val = iao.vec_lowdin_k(C_val, ovlp)
             # IAO virtual
             if C_val.shape[-1] == nao - ncore: # no virtual
                 C_virt = None
             else:
-                C_virt = iao.get_iao_virt(cell, C_val, ovlp, \
-                        minao=None, full_virt=full_virt, pmol=pmol_val, \
-                        max_ovlp=max_ovlp)
+                with lib.temporary_env(sys, stderr=open(os.devnull, "w")): 
+                    C_virt = iao.get_iao_virt(cell, C_val, ovlp, minao=None,
+                                              full_virt=full_virt, pmol=pmol_val,
+                                              max_ovlp=max_ovlp, verbose=(s==0))
                 if orth_virt: # orthogonalize virtual
                     assert full_virt == False
                     C_virt = iao.vec_lowdin_k(C_virt, ovlp)
@@ -346,11 +430,27 @@ def get_C_ao_lo_iao(lattice, kmf, minao='minao', orth_virt=True, \
 
     if full_return:
         if ncore > 0:
-            return C_ao_lo, C_ao_lo_val, C_ao_lo_virt, C_ao_lo_core
+            res = [C_ao_lo, C_ao_lo_val, C_ao_lo_virt, C_ao_lo_core]
         else:
-            return C_ao_lo, C_ao_lo_val, C_ao_lo_virt
+            res = [C_ao_lo, C_ao_lo_val, C_ao_lo_virt]
+        if return_labels:
+            if pmol_val is not None:
+                val_labels = pmol_val.ao_labels()
+            else:
+                val_labels = None
+            if pmol_core is not None:
+                core_labels = pmol_core.ao_labels()
+            else:
+                core_labels = None
+
+            with lib.temporary_env(sys, stderr=open(os.devnull, "w")): 
+                labels = iao.get_labels(cell, minao=minao, full_virt=full_virt,
+                                        B2_labels=val_labels,
+                                        core_labels=core_labels)[0]
+            res.append(labels)
     else:
-        return C_ao_lo
+        res = C_ao_lo
+    return res
 
 def tile_C_ao_iao(C_val, C_virt=None, C_core=None):
     r"""
@@ -547,9 +647,9 @@ def transform_rdm1_to_ao(dm_lo_lo, C_ao_lo):
 ### functions for molecular calculations
 # *****************************************************************************
 
-def get_C_ao_lo_iao_mol(mf, minao='minao', orth_virt=True, \
-        full_virt=False, full_return=False, pmol_val=None, pmol_core=None, \
-        tol=1e-10):
+def get_C_ao_lo_iao_mol(mf, minao='minao', orth_virt=True, full_virt=False,
+                        full_return=False, pmol_val=None, pmol_core=None,
+                        tol=1e-10):
     """
     Main wrapper to get IAO C_ao_lo. This function is for molecule.
 
@@ -583,24 +683,24 @@ def get_C_ao_lo_iao_mol(mf, minao='minao', orth_virt=True, \
     if pmol_core is not None: # has core
         # First treat core
         ncore = pmol_core.nao_nr()
-        log.debug(2, "IAO core")
+        log.debug(1, "IAO core")
         assert pmol_val is not None
         C_ao_core = C_ao_mo[:, :, :ncore]
         C_ao_lo_core = np.zeros_like(C_ao_core)
         for s in range(spin):
-            C_ao_lo_core[s] = iao.iao(mol, C_ao_core[s], minao=None, \
-                    pmol=pmol_core, mo_coeff_B1=C_ao_core[s])
+            C_ao_lo_core[s] = iao.iao(mol, C_ao_core[s], minao=None,
+                                      pmol=pmol_core, mo_coeff_B1=C_ao_core[s])
             C_ao_lo_core[s] = iao.vec_lowdin_k(C_ao_lo_core[s], ovlp)
         
         # Then valence
-        log.debug(2, "IAO valence")
+        log.debug(1, "IAO valence")
         nval = pmol_val.nao_nr()
         if full_virt: # all PAO
             nvirt = nao - ncore
         else: # part of PAO
             nvirt = nao - ncore - nval
         log.eassert(nvirt >= 0, "IAO nvirt (%s) should be non-negative! "
-                "Please check your IAO reference.", nvirt)
+                    "Please check your IAO reference.", nvirt)
         nlo = ncore + nval + nvirt
         nxcore = nval + nvirt
         C_ao_mo = C_ao_mo[:, :, ncore:]
@@ -613,8 +713,8 @@ def get_C_ao_lo_iao_mol(mf, minao='minao', orth_virt=True, \
         for s in range(spin):
             mo_coeff_occ = C_ao_mo[s][:, mo_occ[s] > 0]
             # IAO valence
-            C_val = iao.iao(mol, mo_coeff_occ, minao=None, pmol=pmol_val, \
-                    mo_coeff_B1=C_ao_mo[s])
+            C_val = iao.iao(mol, mo_coeff_occ, minao=None, pmol=pmol_val,
+                            mo_coeff_B1=C_ao_mo[s])
             C_val = iao.vec_lowdin_k(C_val, ovlp)
             
             # IAO virtual
@@ -623,8 +723,8 @@ def get_C_ao_lo_iao_mol(mf, minao='minao', orth_virt=True, \
             if C_val.shape[-1] == nao - ncore: # no virtual
                 C_virt = None
             else:
-                C_virt = iao.get_iao_virt(mol, C_core_val, ovlp, \
-                        minao=minao, full_virt=full_virt)
+                C_virt = iao.get_iao_virt(mol, C_core_val, ovlp, minao=minao,
+                                          full_virt=full_virt)
                 if orth_virt: # orthogonalize virtual
                     assert full_virt == False
                     C_virt = iao.vec_lowdin_k(C_virt, ovlp)
@@ -636,7 +736,8 @@ def get_C_ao_lo_iao_mol(mf, minao='minao', orth_virt=True, \
         ncore = 0
         C_ao_lo_core = [None for s in range(spin)]
         if pmol_val is None:
-            pmol_val = iao.reference_mol(mol, minao)
+            with lib.temporary_env(sys, stderr=open(os.devnull, "w")): 
+                pmol_val = iao.reference_mol(mol, minao)
         
         nval = pmol_val.nao_nr()
         if full_virt: # all PAO
@@ -659,8 +760,8 @@ def get_C_ao_lo_iao_mol(mf, minao='minao', orth_virt=True, \
             if C_val.shape[-1] == nao - ncore: # no virtual
                 C_virt = None
             else:
-                C_virt = iao.get_iao_virt(mol, C_val, ovlp, \
-                        minao=None, full_virt=full_virt, pmol=pmol_val)
+                C_virt = iao.get_iao_virt(mol, C_val, ovlp, minao=None,
+                                          full_virt=full_virt, pmol=pmol_val)
                 if orth_virt: # orthogonalize virtual
                     assert full_virt == False
                     C_virt = iao.vec_lowdin_k(C_virt, ovlp)
@@ -737,6 +838,8 @@ def transform_h1_to_mo_mol(h_ao_ao, C_ao_mo):
     C_ao_mo = np.asarray(C_ao_mo)
     return transform_rdm1_to_ao_mol(h_ao_ao, np.swapaxes(C_ao_mo.conj(), -1, -2))
 
+transform_h1_to_lo_mol = transform_h1_to_mo_mol
+
 def transform_rdm1_to_mo_mol(rdm1_ao_ao, C_ao_mo, S_ao_ao):
     rdm1_ao_ao = np.asarray(rdm1_ao_ao)
     C_ao_mo = np.asarray(C_ao_mo)
@@ -757,6 +860,8 @@ def transform_rdm1_to_mo_mol(rdm1_ao_ao, C_ao_mo, S_ao_ao):
             C_inv = C_ao_mo[s].conj().T.dot(S_ao_ao)
             rdm1_mo_mo[s] = mdot(C_inv, rdm1_ao_ao[s], C_inv.conj().T)
     return rdm1_mo_mo
+
+transform_rdm1_to_lo_mol = transform_rdm1_to_mo_mol
 
 def transform_rdm2_to_ao_mol(rdm2_mo, C_ao_mo):
     r"""
@@ -848,10 +953,10 @@ def multiply_basis(C_ao_lo, C_lo_eo):
             C_lo_eo = add_spin_dim(C_lo_eo, spin)
         else:
             raise ValueError("invalid shape for multiply_basis: "
-                    "C_ao_lo shape %s, C_lo_eo shape: %s" \
-                    %(C_ao_lo.shape, C_lo_eo.shape))
-        C_ao_eo = np.zeros((spin, nkpts, nao, neo), \
-                dtype=np.result_type(C_ao_lo.dtype, C_lo_eo.dtype))
+                             "C_ao_lo shape %s, C_lo_eo shape: %s"
+                             %(C_ao_lo.shape, C_lo_eo.shape))
+        C_ao_eo = np.zeros((spin, nkpts, nao, neo), 
+                           dtype=np.result_type(C_ao_lo.dtype, C_lo_eo.dtype))
         for s in range(spin):
             C_ao_eo[s] = kdot(C_ao_lo[s], C_lo_eo[s])
     return C_ao_eo
@@ -907,8 +1012,8 @@ def get_mo_ovlp(mo1, mo2, ovlp):
         else:
             assert mo1.shape[0] == mo2.shape[0]
             spin = mo1.shape[0]
-            res = np.zeros((spin, nkpts, nmo1, nmo2), \
-                    dtype=np.result_type(mo1, mo2))
+            res = np.zeros((spin, nkpts, nmo1, nmo2), 
+                           dtype=np.result_type(mo1, mo2))
             for s in range(spin):
                 for k in range(nkpts):
                     res[s, k] = mdot(mo1[s, k].conj().T, ovlp[k], mo2[s, k])

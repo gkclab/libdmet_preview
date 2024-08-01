@@ -8,22 +8,25 @@ Author:
     Zhi-Hao Cui
 """
 
-from libdmet.solver import block
-from libdmet.solver.afqmc import AFQMC
-from libdmet.system import integral
-from libdmet.utils import logger as log
 import numpy as np
 import scipy.linalg as la
+from libdmet.system import integral
+from libdmet.utils import logger as log
 
+from libdmet.solver import block
+from libdmet.solver.afqmc import AFQMC
+from libdmet.solver.dqmc import DQMC
 from libdmet.solver import scf, casscf, bcs_dmrgscf
 from libdmet.solver.dmrgci import CASCI, DmrgCI, get_orbs
 from libdmet.solver.bcs_dmrgci import BCSDmrgCI, get_qps, get_BCS_mo
 from libdmet.solver.fci import FCI, FCI_AO
 from libdmet.solver.cc import CCSD
+from libdmet.solver.gso_dmrgci import GSODmrgCI
 from libdmet.solver.scf_solver import SCFSolver
+from libdmet.solver.utccsd import UTCCSD
 
-__all__ = ["AFQMC", "Block", "StackBlock", "Block2", "DmrgCI", "CASSCF", "BCSDmrgCI",
-           "FCI", "FCI_AO", "CCSD", "SCFSolver"]
+__all__ = ["AFQMC", "DQMC", "Block", "StackBlock", "Block2", "DmrgCI", "CASSCF", "BCSDmrgCI", 
+           "FCI", "FCI_AO", "CCSD", "GSODmrgCI", "SCFSolver", "UTCCSD"]
 try:
     from libdmet.solver.shci import SHCI
     __all__.append("SHCI")
@@ -34,10 +37,10 @@ class Block(object):
     def __init__(self, nproc, nnode=1, TmpDir="./tmp", SharedDir=None, 
                  reorder=False, minM=250, maxM=None, tol=1e-6, spinAdapted=False, 
                  bcs=False, ghf=False, maxiter_initial=35, maxiter_restart=15, 
-                 dmrg_dir=None):
-        log.eassert(nnode == 1 or SharedDir is not None, \
-                "Running on multiple nodes (nnod = %d), must specify shared directory", \
-                nnode)
+                 dmrg_dir=None, sweep_per_M=5):
+        log.eassert(nnode == 1 or SharedDir is not None, 
+                    "Running on multiple nodes (nnod = %d), must specify shared directory",
+                    nnode)
         self.cisolver = block.Block()
         self.cisolver.set_nproc(nproc, nnode)
         if dmrg_dir is None:
@@ -46,7 +49,7 @@ class Block(object):
             self.cisolver.tmpDir = dmrg_dir 
 
         block.Block.reorder = reorder
-        self.schedule = block.Schedule(sweeptol=tol)
+        self.schedule = block.Schedule(sweeptol=tol, sweep_per_M=sweep_per_M)
         if minM > maxM:
             minM = maxM
         self.minM = minM
@@ -57,8 +60,9 @@ class Block(object):
         self.maxiter_initial = maxiter_initial
         self.maxiter_restart = maxiter_restart
 
-    def run(self, Ham, M=None, nelec=None, schedule=None, similar=False, \
-            restart=True, spin=0, hf_occ='integral', **kwargs):
+    def run(self, Ham, M=None, nelec=None, schedule=None, similar=False,
+            restart=True, spin=0, hf_occ='integral', casinfo=None, dyn_corr_method=None,
+            occ=None, cbias=0.2, restart_default_schedule=False, **kwargs):
         if M is None:
             M = self.maxM
         if nelec is None:
@@ -67,14 +71,18 @@ class Block(object):
             else:
                 nelec = Ham.norb
         if not self.cisolver.sys_initialized:
-            self.cisolver.set_system(nelec, spin, self.spinAdapted, \
-                    self.bcs, (self.spinAdapted and (not self.ghf)))
+            self.cisolver.set_system(nelec, spin, self.spinAdapted, self.bcs,
+                                     (self.spinAdapted and (not self.ghf)))
 
         if schedule is None:
             schedule = self.schedule
             if self.cisolver.optimized and restart:
-                schedule.maxiter = self.maxiter_restart
-                schedule.gen_restart(M)
+                if restart_default_schedule:
+                    schedule.maxiter = self.maxiter_initial
+                    schedule.gen_initial(minM=self.minM, maxM=M)
+                else:
+                    schedule.maxiter = self.maxiter_restart
+                    schedule.gen_restart(M)
             else:
                 self.cisolver.optimized = False
                 schedule.maxiter = self.maxiter_initial
@@ -83,6 +91,10 @@ class Block(object):
         self.cisolver.set_schedule(schedule)
         self.cisolver.set_integral(Ham)
         self.cisolver.hf_occ = hf_occ
+        self.cisolver.dyn_corr_method = dyn_corr_method
+        self.cisolver.casinfo = casinfo
+        self.cisolver.occ = occ
+        self.cisolver.cbias = cbias
 
         truncation, energy, onepdm = self.cisolver.optimize()
         return onepdm, energy
@@ -108,7 +120,8 @@ class StackBlock(Block):
     def __init__(self, nproc, nthread=1, nnode=1, TmpDir="./tmp", 
                  SharedDir=None, reorder=False, minM=250, maxM=None, tol=1e-6, 
                  spinAdapted=False, bcs=False, ghf=False, mem=80, 
-                 maxiter_initial=35, maxiter_restart=15, dmrg_dir=None):
+                 maxiter_initial=35, maxiter_restart=15, dmrg_dir=None,
+                 sweep_per_M=5):
         log.eassert(nnode == 1 or SharedDir is not None, 
                     "Running on multiple nodes (nnod = %d)," 
                     "must specify shared directory", nnode)
@@ -119,7 +132,7 @@ class StackBlock(Block):
         else:
             self.cisolver.tmpDir = dmrg_dir 
         block.StackBlock.reorder = reorder
-        self.schedule = block.Schedule(sweeptol=tol)
+        self.schedule = block.Schedule(sweeptol=tol, sweep_per_M=sweep_per_M)
         if minM > maxM:
             minM = maxM
         self.minM = minM
@@ -135,7 +148,8 @@ class Block2(StackBlock):
     def __init__(self, nproc, nthread=1, nnode=1, TmpDir="./tmp", 
                  SharedDir=None, reorder=False, minM=250, maxM=None, tol=1e-6, 
                  spinAdapted=False, bcs=False, ghf=False, mem=80, 
-                 maxiter_initial=35, maxiter_restart=15, dmrg_dir=None):
+                 maxiter_initial=35, maxiter_restart=15, dmrg_dir=None,
+                 use_general_spin=False, big_site=False, sweep_per_M=5):
         self.cisolver = block.Block2()
         self.cisolver.set_nproc(nproc, nthread, nnode)
         if dmrg_dir is None:
@@ -143,12 +157,15 @@ class Block2(StackBlock):
         else:
             self.cisolver.tmpDir = dmrg_dir 
         self.cisolver.reorder = reorder
-        self.schedule = block.Schedule(sweeptol=tol)
+        self.schedule = block.Schedule(sweeptol=tol, sweep_per_M=sweep_per_M)
         if minM > maxM:
             minM = maxM
         self.minM = minM
         self.maxM = maxM
         self.spinAdapted = spinAdapted
+        self.cisolver.use_general_spin = use_general_spin
+        self.cisolver.big_site = big_site
+
         self.bcs = bcs
         self.ghf = ghf
         self.cisolver.mem = mem
@@ -181,11 +198,10 @@ class CASSCF(object):
         "exact_integral": True,
     }
 
-    def __init__(self, ncas, nelecas=None, bogoliubov=False, \
-            MP2natorb=False, spinAverage=False, fcisolver="FCI", \
-            settings={}):
-        log.eassert(ncas * 2 >= nelecas, \
-                "CAS size not compatible with number of electrons")
+    def __init__(self, ncas, nelecas=None, bogoliubov=False, MP2natorb=False,
+                 spinAverage=False, fcisolver="FCI", settings={}):
+        log.eassert(ncas * 2 >= nelecas, 
+                    "CAS size not compatible with number of electrons")
         self.ncas = ncas
         self.nelecas = nelecas # alpha and beta
         self.MP2natorb = MP2natorb
@@ -198,13 +214,13 @@ class CASSCF(object):
         # mcscf class: casscf.CASSCF or casscf.DMRGSCF
         self.settings = settings
         if fcisolver.upper() == "FCI":
-            log.eassert(not bogoliubov, \
-                    "FCI solver is not available for BCS calculations")
+            log.eassert(not bogoliubov, 
+                        "FCI solver is not available for BCS calculations")
             self.solver_cls = casscf.CASSCF
         elif fcisolver.upper() == "DMRG":
-            log.eassert(self.settings.has_key("fcisolver"), \
-                    "When using DMRG-CASSCF, must specify "
-                    "the key 'fcisolver' with a BLOCK solver instance")
+            log.eassert(self.settings.has_key("fcisolver"),
+                        "When using DMRG-CASSCF, must specify "
+                        "the key 'fcisolver' with a BLOCK solver instance")
             if bogoliubov:
                 self.solver_cls = bcs_dmrgscf.BCS_DMRGSCF
             else:
@@ -226,8 +242,8 @@ class CASSCF(object):
         norbs = Ham.H1["cd"].shape[1]
         if nelec is None:
             nelec = Ham.norb
-        log.eassert(spin == 2, \
-                "spin-restricted CASSCF solver is not implemented")
+        log.eassert(spin == 2, 
+                    "spin-restricted CASSCF solver is not implemented")
 
         nelecasAB = (self.nelecas//2, self.nelecas//2)
 
@@ -247,8 +263,8 @@ class CASSCF(object):
             self.scfsolver.HF(tol=1e-5, MaxIter=30, InitGuess=guess)
 
         if self.solver is None:
-            self.solver = self.solver_cls(self.scfsolver.mf, \
-                    self.ncas, nelecasAB, **self.settings)
+            self.solver = self.solver_cls(self.scfsolver.mf, self.ncas,
+                                          nelecasAB, **self.settings)
         else:
             self.solver.refresh(self.scfsolver.mf, self.ncas, nelecasAB)
 
@@ -256,8 +272,8 @@ class CASSCF(object):
         # settings specified as static members
         self.apply_options(self.solver, CASSCF.settings)
 
-        E, _, _, self.mo_coef = self.solver.mc1step(mo_coeff=self.mo_coef, \
-                **mcscf_args)
+        E, _, _, self.mo_coef = self.solver.mc1step(mo_coeff=self.mo_coef, 
+                                                    **mcscf_args)
         rho = np.asarray(self.solver.make_rdm1s())
 
         return rho, E
@@ -284,20 +300,19 @@ class CASSCF(object):
             log.debug(0, "Reusing previous quasiparticles")
             self.scfsolver.set_system(None, 0, True, False)
             self.scfsolver.set_integral(Ham)
-            self.scfsolver.HFB(Mu=0, tol=1e-5, MaxIter=30, \
-                    InitGuess=guess)
+            self.scfsolver.HFB(Mu=0, tol=1e-5, MaxIter=30, InitGuess=guess)
 
         if self.solver is None:
-            self.solver = self.solver_cls(self.scfsolver.mf, \
-                    self.ncas, norbs, Ham, nelecas=self.nelecas, \
-                    **self.settings)
+            self.solver = self.solver_cls(self.scfsolver.mf, self.ncas, norbs,
+                                          Ham, nelecas=self.nelecas, 
+                                          **self.settings)
         else:
-            self.solver.refresh(self.scfsolver.mf, self.ncas, \
-                    norbs, Ham, nelecas=self.nelecas)
+            self.solver.refresh(self.scfsolver.mf, self.ncas, norbs, Ham,
+                                nelecas=self.nelecas)
 
         self.apply_options(self.solver, CASSCF.settings)
-        E, _, _, self.mo_coef = self.solver.mc1step(mo_coeff=self.mo_coef, \
-                **mcscf_args)
+        E, _, _, self.mo_coef = self.solver.mc1step(mo_coeff=self.mo_coef, 
+                                                    **mcscf_args)
 
         from libdmet.routine.bcs_helper import combineRdm
         rho, kappa = self.solver.make_rdm1s()
@@ -307,5 +322,4 @@ class CASSCF(object):
 
     def cleanup(self):
         pass
-
 

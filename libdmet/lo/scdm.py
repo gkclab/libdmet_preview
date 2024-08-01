@@ -20,14 +20,15 @@ from pyscf import dft
 from pyscf.pbc import gto as pgto
 from pyscf.pbc import dft as pdft
 from pyscf.pbc.lib import kpts_helper
+from pyscf.tools import mo_mapping
 
 from libdmet.utils import logger as log
 from libdmet.utils.misc import max_abs, mdot, cartesian_prod
 from libdmet.settings import IMAG_DISCARD_TOL 
 from libdmet.routine import ftsystem 
 
-def get_grid_uniform_mol(mol, mesh=[201, 201, 201], box=np.eye(3)*20.0, \
-        origin=None, **kwargs):
+def get_grid_uniform_mol(mol, mesh=[201, 201, 201], box=np.eye(3)*20.0,
+                         origin=None, **kwargs):
     '''
     Generate a cubic grid for molecule. 
     '''    
@@ -87,7 +88,8 @@ def get_grid_uniform_cell(cell, mesh=None, order='C', **kwargs):
         if mesh is None:
             grids = pdft.gen_grid.UniformGrids(cell)
         else:
-            pcell = pgto.copy(cell)
+            #pcell = pgto.copy(cell)
+            pcell = cell.copy()
             pcell.mesh = mesh
             grids = pdft.gen_grid.UniformGrids(pcell)
         # ZHC NOTE with_non0tab should be True?
@@ -126,14 +128,18 @@ def scdm_model(mo_coeff, return_C_mo_lo=False, **kwargs):
     C_ao_lo = np.zeros((spin, nao, nlo), dtype=mo_coeff.dtype)
     for s in range(spin):
         mo_g = mo_coeff[s]
-        log.debug(1, "SCDM: ovlp of mo_g (spin %s):\n%s", \
-                s, mo_g.conj().T.dot(mo_g))
+        log.debug(1, "SCDM: ovlp of mo_g (spin %s):\n%s", 
+                  s, mo_g.conj().T.dot(mo_g))
         psiT = mo_g.conj().T
         Q, R, perm = la.qr(psiT, pivoting=True)
         if kwargs.get("cholesky", False): # Cholesky-QR
             C_mo_lo[s] = Q
         else: # Lowdin
             C_mo_lo[s] = lo.vec_lowdin(psiT[:, perm[:nlo]])
+        
+        sorted_idx = mo_mapping.mo_1to1map(C_mo_lo[s])
+        C_mo_lo[s] = C_mo_lo[s][:, sorted_idx]
+
         C_ao_lo[s] = mo_coeff[s].dot(C_mo_lo[s])
 
     if max_abs(C_ao_lo.imag) < IMAG_DISCARD_TOL:
@@ -153,7 +159,7 @@ def scdm_mol(mol, mo_coeff, grid='becke', return_C_mo_lo=False, **kwargs):
     else:
         coords, weights = get_grid_uniform_mol(mol, **kwargs)
     ao_g = mol.eval_gto('GTOval_sph', coords) * \
-            np.sqrt(weights[:, None].astype(np.complex128))
+           np.sqrt(weights[:, None].astype(np.complex128))
     
     # MO on grids
     mo_coeff = np.asarray(mo_coeff)
@@ -168,8 +174,8 @@ def scdm_mol(mol, mo_coeff, grid='becke', return_C_mo_lo=False, **kwargs):
     C_ao_lo = np.zeros((spin, nao, nlo), dtype=ao_g.dtype)
     for s in range(spin):
         mo_g = np.dot(ao_g, mo_coeff[s])
-        log.debug(1, "SCDM: ovlp of mo_g (spin %s):\n%s", \
-                s, mo_g.conj().T.dot(mo_g))
+        log.debug(1, "SCDM: ovlp of mo_g (spin %s):\n%s", 
+                  s, mo_g.conj().T.dot(mo_g))
         psiT = mo_g.conj().T
         Q, R, perm = la.qr(psiT, pivoting=True)
         if kwargs.get("cholesky", False): # Cholesky-QR
@@ -189,8 +195,8 @@ def scdm_mol(mol, mo_coeff, grid='becke', return_C_mo_lo=False, **kwargs):
     else:
         return C_ao_lo
 
-def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False, \
-        use_gamma_perm=True, nlo=None, smear_func=None, **kwargs):
+def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False, 
+           use_gamma_perm=True, nlo=None, smear_func=None, **kwargs):
     """
     SCDM for k-MO.
     """
@@ -216,12 +222,11 @@ def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False, \
     perm_spin = []
     for k in range(nkpts):
         # AO on grids
-        ao_g = pdft.numint.eval_ao(cell, coords, kpt=kpts[k], deriv=0) \
-                * weights_factor
+        ao_g = pdft.numint.eval_ao(cell, coords, kpt=kpts[k], deriv=0) * weights_factor
         for s in range(spin):
             mo_g = np.dot(ao_g, mo_coeff[s, k])
-            log.debug(1, "SCDM: ovlp of mo_g (spin %s, kpts: %s):\n%s", \
-                    s, k,  mo_g.conj().T.dot(mo_g))
+            log.debug(1, "SCDM: ovlp of mo_g (spin %s, kpts: %s):\n%s",
+                      s, k,  mo_g.conj().T.dot(mo_g))
             if smear_func is None:
                 psiT = mo_g.conj().T
             else:
@@ -229,8 +234,8 @@ def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False, \
             if use_gamma_perm:
                 if k == 0:
                     log.info("SCDM: use_gamma_perm = True")
-                    log.eassert(kpts_helper.gamma_point(kpts[k]), \
-                            "use_gamma_perm requires kpts[0] = G")
+                    log.eassert(kpts_helper.gamma_point(kpts[k]),
+                                "use_gamma_perm requires kpts[0] = G")
                     Q, R, perm = la.qr(psiT, pivoting=True)
                     perm_spin.append(perm)
                 else:

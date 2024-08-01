@@ -211,7 +211,7 @@ def __embHam2e(lattice, basis, vcor, local, int_bath=False, \
                     else:
                         for i in range(ccdd.shape[0]):
                             ccdd[i, :nscsites, :nscsites, :nscsites, :nscsites] = LatH2
-                elif latiice.H2_format == "nearest":
+                elif lattice.H2_format == "nearest":
                     if int_bath:
                         raise NotImplementedError
                     else:

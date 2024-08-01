@@ -10,6 +10,7 @@ Author:
 
 import os
 import sys
+from functools import reduce
 from collections import OrderedDict
 import numpy as np
 import scipy.linalg as la
@@ -143,12 +144,12 @@ def read_poscar(fname="POSCAR"):
 
         # 1 line scale factor
         line = lines[1].split()
-        assert len(line) == 1
+        log.eassert(len(line) == 1, "POSCAR invalid scale factor %s", line)
         factor = float(line[0])
         
         # 2-4 line, lattice vector 
-        a = np.array([np.fromstring(lines[i], dtype=np.double, sep=' ') \
-                for i in range(2, 5)]) * factor
+        a = np.array([np.fromstring(lines[i], dtype=np.double, sep=' ')
+                     for i in range(2, 5)]) * factor
         
         # 5, 6 line, species names and numbers
         sp_names = lines[5].split()
@@ -160,10 +161,16 @@ def read_poscar(fname="POSCAR"):
         else:
             sp_nums = np.fromstring(lines[6], dtype=int, sep=' ')
             line_no = 7
+            log.eassert(len(sp_names) == len(sp_nums),
+                        "kind of element %s != number of element %s",
+                        len(sp_names), len(sp_nums))
 
-        # 7, cartisian or fraction or direct
+        # 7 cartisian or fraction or direct
         line = lines[line_no].split()
-        assert len(line) == 1
+        if line[0].startswith(('S', 's')):
+            # selective dynamics
+            line_no += 1
+            line = lines[line_no].split()
         use_cart = line[0].startswith(('C', 'K', 'c', 'k'))
         line_no += 1
         
@@ -171,9 +178,8 @@ def read_poscar(fname="POSCAR"):
         atom_col = []
         for sp_name, sp_num in zip(sp_names, sp_nums):
             for i in range(sp_num):
-		# there may be 4th element for comments or fixation.
-                coord = np.array(list(map(float, \
-                        lines[line_no].split()[:3])))
+		        # there may be 4th element for comments or fixation.
+                coord = np.array(list(map(float, lines[line_no].split()[:3])))
                 if use_cart:
                     coord *= factor
                 else:
@@ -187,7 +193,8 @@ def read_poscar(fname="POSCAR"):
         cell.unit = 'A'
         return cell
         
-def write_poscar(cell, fname="POSCAR", species=True, cart=False, comment="name"):
+def write_poscar(cell, fname="POSCAR", species=True, cart=False, comment="name",
+                 scaling=1.0):
     """
     Write cell structure to a VASP POSCAR file.
     
@@ -209,7 +216,7 @@ def write_poscar(cell, fname="POSCAR", species=True, cart=False, comment="name")
     vec = cell.lattice_vectors() * BOHR
     with open(fname, 'w') as f:
         f.write("POSCAR generated from libdmet \n")
-        f.write("1.0 \n")
+        f.write("%20.15f \n" % scaling)
         f.write("%20.15f %20.15f %20.15f \n"%(vec[0,0], vec[0,1], vec[0,2]))
         f.write("%20.15f %20.15f %20.15f \n"%(vec[1,0], vec[1,1], vec[1,2]))
         f.write("%20.15f %20.15f %20.15f \n"%(vec[2,0], vec[2,1], vec[2,2]))
@@ -234,23 +241,23 @@ def write_poscar(cell, fname="POSCAR", species=True, cart=False, comment="name")
                 for sp_name, coords in sp_dic.items():
                     for coord in coords:
                         if comment == 'name':
-                            f.write("%20.15f %20.15f %20.15f # %s\n"\
-                                    %(coord[0]*BOHR, coord[1]*BOHR,
-                                      coord[2]*BOHR, sp_name))
+                            f.write("%20.15f %20.15f %20.15f # %s\n"
+                                     %(coord[0]*BOHR, coord[1]*BOHR,
+                                       coord[2]*BOHR, sp_name))
                         else:
-                            f.write("%20.15f %20.15f %20.15f \n"\
-                                    %(coord[0]*BOHR, coord[1]*BOHR, coord[2]*BOHR))
+                            f.write("%20.15f %20.15f %20.15f \n"
+                                     %(coord[0]*BOHR, coord[1]*BOHR, coord[2]*BOHR))
             else:
                 f.write("Direct \n")
                 for sp_name, coords in sp_dic.items():
                     coords = Real2Frac(cell.lattice_vectors(), coords)
                     for coord in coords:
                         if comment == 'name':
-                            f.write("%20.15f %20.15f %20.15f # %s\n"\
-                                    %(coord[0], coord[1], coord[2], sp_name))
+                            f.write("%20.15f %20.15f %20.15f # %s\n"
+                                     %(coord[0], coord[1], coord[2], sp_name))
                         else:
-                            f.write("%20.15f %20.15f %20.15f \n"\
-                                    %(coord[0], coord[1], coord[2]))
+                            f.write("%20.15f %20.15f %20.15f \n"
+                                     %(coord[0], coord[1], coord[2]))
             f.write("\n")
         else:
             for atom in atoms:
@@ -262,14 +269,14 @@ def write_poscar(cell, fname="POSCAR", species=True, cart=False, comment="name")
             if cart:
                 f.write("Cartisian \n")
                 for atom in atoms:
-                    f.write("%20.15f %20.15f %20.15f \n"\
-                            %(atom[1][0]*BOHR, atom[1][1]*BOHR, atom[1][2]*BOHR))
+                    f.write("%20.15f %20.15f %20.15f \n"
+                             %(atom[1][0]*BOHR, atom[1][1]*BOHR, atom[1][2]*BOHR))
             else:
                 f.write("Direct \n")
                 for atom in atoms:
                     coord = Real2Frac(cell.lattice_vectors(), atom[1])
-                    f.write("%20.15f %20.15f %20.15f \n"\
-                            %(coord[0], coord[1], coord[2]))
+                    f.write("%20.15f %20.15f %20.15f \n"
+                             %(coord[0], coord[1], coord[2]))
             f.write("\n")
 
 def cell_plus_imgs(cell, nimgs):
@@ -304,7 +311,8 @@ def cell_plus_imgs(cell, nimgs):
     supcell.verbose = cell.verbose
     return supcell
 
-def change_cell_shape(cell, vec, origin=np.zeros(3), search_range=[2, 2, 2], tol=1e-6):
+def change_cell_shape(cell, vec, origin=np.zeros(3), search_range=[2, 2, 2],
+                      keep_order=True, theta=None, tol=1e-6):
     """
     Generate a new cell with new lattice vector and new origin.
     
@@ -314,42 +322,57 @@ def change_cell_shape(cell, vec, origin=np.zeros(3), search_range=[2, 2, 2], tol
         origin: new origin (unit in Angs.), default zeros(3).
         search_range: (nx, ny, nz), search new atoms within nearest 
                       [-nx, nx+1] x [-ny, ny+1] x [-nz, nz+1] cells.
+        keep_order: keep the order of elements in the original cell.
+        theta: angle to rotate the coordinate axis.
         tol: tolerance for atoms within the cells.
 
     Returns:
         cell_new: new cell, with new lattice vector and atoms.
     """
     from pyscf.data.nist import BOHR
-    from libdmet.system.lattice import Real2Frac
+    from libdmet.system.lattice import Real2Frac, Frac2Real
     
     vec = np.asarray(vec)
     origin = np.asarray(origin)
-    log.eassert(vec.shape == (3, 3), "vec shape %s needs to be (3, 3)", \
-            vec.shape)
+    log.eassert(vec.shape == (3, 3), "vec shape %s needs to be (3, 3)",
+                vec.shape)
     vol_new = la.det(vec)
     log.eassert(vol_new > 1e-8, "change_cell_shape: "
-            "new lattice vector is not in right-hand convention, "
-            "or is singular")
+                "new lattice vector is not in right-hand convention, "
+                "or is singular")
     if not cell._built:
         log.warn("change_cell_shape: cell is not initialized.")
         cell = cell.copy()
         cell.basis = {}
         with lib.temporary_env(sys, stderr=open(os.devnull, "w")):
             cell.build(verbose=0)
-    log.info("change_cell_shape: old vectors [in A]:\n%s", \
-            cell.lattice_vectors() * BOHR)
+    log.info("change_cell_shape: old vectors [in A]:\n%s",
+             cell.lattice_vectors() * BOHR)
     log.info("change_cell_shape: new vectors [in A]:\n%s", vec)
 
     # natm in the new cell should be an integer
     natm_new = (vol_new / BOHR**3 / cell.vol) * cell.natm
     log.eassert(natm_new - np.round(natm_new) < tol, "number of atoms %s "
-            "in the new cell should be an integer.", natm_new)
+                "in the new cell should be an integer.", natm_new)
     natm_new = int(np.round(natm_new))
 
     cell_new = cell.copy()
     cell_new.a = vec
     vec_bohr = vec / BOHR
-    
+    if isinstance(keep_order, dict):
+        order_dic = keep_order
+    elif keep_order:
+        atoms = cell._atom
+        names, coords = zip(*atoms)
+        order_dic = {}
+        idx = 0
+        for name in names:
+            if name not in order_dic:
+                order_dic[name] = idx
+                idx += 1
+    else:
+        order_dic = None
+
     # do not show warning.
     with lib.temporary_env(sys, stderr=open(os.devnull, "w")):
         scell = cell_plus_imgs(cell, search_range)
@@ -364,15 +387,88 @@ def change_cell_shape(cell, vec, origin=np.zeros(3), search_range=[2, 2, 2], tol
     vol_ratio = vol_new / (cell.vol * BOHR**3)
     log.info("change_cell_shape: old vol [A^3]: %s, new vol [A^3]: %s, "
              "ratio: %s", cell.vol * BOHR**3, vol_new, vol_ratio)
-    log.info("change_cell_shape: old natm: %s, new natm: %s, ratio: %s", cell.natm, \
-            natm, natm / cell.natm)
+    log.info("change_cell_shape: old natm: %s, new natm: %s, ratio: %s", cell.natm,
+             natm, natm / cell.natm)
     assert natm == natm_new
     if abs(vol_ratio - natm / cell.natm) > tol:
         log.warn("volume change is not consistent with atom number change...")
+    
+    # rotate the coordination axis, while keep the fractional coords unchanged
+    if theta is not None:
+        rot = np.array([[np.cos(theta), -np.sin(theta), 0.0],
+                        [np.sin(theta),  np.cos(theta), 0.0],
+                        [0.0,            0.0,           1.0]])
+        cell_new.a = np.dot(cell_new.a, rot)
+        coords = Frac2Real(cell_new.a, coords_frac[idx])
+        atoms_new = list(zip(names[idx], coords))
+    else:
+        atoms_new = list(zip(names[idx], coords[idx] * BOHR))
+    
+    if order_dic is not None:
+        # reorder the new atoms according to the order_dic
+        atoms = [[] for i in range(len(order_dic))]
+        for atom in atoms_new:
+            atoms[order_dic[atom[0]]].append(atom)
+        atoms_new = reduce(list.__add__, atoms)
 
-    atoms_new = list(zip(names[idx], coords[idx] * BOHR))
     cell_new.atom = atoms_new
     cell_new.unit = 'A'
+
     with lib.temporary_env(sys, stderr=open(os.devnull, "w")):
         cell_new.build()
     return cell_new
+
+def match_lattice_orbitals(cell_old, cell_new, origin=np.zeros(3), tol=1e-6):
+    """
+    Find the converting indices from an old cell to a new cell.
+    i.e., the orbitals are sorted according to the idx
+    such that mo_coeff_new = mo_coeff_old[idx]
+    The two cells should have the same basis.
+
+    Args:
+        cell_old: old cell.
+        cell_new: new cell.
+    Returns:
+        idx: to reorder orbitals.
+    """
+    from pyscf.data.nist import BOHR
+    from libdmet.system.lattice import Real2Frac, Frac2Real, round_to_FUC
+    from libdmet.utils import max_abs
+    nao = cell_old.nao
+    log.eassert(nao == cell_new.nao, "old nao %s != new nao %s", nao,
+                cell_new.nao)
+    assert max_abs(cell_old.lattice_vectors() - cell_new.lattice_vectors()) < tol
+    
+    vec_bohr = cell_old.lattice_vectors() / BOHR
+
+    atoms_old = cell_old._atom
+    names_old, coords_old = zip(*atoms_old)
+    names_old, coords_old = np.asarray(names_old), np.asarray(coords_old) / BOHR - (origin / BOHR)
+    coords_frac_old = Real2Frac(vec_bohr, coords_old)
+    coords_frac_old_2 = round_to_FUC(coords_frac_old, tol=tol)
+
+    atoms_new = cell_new._atom
+    names_new, coords_new = zip(*atoms_new)
+    names_new, coords_new = np.asarray(names_new), np.asarray(coords_new) / BOHR
+    coords_frac_new = Real2Frac(vec_bohr, coords_new)
+    coords_frac_new_2 = round_to_FUC(coords_frac_new, tol=tol)
+    
+    diff = la.norm(coords_frac_old_2 - coords_frac_new_2[:, None], axis=2)
+    idx = np.where(abs(diff) < tol)[1]
+    log.eassert(len(idx) == len(names_new), "number of idx %s != number of names_new %s",
+                len(idx), len(names_new))
+    
+    for I, i in enumerate(idx):
+        log.info("%5s %5s (%.3f %.3f %.3f) -> %5s (%.3f %.3f %.3f)", 
+                 i, names_old[i], *coords_frac_old[i],
+                 names_new[I], *coords_frac_new[I])
+
+    aoind = cell_old.aoslice_by_atom()
+    offset = []
+    for i in idx:
+        offset.extend(np.arange(*aoind[i][2:]))
+    return offset
+
+if __name__ == "__main__":
+    cell_old = read_poscar("")
+    match_lattice_orbitals(cell_old, cell_new)
