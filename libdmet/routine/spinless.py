@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 """
-Embedding a superconducting states with spinless formalsim, 
+Embedding a superconducting states with spinless formalsim,
 using partial particle-hole transform.
 
 Author:
@@ -33,12 +33,12 @@ from libdmet.routine.spinless_helper import *
 
 def get_emb_basis(lattice, GRho, local=True, kind='svd', **kwargs):
     """
-    Get embedding basis, i.e. C_lo_eo in R, 
+    Get embedding basis, i.e. C_lo_eo in R,
     shape (ncell, nso, nso + nval*2).
     """
     if not local:
         raise NotImplementedError
-    
+
     if kind == 'svd':
         basis = _get_emb_basis_svd(lattice, GRho.real, **kwargs)
     elif kind == 'eig':
@@ -47,7 +47,7 @@ def get_emb_basis(lattice, GRho, local=True, kind='svd', **kwargs):
         basis = _get_emb_basis_ph(lattice, GRho.real, **kwargs)
     else:
         raise ValueError("get_emb_basis: Unknown kind %s" % kind)
-    
+
     if kwargs.get("bath_opt", False):
         basis = get_emb_basis_opt(lattice, GRho.real, basis, keep_imp_identity=False,
                                   tol=kwargs.get("tol_bath", 1e-6))
@@ -59,7 +59,7 @@ def _get_emb_basis_svd(lattice, rdm1, **kwargs):
     """
     Construct spinless bath based the generalized density matrix,
     using SVD.
-    
+
     Args:
         lattice: lattice object.
         rdm1: generalized density matrix, shape (ncells, nso, nso)
@@ -70,7 +70,7 @@ def _get_emb_basis_svd(lattice, rdm1, **kwargs):
               if orth == False and valence_bath, the basis can be non-orthonal.
         tol_bath: 1e-9, tolerance for discarding small singular values.
         nbath: number of bath (all spin channel).
-    
+
     Returns:
         basis: C_lo_eo, shape (ncells, nso, neo)
     """
@@ -82,116 +82,7 @@ def _get_emb_basis_svd(lattice, rdm1, **kwargs):
     ncells = lattice.ncells
     nlo = lattice.nscsites
     nso = nlo * 2
-    
-    val_idx = list(lattice.val_idx) + [i + nlo for i in lattice.val_idx]
-    imp_idx = list(lattice.imp_idx) + [i + nlo for i in lattice.imp_idx]
-    imp_idx_bath = val_idx if valence_bath else imp_idx
-    env_idx = []
-    # boolean mask of virtual in the env_idx
-    virt_mask = []
-    # boolean mask of alpha orbitals in the env_idx
-    alpha_mask = []
-    for R in range(ncells):
-        for s in range(2):
-            for i in range(nlo):
-                idx = R * nso + s * nlo + i
-                if not idx in imp_idx_bath:
-                    env_idx.append(idx)
-                    virt_mask.append(idx in imp_idx)
-                    alpha_mask.append(s == 0) 
-    nimp  = len(imp_idx)
-    log.debug(0, "imp_idx for bath : %-15s [val  : %s] ", 
-              format_idx(imp_idx_bath), format_idx(val_idx))
-    log.debug(0, "env_idx for bath : %-15s [virt : %s] ", 
-              format_idx(env_idx), format_idx(np.array(env_idx)[virt_mask]))
 
-    rdm1 = np.asarray(rdm1)
-    assert rdm1.shape == (ncells, nso, nso)
-    rdm1_env_imp = rdm1.reshape(ncells * nso, nso)[env_idx][:, imp_idx_bath]
-    
-    basis = np.zeros((ncells * nso, nso * 2))
-    
-    # SVD
-    u, sigma, vt = la.svd(rdm1_env_imp, full_matrices=False)
-    if nbath is None:
-        nbath = (sigma >= tol_bath).sum()
-    log.eassert(nbath % 2 == 0, "nbath (%s) should be even in GSO.", nbath)
-    B = u[:, :nbath]
-    
-    # check zero singular values
-    with np.printoptions(suppress=False):
-        log.debug(1, "Singular values:\n%s", sigma[:nbath])
-        log.debug(1, "Singular values discarded:\n%s", sigma[nbath:])
-    nzero = np.sum(np.abs(sigma[:nbath]) < tol_bath)
-    log.debug(0, "Zero singular values number: %s", nzero)
-    if nzero > 0:
-        log.warn("Zero singular value exists, \n"
-                 "this may cause numerical instability.")
-    
-    # project out the local virtual component
-    # this is actually only used when valence_bath is true.
-    if orth:
-        B[virt_mask] = 0.0
-        B = vec_lowdin(B, np.eye(B.shape[0]))
-    else:
-        # ZHC TODO support orth == False
-        raise NotImplementedError
-
-    # localization of bath
-    loc_method = kwargs.get("localize_bath", None)
-    if loc_method is not None:
-        if not lattice.is_model:
-            log.warn("Only model is currently supported "
-                     "for localization of bath.")
-        B = localizer.localize_bath(B, method=loc_method)
-    
-    # analysis on the particle and hole character
-    w = np.einsum("ai, ai -> i", B[alpha_mask], B[alpha_mask], optimize=True)
-    order = np.argsort(w, kind='mergesort')[::-1]
-    w1 = w[order]
-    orderA, orderB = order[:nbath//2], order[nbath//2:]
-    wA, wB = w1[:nbath//2], 1.0 - w1[nbath//2:]
-    log.debug(0, "particle character:\nspin A max %.2f min %.2f mean %.2f"
-              "\nspin B max %.2f min %.2f mean %.2f", np.max(wA), np.min(wA), 
-              np.average(wA), np.max(wB), np.min(wB), np.average(wB))
-    
-    basis[imp_idx, :nimp] = np.eye(nimp)
-    basis[env_idx, nimp:nimp + nbath] = B[:, order]
-    basis = basis[:, :nimp + nbath].reshape(ncells, nso, nimp + nbath)
-    log.debug(0, "nimp : %d", nimp)
-    log.debug(0, "nbath: %d", nbath)
-    return basis
-
-__embBasis_proj = _get_emb_basis_svd
-
-def _get_emb_basis_eig(lattice, rdm1, **kwargs):
-    """
-    Construct spinless bath based the generalized density matrix,
-    using eigenvalue decomposation.
-    
-    Args:
-        lattice: lattice object.
-        rdm1: generalized density matrix, shape (ncells, nso, nso)
-
-    Kwargs:
-        valence_bath: whether to use valence bath or full bath.
-        orth: True, orthogonalize bath by projecting out the virtual orbitals.
-              if orth == False and valence_bath, the basis can be non-orthonal.
-        tol_bath: 1e-9, tolerance for discarding small singular values.
-        nbath: number of bath (all spin channel).
-    
-    Returns:
-        basis: C_lo_eo, shape (ncells, nso, neo)
-    """
-    valence_bath = kwargs.get("valence_bath", True)
-    orth = kwargs.get("orth", True)
-    tol_bath = kwargs.get("tol_bath", 1e-9)
-    nbath = kwargs.get("nbath", None)
-
-    ncells = lattice.ncells
-    nlo = lattice.nscsites
-    nso = nlo * 2
-    
     val_idx = list(lattice.val_idx) + [i + nlo for i in lattice.val_idx]
     imp_idx = list(lattice.imp_idx) + [i + nlo for i in lattice.imp_idx]
     imp_idx_bath = val_idx if valence_bath else imp_idx
@@ -209,18 +100,127 @@ def _get_emb_basis_eig(lattice, rdm1, **kwargs):
                     virt_mask.append(idx in imp_idx)
                     alpha_mask.append(s == 0)
     nimp  = len(imp_idx)
-    log.debug(0, "imp_idx for bath : %-15s [val  : %s] ", 
+    log.debug(0, "imp_idx for bath : %-15s [val  : %s] ",
               format_idx(imp_idx_bath), format_idx(val_idx))
-    log.debug(0, "env_idx for bath : %-15s [virt : %s] ", 
+    log.debug(0, "env_idx for bath : %-15s [virt : %s] ",
               format_idx(env_idx), format_idx(np.array(env_idx)[virt_mask]))
 
     rdm1 = np.asarray(rdm1)
     assert rdm1.shape == (ncells, nso, nso)
-    
+    rdm1_env_imp = rdm1.reshape(ncells * nso, nso)[env_idx][:, imp_idx_bath]
+
+    basis = np.zeros((ncells * nso, nso * 2))
+
+    # SVD
+    u, sigma, vt = la.svd(rdm1_env_imp, full_matrices=False)
+    if nbath is None:
+        nbath = (sigma >= tol_bath).sum()
+    log.eassert(nbath % 2 == 0, "nbath (%s) should be even in GSO.", nbath)
+    B = u[:, :nbath]
+
+    # check zero singular values
+    with np.printoptions(suppress=False):
+        log.debug(1, "Singular values:\n%s", sigma[:nbath])
+        log.debug(1, "Singular values discarded:\n%s", sigma[nbath:])
+    nzero = np.sum(np.abs(sigma[:nbath]) < tol_bath)
+    log.debug(0, "Zero singular values number: %s", nzero)
+    if nzero > 0:
+        log.warn("Zero singular value exists, \n"
+                 "this may cause numerical instability.")
+
+    # project out the local virtual component
+    # this is actually only used when valence_bath is true.
+    if orth:
+        B[virt_mask] = 0.0
+        B = vec_lowdin(B, np.eye(B.shape[0]))
+    else:
+        # ZHC TODO support orth == False
+        raise NotImplementedError
+
+    # localization of bath
+    loc_method = kwargs.get("localize_bath", None)
+    if loc_method is not None:
+        if not lattice.is_model:
+            log.warn("Only model is currently supported "
+                     "for localization of bath.")
+        B = localizer.localize_bath(B, method=loc_method)
+
+    # analysis on the particle and hole character
+    w = np.einsum("ai, ai -> i", B[alpha_mask], B[alpha_mask], optimize=True)
+    order = np.argsort(w, kind='mergesort')[::-1]
+    w1 = w[order]
+    orderA, orderB = order[:nbath//2], order[nbath//2:]
+    wA, wB = w1[:nbath//2], 1.0 - w1[nbath//2:]
+    log.debug(0, "particle character:\nspin A max %.2f min %.2f mean %.2f"
+              "\nspin B max %.2f min %.2f mean %.2f", np.max(wA), np.min(wA),
+              np.average(wA), np.max(wB), np.min(wB), np.average(wB))
+
+    basis[imp_idx, :nimp] = np.eye(nimp)
+    basis[env_idx, nimp:nimp + nbath] = B[:, order]
+    basis = basis[:, :nimp + nbath].reshape(ncells, nso, nimp + nbath)
+    log.debug(0, "nimp : %d", nimp)
+    log.debug(0, "nbath: %d", nbath)
+    return basis
+
+__embBasis_proj = _get_emb_basis_svd
+
+def _get_emb_basis_eig(lattice, rdm1, **kwargs):
+    """
+    Construct spinless bath based the generalized density matrix,
+    using eigenvalue decomposation.
+
+    Args:
+        lattice: lattice object.
+        rdm1: generalized density matrix, shape (ncells, nso, nso)
+
+    Kwargs:
+        valence_bath: whether to use valence bath or full bath.
+        orth: True, orthogonalize bath by projecting out the virtual orbitals.
+              if orth == False and valence_bath, the basis can be non-orthonal.
+        tol_bath: 1e-9, tolerance for discarding small singular values.
+        nbath: number of bath (all spin channel).
+
+    Returns:
+        basis: C_lo_eo, shape (ncells, nso, neo)
+    """
+    valence_bath = kwargs.get("valence_bath", True)
+    orth = kwargs.get("orth", True)
+    tol_bath = kwargs.get("tol_bath", 1e-9)
+    nbath = kwargs.get("nbath", None)
+
+    ncells = lattice.ncells
+    nlo = lattice.nscsites
+    nso = nlo * 2
+
+    val_idx = list(lattice.val_idx) + [i + nlo for i in lattice.val_idx]
+    imp_idx = list(lattice.imp_idx) + [i + nlo for i in lattice.imp_idx]
+    imp_idx_bath = val_idx if valence_bath else imp_idx
+    env_idx = []
+    # boolean mask of virtual in the env_idx
+    virt_mask = []
+    # boolean mask of alpha orbitals in the env_idx
+    alpha_mask = []
+    for R in range(ncells):
+        for s in range(2):
+            for i in range(nlo):
+                idx = R * nso + s * nlo + i
+                if not idx in imp_idx_bath:
+                    env_idx.append(idx)
+                    virt_mask.append(idx in imp_idx)
+                    alpha_mask.append(s == 0)
+    nimp  = len(imp_idx)
+    log.debug(0, "imp_idx for bath : %-15s [val  : %s] ",
+              format_idx(imp_idx_bath), format_idx(val_idx))
+    log.debug(0, "env_idx for bath : %-15s [virt : %s] ",
+              format_idx(env_idx), format_idx(np.array(env_idx)[virt_mask]))
+
+    rdm1 = np.asarray(rdm1)
+    assert rdm1.shape == (ncells, nso, nso)
+
     # env-env block
     rdm1_env_env = lattice.expand(rdm1)[env_idx][:, env_idx]
     ew, ev = la.eigh(rdm1_env_env)
-    
+
     bath = []
     e_col = []
     for i, e in enumerate(ew):
@@ -230,13 +230,13 @@ def _get_emb_basis_eig(lattice, rdm1, **kwargs):
     e_col = np.asarray(e_col)
     with np.printoptions(suppress=False):
         log.debug(0, "dm eigenvalues:\n%s", e_col)
-    
+
     bath = np.asarray(bath).T
     nbath = bath.shape[-1]
     log.eassert(nbath % 2 == 0, "nbath (%s) should be even in GSO.", nbath)
-    
+
     basis = np.zeros((ncells * nso, nimp + nbath))
-    
+
     B = bath
     # project out the local virtual component
     # this is actually only used when valence_bath is true.
@@ -253,7 +253,7 @@ def _get_emb_basis_eig(lattice, rdm1, **kwargs):
             log.warn("Only model is currently supported "
                      "for localization of bath.")
         B = localizer.localize_bath(B, method=loc_method)
-    
+
     # analysis on the particle and hole character
     w = np.einsum("ai, ai -> i", B[alpha_mask], B[alpha_mask], optimize=True)
     order = np.argsort(w, kind='mergesort')[::-1]
@@ -261,9 +261,9 @@ def _get_emb_basis_eig(lattice, rdm1, **kwargs):
     orderA, orderB = order[:nbath//2], order[nbath//2:]
     wA, wB = w1[:nbath//2], 1.0 - w1[nbath//2:]
     log.debug(0, "particle character:\nspin A max %.2f min %.2f mean %.2f"
-              "\nspin B max %.2f min %.2f mean %.2f", np.max(wA), np.min(wA), 
+              "\nspin B max %.2f min %.2f mean %.2f", np.max(wA), np.min(wA),
               np.average(wA), np.max(wB), np.min(wB), np.average(wB))
-    
+
     basis[imp_idx, :nimp] = np.eye(nimp)
     basis[env_idx, nimp:nimp + nbath] = B[:, order]
     basis = basis.reshape(ncells, nso, nimp + nbath)
@@ -283,7 +283,7 @@ def get_emb_basis_opt(latt, rdm1_R, basis, keep_imp_identity=False, tol=1e-6):
     basis_k = latt.R2k_basis(basis)
     basis_full = basis.reshape(-1, nemb)
     rdm1_full = latt.expand(rdm1_R)
-    
+
     #rdm1_emb = mdot(basis_full.conj().T, rdm1_full, basis_full)
     rdm1_emb = foldRho_k(rdm1_k, basis_k)
     nelec = rdm1_emb.trace()
@@ -300,7 +300,7 @@ def get_emb_basis_opt(latt, rdm1_R, basis, keep_imp_identity=False, tol=1e-6):
         rval =  0.0
 
     basis_sq = np.dot(basis_full, basis_full.conj().T)
-    
+
     def nelec_cost_fn_brentq(mu):
         rdm1_new = basis_sq - mu * rdm1_full
         ew, ev = la.eigh(rdm1_new)
@@ -308,14 +308,14 @@ def get_emb_basis_opt(latt, rdm1_R, basis, keep_imp_identity=False, tol=1e-6):
         ev = latt.R2k_basis(ev)
         nelec = foldRho_k(rdm1_k, ev).trace().real
         return nelec - nelec_target
-    
+
     res = opt.brentq(nelec_cost_fn_brentq, lval, rval, xtol=tol, rtol=tol,
                      maxiter=1000, full_output=True, disp=False)
-    
+
     if (not res[1].converged):
         log.warn("get_emb_basis_opt fitting mu brentq fails.")
     mu = res[0]
-    
+
     rdm1_new = basis_sq - mu * rdm1_full
     basis_sq = None
     rdm1_full = None
@@ -352,7 +352,7 @@ def _get_emb_basis_ph(lattice, rdm1, **kwargs):
     """
     Construct spinless bath based the generalized density matrix,
     using particle and hole projection.
-    
+
     Args:
         lattice: lattice object.
         rdm1: generalized density matrix, shape (ncells, nso, nso)
@@ -363,7 +363,7 @@ def _get_emb_basis_ph(lattice, rdm1, **kwargs):
               if orth == False and valence_bath, the basis can be non-orthonal.
         tol_bath: 1e-9, tolerance for discarding small singular values.
         nbath: number of bath (all spin channel).
-    
+
     Returns:
         basis: C_lo_eo, shape (ncells, nso, neo)
     """
@@ -376,7 +376,7 @@ def _get_emb_basis_ph(lattice, rdm1, **kwargs):
     ncells = lattice.ncells
     nlo = lattice.nscsites
     nso = nlo * 2
-    
+
     val_idx = list(lattice.val_idx) + [i + nlo for i in lattice.val_idx]
     imp_idx = list(lattice.imp_idx) + [i + nlo for i in lattice.imp_idx]
     imp_idx_bath = val_idx if valence_bath else imp_idx
@@ -395,13 +395,13 @@ def _get_emb_basis_ph(lattice, rdm1, **kwargs):
                     virt_mask.append(idx in imp_idx)
                     if idx in imp_idx:
                         virt_idx.append(idx)
-                    alpha_mask.append(s == 0) 
+                    alpha_mask.append(s == 0)
     nimp  = len(imp_idx)
-    log.debug(0, "imp_idx for bath : %-15s [val  : %s] ", 
+    log.debug(0, "imp_idx for bath : %-15s [val  : %s] ",
               format_idx(imp_idx_bath), format_idx(val_idx))
-    log.debug(0, "env_idx for bath : %-15s [virt : %s] ", 
+    log.debug(0, "env_idx for bath : %-15s [virt : %s] ",
               format_idx(env_idx), format_idx(np.array(env_idx)[virt_mask]))
-    
+
     # 1. rdm1 p and h
     rdm1_p = np.asarray(rdm1)
     assert rdm1_p.shape == (ncells, nso, nso)
@@ -410,7 +410,7 @@ def _get_emb_basis_ph(lattice, rdm1, **kwargs):
     rdm1_h = -rdm1
     rdm1_h[0, range(nso), range(nso)] += 1.0
     bath_h = rdm1_h.reshape(ncells * nso, nso)[:, imp_idx_bath]
-    
+
     # 2. add virtual
     nval = len(imp_idx_bath) * 2
     nvirt = len(virt_idx)
@@ -420,11 +420,11 @@ def _get_emb_basis_ph(lattice, rdm1, **kwargs):
     basis[virt_idx, range(nbasis-nvirt, nbasis)] = 1.0
     basis[:, :nval//2] = bath_p
     basis[:, nval//2:nval] = bath_h
-    
+
     # 3. orthogonalization
     basis = _orth_cano(basis, s=None, tol=tol_bath)
     basis = basis.reshape(ncells, nso, nbasis)
-    
+
     log.debug(0, "nimp + nbath: %d", nbasis)
     return basis
 
@@ -433,8 +433,8 @@ def get_emb_Ham(lattice, basis, vcor, mu, local=True, **kwargs):
     Get embedding Hamiltonian.
     """
     nbasis = basis.shape[-1]
-    
-    # First transform two-body, 
+
+    # First transform two-body,
     # since we need ERI to calculate JK_emb for interacting bath.
     log.info("Two-body part")
     H2_fname = kwargs.get("H2_fname", None)
@@ -452,12 +452,12 @@ def get_emb_Ham(lattice, basis, vcor, mu, local=True, **kwargs):
 
     log.info("One-body part")
     H1, ovlp = __embHam1e(lattice, basis, vcor, mu, H2, **kwargs)
-    
+
     H0_add = kwargs.get("H0_add", 0.0)
     H0 = lattice.getH0() + H0_add
 
     # ZHC FIXME what spin value should I return?
-    return integral.Integral(nbasis, True, False, H0, {"cd": H1}, 
+    return integral.Integral(nbasis, True, False, H0, {"cd": H1},
                              {"ccdd": H2}, ovlp=ovlp), None
 
 embHam = get_emb_Ham
@@ -471,13 +471,13 @@ def __embHam2e(lattice, basis, vcor, local, int_bath=True, last_aabb=True, **kwa
     neo = basis.shape[-1]
     neo_pair = neo * (neo + 1) // 2
     basis_Ra, basis_Rb = separate_basis(basis)
-    eri_symmetry = lattice.eri_symmetry 
+    eri_symmetry = lattice.eri_symmetry
     max_memory = kwargs.get("max_memory", None)
-    
+
     if lattice.is_model:
         LatH2 = lattice.getH2(compact=False, kspace=False, use_Ham=True)
         if local:
-            log.eassert(max_abs(basis[0, :, :nso] - np.eye(nso)) < 1e-10, 
+            log.eassert(max_abs(basis[0, :, :nso] - np.eye(nso)) < 1e-10,
                         "the embedding basis is not local")
             if lattice.H2_format == 'spin local':
                 LatH2 = restore_eri_local(LatH2, nao) # 4-fold symm
@@ -516,19 +516,19 @@ def __embHam2e(lattice, basis, vcor, local, int_bath=True, last_aabb=True, **kwa
             if getattr(cell, 'pbc_intor', None):
                 if use_mpi:
                     from libdmet.basis_transform.eri_transform_mpi import get_emb_eri_gso
-                    H2 = get_emb_eri_gso(mydf.cell, mydf._cderi, mydf.kpts, 
-                                         C_ao_lo=C_ao_lo, basis=basis, 
-                                         kscaled_center=kscaled_center, 
-                                         symmetry=eri_symmetry, max_memory=max_memory, 
-                                         swap_idx=swap_idx, 
+                    H2 = get_emb_eri_gso(mydf.cell, mydf._cderi, mydf.kpts,
+                                         C_ao_lo=C_ao_lo, basis=basis,
+                                         kscaled_center=kscaled_center,
+                                         symmetry=eri_symmetry, max_memory=max_memory,
+                                         swap_idx=swap_idx,
                                          t_reversal_symm=t_reversal_symm, incore=incore,
                                          fout=fout)
                 else:
                     from libdmet.basis_transform.eri_transform import get_emb_eri_gso
-                    H2 = get_emb_eri_gso(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, 
-                                         kscaled_center=kscaled_center, 
-                                         symmetry=eri_symmetry, max_memory=max_memory, 
-                                         swap_idx=swap_idx, 
+                    H2 = get_emb_eri_gso(cell, mydf, C_ao_lo=C_ao_lo, basis=basis,
+                                         kscaled_center=kscaled_center,
+                                         symmetry=eri_symmetry, max_memory=max_memory,
+                                         swap_idx=swap_idx,
                                          t_reversal_symm=t_reversal_symm, incore=incore,
                                          fout=fout)
             else:
@@ -536,42 +536,42 @@ def __embHam2e(lattice, basis, vcor, local, int_bath=True, last_aabb=True, **kwa
         else: # non-interacting bath
             if use_mpi:
                 from libdmet.basis_transform.eri_transform_mpi import get_emb_eri_gso
-                H2 = get_emb_eri_gso(mydf.cell, mydf._cderi, mydf.kpts, 
-                                     C_ao_lo=C_ao_lo, basis=basis, 
-                                     kscaled_center=kscaled_center, 
-                                     symmetry=eri_symmetry, max_memory=max_memory, 
-                                     swap_idx=swap_idx, 
+                H2 = get_emb_eri_gso(mydf.cell, mydf._cderi, mydf.kpts,
+                                     C_ao_lo=C_ao_lo, basis=basis,
+                                     kscaled_center=kscaled_center,
+                                     symmetry=eri_symmetry, max_memory=max_memory,
+                                     swap_idx=swap_idx,
                                      t_reversal_symm=t_reversal_symm, incore=incore,
                                      fout=fout, unit_eri=True)
             else:
                 from libdmet.basis_transform.eri_transform import get_emb_eri_gso
-                H2 = get_emb_eri_gso(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, 
-                                     kscaled_center=kscaled_center, 
-                                     symmetry=eri_symmetry, max_memory=max_memory, 
-                                     swap_idx=swap_idx, 
+                H2 = get_emb_eri_gso(cell, mydf, C_ao_lo=C_ao_lo, basis=basis,
+                                     kscaled_center=kscaled_center,
+                                     symmetry=eri_symmetry, max_memory=max_memory,
+                                     swap_idx=swap_idx,
                                      t_reversal_symm=t_reversal_symm, incore=incore,
                                      fout=fout, unit_eri=True)
             H2 = unit2emb(H2, nbasis)
-    
+
     if isinstance(H2, np.ndarray):
         log.info("H2 memory allocated size = %d MB", H2.size * 8. / 1024 / 1024)
     return H2
 
-def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True, 
+def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
                add_vcor=False, **kwargs):
     """
     Internal routine to construct H1_emb.
     """
-    log.eassert(vcor.islocal(), 
+    log.eassert(vcor.islocal(),
                 "nonlocal correlation potential cannot be treated in this routine")
     nao = lattice.nscsites
     ncells = lattice.ncells
     nso = nao * 2
     nbasis = basis.shape[-1]
-    basis_k = lattice.R2k_basis(basis) 
+    basis_k = lattice.R2k_basis(basis)
     basis_Ra, basis_Rb = separate_basis(basis)
     basis_ka, basis_kb = separate_basis(basis_k)
-    
+
     hcore_k = lattice.getH1(kspace=True)
     fock_k  = lattice.getFock(kspace=True)
     ovlp_k  = lattice.get_ovlp(kspace=True)
@@ -586,10 +586,10 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
         hcore_emb = transform_trans_inv_k(basis_ka, basis_kb, hcore_custom)
     else:
         hcore_emb = transform_trans_inv_k(basis_ka, basis_kb, hcore_k)
-    
+
     log.debug(1, "transform ovlp")
     ovlp_emb = transform_trans_inv_k(basis_ka, basis_kb, ovlp_k)
-    
+
     dft = kwargs.get("dft", False)
     vxc_dc = kwargs.get("vxc_dc", False)
     vhf_for_energy = kwargs.get("vhf_for_energy", True)
@@ -599,7 +599,7 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
     else:
         hyb = 1.0
         vxc_loc = vxc_emb = None
-    
+
     if int_bath:
         rdm1_emb = foldRho_k(lattice.rdm1_lo_k, basis_k)
         if dft:
@@ -611,8 +611,8 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
             # J + scaled K + vxc
             veff_emb = transform_trans_inv_k(basis_ka, basis_kb,
                                              lattice.veff_lo_k)
-            
-            H1 = hcore_emb + veff_emb 
+
+            H1 = hcore_emb + veff_emb
             if vxc_loc is not None:
                 log.debug(1, "remove the contribution of vxc")
                 H1 -= vxc_loc
@@ -622,8 +622,8 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
             log.debug(1, "Construct JK_emb")
             veff_loc = slater.get_veff(rdm1_emb, H2_emb, hyb=hyb, ghf=True)
             H1 -= veff_loc
-            
-            # add ph terms for the embedding problem due to different scaled K 
+
+            # add ph terms for the embedding problem due to different scaled K
             if kwargs.get("add_ph_vk", True):
                 log.debug(1, "add addtional terms due to different scaled k, "
                           "hyb = %.5g", hyb)
@@ -656,17 +656,17 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
                 #fock_k = lattice.hcore_lo_k + lattice.vhf_lo_k
                 fock_k = lattice.fock_hf_lo_k
             H1 = transform_trans_inv_k(basis_ka, basis_kb, fock_k)
-                
+
             # add extra local term to H1, only to impurity
             hcore_add = kwargs.get("hcore_add", None)
             if hcore_add is not None:
                 H1 += transform_imp(basis_Ra, basis_Rb, hcore_add)
-            
+
             log.debug(1, "Construct JK_emb")
             JK_emb = slater.get_veff(rdm1_emb, H2_emb, hyb=1.0, ghf=True)
             # subtract JK_emb
             H1 -= JK_emb
-             
+
             log.debug(1, "Construct JK_core")
             # save JK_core for energy evaluation
             lattice.JK_core = H1 - hcore_emb
@@ -675,31 +675,31 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
         if lattice.use_hcore_as_emb_ham:
             log.debug(1, "Use hcore as embedding Hamiltonian.")
             H1 = hcore_emb
-            
+
             # add extra local term to H1, only to impurity
             hcore_add = kwargs.get("hcore_add", None)
             if hcore_add is not None:
                 H1 += transform_imp(basis_Ra, basis_Rb, hcore_add)
-            
+
             # NIB and use hcore, do not include JK_core in energy.
             lattice.JK_core = None
         else: # NIB but use fock as embedding hamiltonian.
             log.debug(1, "transform fock")
             H1 = transform_trans_inv_k(basis_ka, basis_kb, fock_k)
-            
+
             log.debug(1, "Construct JK_emb")
             rdm1_emb = foldRho_k(lattice.rdm1_lo_k, basis_k)
             JK_emb = slater.get_veff(rdm1_emb, H2_emb, hyb=1.0, ghf=True)
             H1 -= JK_emb
-            
+
             # add extra local term to H1, only to impurity
             hcore_add = kwargs.get("hcore_add", None)
             if hcore_add is not None:
                 H1 += transform_imp(basis_Ra, basis_Rb, hcore_add)
-            
+
             log.debug(1, "Construct JK_core")
             lattice.JK_core = H1 - hcore_emb
-     
+
     # transform Mu (-mu*I in impurity and environment)
     log.debug(1, "transform Mu")
     mu_mat = np.zeros((2, nao, nao))
@@ -708,11 +708,11 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
     H1 += transform_local(basis_Ra, basis_Rb, mu_mat)
 
     if add_vcor:
-        # then add Vcor, only in environment; 
+        # then add Vcor, only in environment;
         # add it everywhere then subtract impurity part
         log.debug(1, "transform Vcor")
         H1 += transform_local(basis_Ra, basis_Rb, vcor.get())
-        
+
         if not "fitting" in kwargs or not kwargs["fitting"]:
             # for fitting purpose, we need H1 with vcor on impurity
             H1 -= transform_imp(basis_Ra, basis_Rb, vcor.get())
@@ -727,9 +727,9 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, int_bath=True,
 def foldRho_k(GRho_k, basis_k):
     """
     Fold the density matrix to the embedding space.
-    
+
     Args:
-        GRho_k: (nkpts, nso, nso), 
+        GRho_k: (nkpts, nso, nso),
         basis_k: (nkpts, nso, nbasis)
     Return:
         GRho_emb: (nbasis, nbasis)
@@ -746,7 +746,7 @@ def addDiag(v, scalar):
 
 def keep_vcor_trace_fixed(vcor_new, vcor):
     dvcor_mat = vcor_new.get() - vcor.get()
-    ddiagV = (np.average(np.diagonal(dvcor_mat[0])) - 
+    ddiagV = (np.average(np.diagonal(dvcor_mat[0])) -
               np.average(np.diagonal(dvcor_mat[1]))) * 0.5
     vcor_new = addDiag(vcor_new, -ddiagV)
     return vcor_new
@@ -755,11 +755,11 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, H1e, mu,
                      fit_ghf=False, **kwargs):
     """
     Transform results.
-    Get density matrix, dmet energy (of non-interacting bath) 
+    Get density matrix, dmet energy (of non-interacting bath)
     and electron number.
 
     Edmet = E1 + E2
-    where E1 = partial Tr(rho, H1), 
+    where E1 = partial Tr(rho, H1),
     H1 should not include contribution from mu and last_dmu
     E2 = E_solver - <psi |hemb| psi>, psi is the wavefunction
     """
@@ -790,16 +790,16 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, H1e, mu,
                 GRhoEmb = GRhoEmb.sum(axis=0)
             else:
                 raise ValueError
-        
+
         GRhoImp = mdot(basis[0], GRhoEmb, basis[0].conj().T)
         nelec = GRhoImp[imp_idxa, imp_idxa].sum() - \
                 GRhoImp[imp_idxb, imp_idxb].sum() + len(imp_idxb)
     if E is not None:
         last_dmu = kwargs["last_dmu"]
         basis_Ra, basis_Rb = separate_basis(basis)
-         
+
         # first compute E2
-        # ZHC NOTE here, when using fock as embedding hamiltonian, 
+        # ZHC NOTE here, when using fock as embedding hamiltonian,
         # be careful about the double counting.
         E2 = E - np.einsum('pq, qp ->', ImpHam.H1["cd"][0], GRhoEmb) - ImpHam.H0
 
@@ -812,33 +812,33 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, H1e, mu,
         imp_idx0 = kwargs.get("imp_idx", np.arange(lattice.nimp))
         imp_idxa, imp_idxb = idx_ao2so(imp_idx0, lattice.nimp)
         imp_idx = imp_idxa + imp_idxb
-        
+
         env_idx = [idx for idx in range(nbasis) if idx not in imp_idx]
         imp_env = np.ix_(imp_idx, env_idx)
         env_imp = np.ix_(env_idx, imp_idx)
         env_env = np.ix_(env_idx, env_idx)
-        
+
         H1_scaled = ImpHam.H1["cd"][0].copy()
         # add back last_dmu only on impurity
         mu_mat = np.zeros((2, nao, nao))
         mu_mat[0][dmu_idx, dmu_idx] =  last_dmu
         mu_mat[1][dmu_idx, dmu_idx] = -last_dmu
         H1_scaled += transform_imp(basis_Ra, basis_Rb, mu_mat)
-        
+
         # add back mu global
         np.fill_diagonal(mu_mat[0],  mu)
         np.fill_diagonal(mu_mat[1], -mu)
         H1_scaled += transform_local(basis_Ra, basis_Rb, mu_mat)
-        
+
         # remove the JK_core if possible
         if lattice.JK_core is not None:
             H1_scaled -= 0.5 * lattice.JK_core
-        
+
         # scale by the number of imp indices
         H1_scaled[imp_env] *= 0.5
         H1_scaled[env_imp] *= 0.5
         H1_scaled[env_env]  = 0.0
-            
+
         E1 = np.einsum('pq, qp ->', H1_scaled, GRhoEmb)
         Efrag = E1 + E2 + ImpHam.H0
         log.debug(1, "NIB energy: E0 = %15.8g , E1 = %15.8g , "
@@ -847,7 +847,7 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, H1e, mu,
         Efrag = None
     return GRhoImp, Efrag, nelec
 
-def get_veff_from_rdm1_emb(lattice, rdm1_emb, basis, kmf=None, C_ao_lo=None, 
+def get_veff_from_rdm1_emb(lattice, rdm1_emb, basis, kmf=None, C_ao_lo=None,
                            return_update=False, sign=None):
     """
     First construct rdm1_glob and then compute the veff in LO basis.
@@ -865,7 +865,7 @@ def get_veff_from_rdm1_emb(lattice, rdm1_emb, basis, kmf=None, C_ao_lo=None,
     nao = lattice[0].mol.nao
     nlo = lattice[0].nlo
     nso = nlo * 2
-    
+
     if C_ao_lo.ndim == 4:
         if C_ao_lo.shape[0] == 1:
             C_ao_lo = la.block_diag(C_ao_lo[0], C_ao_lo[0])
@@ -878,7 +878,7 @@ def get_veff_from_rdm1_emb(lattice, rdm1_emb, basis, kmf=None, C_ao_lo=None,
     rdm1_glob = get_rho_glob_k(basis, lattice, rdm1_emb, sign=sign)
     np.save("rdm1_glob_lo_k.npy", rdm1_glob)
     rdm1_veff = make_basis.transform_rdm1_to_ao(rdm1_glob, C_ao_lo)
-    
+
     if getattr(lattice[0].cell, 'pbc_intor', None):
         vj, vk = kmf.get_jk(dm_kpts=rdm1_veff)
         veff_ao = vj - vk
@@ -886,7 +886,7 @@ def get_veff_from_rdm1_emb(lattice, rdm1_emb, basis, kmf=None, C_ao_lo=None,
         vj, vk = kmf.get_jk(dm=rdm1_veff[0])
         veff_ao = vj - vk
         veff_ao = veff_ao[None]
-    
+
     veff = make_basis.transform_h1_to_lo(veff_ao, C_ao_lo)
     if return_update:
         return veff, veff_ao, lattice[0].k2R(rdm1_glob)
@@ -947,15 +947,15 @@ def get_veff_from_rdm1_emb_mpi(Lat, rdm1_emb, basis, comm, return_update=False):
 
 def get_H_dmet(basis, lattice, ImpHam, last_dmu=None, mu=None,
                imp_idx=None, dmu_idx=None, add_vcor_to_E=False,
-               vcor=None, compact=True, rdm1_emb=None, 
-               veff=None, rebuild_veff=False, E1=None, 
+               vcor=None, compact=True, rdm1_emb=None,
+               veff=None, rebuild_veff=False, E1=None,
                GV0=None, GV1=None, **kwargs):
     """
-    Get a DMET hamiltonian, which is scaled by number of impurity indices, 
+    Get a DMET hamiltonian, which is scaled by number of impurity indices,
     and can be directly used for evaluation of DMET energy.
     The impurity index can be specified by imp_idx (should include alpha and
     beta indices).
-    
+
     rdm1_emb: embedding rdm1, (neo, neo).
     veff: if provide, use veff as JK_core, (nkpts, nso, nso).
     rebuild_veff: re-evaluate the JK_core from the global density matrix.
@@ -978,11 +978,11 @@ def get_H_dmet(basis, lattice, ImpHam, last_dmu=None, mu=None,
                           if idx not in imp_idx], dtype=int)
     log.debug(1, "imp_idx: %s", format_idx(imp_idx))
     log.debug(1, "env_idx: %s", format_idx(env_idx))
-    
+
     if E1 is None:
         hcore_k = lattice.getH1(kspace=True)
         H1_scaled = transform_trans_inv_k(basis_ka, basis_kb, hcore_k)
-        
+
         # note the double counting from JK_core cf. HF energy
         if (veff is not None) or rebuild_veff:
             if veff is None:
@@ -991,7 +991,7 @@ def get_H_dmet(basis, lattice, ImpHam, last_dmu=None, mu=None,
             veff_loc = _get_veff_ghf(rdm1_emb, ImpHam.H2["ccdd"])
             JK_core -= veff_loc
             if lattice.JK_core is not None:
-                log.debug(1, "difference between JK_glob and JK_HF: %15.8g", 
+                log.debug(1, "difference between JK_glob and JK_HF: %15.8g",
                           max_abs(JK_core - lattice.JK_core))
         else:
             if lattice.JK_core is not None:
@@ -1009,7 +1009,7 @@ def get_H_dmet(basis, lattice, ImpHam, last_dmu=None, mu=None,
             GV1_emb = slater_helper.transform_trans_inv_k(basis_k, GV1)
             H1_scaled -= GV1_emb
         H1_scaled = get_H1_scaled(H1_scaled[None], imp_idx, env_idx)
-        
+
         # H0 part
         H0 = lattice.getH0()
     else:
@@ -1017,7 +1017,7 @@ def get_H_dmet(basis, lattice, ImpHam, last_dmu=None, mu=None,
         H1_scaled = -get_veff_ghf(rdm1_emb, ImpHam.H2["ccdd"])
         H1_scaled = get_H1_scaled(H1_scaled[None], imp_idx, env_idx)
         H0 = (E1 + lattice.getH0()).real
-    
+
     # ZHC NOTE
     if GV0 is not None:
         H0 = H0 - GV0 * 0.5
@@ -1027,7 +1027,7 @@ def get_H_dmet(basis, lattice, ImpHam, last_dmu=None, mu=None,
     H2_scaled = ao2mo.restore(4, ImpHam.H2["ccdd"][0], nbasis)
     H2_scaled = get_H2_scaled(H2_scaled[None], imp_idx, env_idx)
 
-    ImpHam_dmet = integral.Integral(nbasis, True, False, H0, 
+    ImpHam_dmet = integral.Integral(nbasis, True, False, H0,
                                     {"cd": H1_scaled}, {"ccdd": H2_scaled})
     if not compact:
         log.warn("Restoring 1-fold symmetry in dmet Hamiltonian...")
@@ -1041,13 +1041,13 @@ def get_E_dmet(basis, lattice, ImpHam, solver, solver_args={}, **kwargs):
 
 def get_E_dmet_HF(basis, lattice, ImpHam, last_dmu, mu, solver, **kwargs):
     """
-    Get a DMET energy for a given mean-field solver. 
+    Get a DMET energy for a given mean-field solver.
     imp_idx should be spatial orbital labels.
     """
     nbasis = basis.shape[-1]
-    nscsites = lattice.nscsites  
+    nscsites = lattice.nscsites
     basis_Ra, basis_Rb = separate_basis(basis)
-    
+
     # spatial orb
     imp_idx0 = kwargs.get("imp_idx", np.arange(lattice.nimp))
     # spin orb
@@ -1057,23 +1057,23 @@ def get_E_dmet_HF(basis, lattice, ImpHam, last_dmu, mu, solver, **kwargs):
     imp_env = np.ix_(imp_idx, env_idx)
     env_imp = np.ix_(env_idx, imp_idx)
     env_env = np.ix_(env_idx, env_idx)
-    
+
     rdm1 = solver.mf.make_rdm1()
     h1e = solver.mf.get_hcore()
     fock = solver.mf.get_fock(h1e=h1e, dm=rdm1)
     heff = (h1e + fock) * 0.5
-    
+
     # remove the double counting from JK_core cf. HF energy
     if lattice.JK_core is not None:
         heff -= 0.5*lattice.JK_core
-    
+
     # add back mu only on impurity
     imp_idx0 = lattice.imp_idx
     mu_mat = np.zeros((2, nscsites, nscsites))
     mu_mat[0][imp_idx0, imp_idx0] =  last_dmu
     mu_mat[1][imp_idx0, imp_idx0] = -last_dmu
     heff += transform_imp(basis_Ra, basis_Rb, mu_mat)
-    
+
     # add back mu global
     np.fill_diagonal(mu_mat[0],  mu)
     np.fill_diagonal(mu_mat[1], -mu)
@@ -1090,10 +1090,10 @@ def get_E_dmet_HF(basis, lattice, ImpHam, last_dmu, mu, solver, **kwargs):
 def get_dV_dparam(vcor, basis, basis_k, lattice, P_act=None, compact=True):
     """
     Get dV / dparam.
-    
+
     Args:
         compact: if true dv is the tril part, dv_tril / dparam
-    
+
     Returns:
         dv_dparam.
     """
@@ -1105,16 +1105,16 @@ def get_dV_dparam(vcor, basis, basis_k, lattice, P_act=None, compact=True):
         dV_dparam = np.empty((vcor.length(), nbasis_pair))
     else:
         dV_dparam = np.empty((vcor.length(), nbasis, nbasis))
-    
+
     if vcor.is_local():
-        if P_act is None: 
+        if P_act is None:
             for ip in range(vcor.length()):
                 if compact:
                     dV_dparam[ip] = \
-                            transform_local(basis_Ra, basis_Rb, 
+                            transform_local(basis_Ra, basis_Rb,
                                             vcor.gradient()[ip])[tril_idx]
                 else:
-                    dV_dparam[ip] = transform_local(basis_Ra, basis_Rb, 
+                    dV_dparam[ip] = transform_local(basis_Ra, basis_Rb,
                                                     vcor.gradient()[ip])
         else:
             raise NotImplementedError
@@ -1126,12 +1126,12 @@ def get_dV_dparam(vcor, basis, basis_k, lattice, P_act=None, compact=True):
     vcor.grad_k = None
     return dV_dparam
 
-def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300, 
+def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
                imp_fit=False, imp_idx=None, det=False, det_idx=None,
                CG_check=False, BFGS=False, diff_criterion=None, **kwargs):
     """
     Fitting the correlation potential in the embedding space.
-    
+
     Args:
         imp_idx: a list of spatial orbital idx for imp_fit
         det_idx: a list of spatial orbital idx for diagonal fit
@@ -1156,7 +1156,7 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
     mu0      = kwargs.get("mu0", None)
     fix_mu   = kwargs.get("fix_mu", False)
     num_grad = kwargs.get("num_grad", False)
-    
+
     if lattice.use_hcore_as_emb_ham:
         fock_k = lattice.getH1(kspace=True)
     else:
@@ -1185,20 +1185,20 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
         det_idx = []
     imp_idx = list(imp_idx)
     det_idx = list(det_idx)
-    
+
     def convert_idx(idx0, norb):
         idx0_a, idx0_b = idx_ao2so(idx0, norb)
         return idx0_a + idx0_b
-    
+
     if not imp_bath_fit:
         imp_idx = convert_idx(imp_idx, lattice.nimp)
         det_idx = convert_idx(det_idx, lattice.nimp)
-     
+
     log.info("impurity fitting? %s", imp_fit)
     log.debug(1, "imp_idx: %s", format_idx(imp_idx))
     log.info("det (diagonal fitting)? %s", det)
     log.debug(1, "det_idx: %s", format_idx(det_idx))
-    
+
     fit_idx = imp_idx + det_idx
     nimp, nidx = len(imp_idx), len(fit_idx)
     imp_mesh = np.ix_(imp_idx, imp_idx)
@@ -1207,7 +1207,7 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
     det_fill_mesh = (range(nimp, nidx), range(nimp, nidx))
     if len(np.unique(fit_idx)) != nidx:
         log.warn("fit_idx has repeated indices: %s", format_idx(fit_idx))
-    
+
     # pre-allocate the objects for efficiency:
     rho_target = np.zeros((nidx, nidx))
     rho1 = np.zeros_like(rho_target)
@@ -1219,7 +1219,7 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
     if vcor_mat is not None:
         for s in range(3):
             fock_k[s] += vcor_mat[s]
-    
+
     embH1 = transform_trans_inv_k(basis_ka, basis_kb, fock_k)
     # ZHC NOTE add mu
     mu_mat = np.zeros((2, nao, nao))
@@ -1228,17 +1228,17 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
     embH1 += transform_local(basis_Ra, basis_Rb, mu_mat)
 
     ovlp_emb = transform_trans_inv_k(basis_ka, basis_kb, ovlp_k)
-    
+
     # dV / dparam
     dV_dparam = get_dV_dparam(vcor, basis, basis_k, lattice, P_act=None,
                               compact=True)
     diag_idx = (np.arange(nbasis), np.arange(nbasis))
     tril_idx = np.tril_indices(nbasis)
-    
+
     # rho_target
     rho_target[imp_fill_mesh] = rho[imp_mesh]
     rho_target[det_fill_mesh] = rho[det_mesh]
-    
+
     def Vemb_param(param):
         """
         Give param return corresponding Vemb.
@@ -1251,7 +1251,7 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
         else:
             v_emb = np.tensordot(param, dV_dparam, axes=(0, 0))
         return v_emb
-    
+
     def errfunc(param):
         embHeff = embH1 + Vemb_param(param)
         ew, ev = la.eigh(embHeff, ovlp_emb)
@@ -1259,7 +1259,7 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
             mu_quasi = 0.5 * (ew[nelec-1] + ew[nelec])
         else:
             mu_quasi = mu0
-        
+
         ewocc, mu_quasi, _ = assignocc(ew, nelec, beta, mu_quasi, fix_mu=fix_mu,
                                        thr_deg=tol_deg)
         tmp = np.dot(ev*ewocc, ev.T)
@@ -1267,7 +1267,7 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
         rho1[det_fill_mesh] = tmp[det_mesh]
         drho = rho1 - rho_target
         return la.norm(drho) / np.sqrt(2.0)
-    
+
     def gradfunc(param):
         embHeff = embH1 + Vemb_param(param)
         ew, ev = la.eigh(embHeff, ovlp_emb)
@@ -1277,21 +1277,21 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
             mu_quasi = mu0
         ewocc, mu_quasi, _ = assignocc(ew, nelec, beta, mu_quasi, fix_mu=fix_mu,
                                        thr_deg=tol_deg)
-         
+
         tmp = np.dot(ev*ewocc, ev.T)
         rho1[imp_fill_mesh] = tmp[imp_mesh]
         rho1[det_fill_mesh] = tmp[det_mesh]
-        
+
         drho = rho1 - rho_target
         val = la.norm(drho)
 
-        occ = nelec 
+        occ = nelec
         ewocc, ewvirt = ew[:occ],    ew[occ:]
         evocc, evvirt = ev[:, :occ], ev[:, occ:]
-        
+
         if dV_dparam.ndim == 2:
             e_mn = 1.0 / (-ewvirt.reshape((-1,1)) + ewocc)
-            temp_mn = mdot(evvirt[fit_idx].T, drho, 
+            temp_mn = mdot(evvirt[fit_idx].T, drho,
                            evocc[fit_idx]) * e_mn / (val * np.sqrt(2.0))
             dw_dV_full  = mdot(evvirt, temp_mn, evocc.T)
             dw_dV_full  = dw_dV_full + dw_dV_full.T
@@ -1302,12 +1302,12 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
         else:
             dw_dV = np.empty((nbasis, nbasis))
             e_mn = 1.0 / (-ewvirt.reshape((-1,1)) + ewocc)
-            temp_mn = mdot(evvirt[fit_idx].T, drho, 
+            temp_mn = mdot(evvirt[fit_idx].T, drho,
                            evocc[fit_idx]) * e_mn / (val * np.sqrt(2.0))
             dw_dV = mdot(evvirt, temp_mn, evocc.T)
             dw_dV = dw_dV + dw_dV.T
             res = np.tensordot(dV_dparam, dw_dV, axes=((1, 2), (0, 1)))
-        
+
         # project out the diagonal component
         #if remove_diag_grad:
         #    for s in range(spin):
@@ -1317,28 +1317,28 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
 
     def gradfunc_ft(param):
         embHeff = embH1 + Vemb_param(param)
-        
+
         ew, ev = la.eigh(embHeff, ovlp_emb)
         if not fix_mu:
             mu_quasi = 0.5 * (ew[nelec-1] + ew[nelec])
         else:
             mu_quasi = mu0
-        ewocc, mu_quasi, _ = assignocc(ew, nelec, beta, mu_quasi, fix_mu=fix_mu, 
+        ewocc, mu_quasi, _ = assignocc(ew, nelec, beta, mu_quasi, fix_mu=fix_mu,
                                        thr_deg=tol_deg)
-         
+
         tmp = np.dot(ev*ewocc, ev.T)
         rho1[imp_fill_mesh] = tmp[imp_mesh]
         rho1[det_fill_mesh] = tmp[det_mesh]
-        
+
         drho = rho1 - rho_target
         val = la.norm(drho)
 
         dw_dv = ftsystem.get_dw_dv(ew, ev, drho, mu_quasi, beta, fix_mu=fix_mu,
-                                   fit_idx=fit_idx, 
+                                   fit_idx=fit_idx,
                                    compact=(dV_dparam.ndim == 2))
         dw_dparam = dV_dparam.reshape(dV_dparam.shape[0], -1).dot(dw_dv.ravel()) \
                     / (2.0 * val * np.sqrt(2.0))
-        
+
         # project out the diagonal component
         #if remove_diag_grad:
         #    for s in range(spin):
@@ -1364,19 +1364,19 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
             param_rand = (param_rand - 0.5) * 0.1
         test_grad(param_rand.copy(), errfunc, gradfunc, dx=1e-4)
         test_grad(param_rand.copy(), errfunc, gradfunc, dx=1e-5)
-    
-    if num_grad: 
+
+    if num_grad:
         log.warn("You are using numerical gradient...")
         gradfunc = None
 
     param, err_end, pattern, gnorm_res = minimize(errfunc, vcor.param, MaxIter, gradfunc, **kwargs)
     vcor.update(param)
-    
+
     log.info("Minimizer converge pattern: %d ", pattern)
     log.info("Current function value: %15.8f", err_end)
     log.info("Norm of gradients: %s", gnorm_res)
     log.info("Norm diff of x: %15.8f", max_abs(param - param_begin))
-    
+
     # Check with scipy minimizer
     if CG_check and (pattern == 0 or gnorm_res > 1.0e-4):
         log.info("Check with optimizer in Scipy...")
@@ -1390,19 +1390,19 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
         else:
             log.info("CG used in check")
             method = 'CG'
-        
+
         min_result = opt.minimize(errfunc, param_new, method=method,
-                                  jac=gradfunc, 
-                                  options={'maxiter': 
-                                           min(len(param_new)*10, MaxIter), 
+                                  jac=gradfunc,
+                                  options={'maxiter':
+                                           min(len(param_new)*10, MaxIter),
                                            'disp': True, 'gtol': gtol})
         param_new_2 = min_result.x
-        log.info("CG Final Diff: %s", min_result.fun) 
+        log.info("CG Final Diff: %s", min_result.fun)
         log.info("Converged: %s", min_result.status)
         log.info("Jacobian: %s", max_abs(min_result.jac))
         if(not min_result.success):
             log.warn("Minimization unsuccessful. Message:\n%s", min_result.message)
-    
+
         gnorm_new = max_abs(min_result.jac)
         diff_CG_old = max_abs(param_new_2 - param_new)
         log.info("max diff in x between %s and old: %s", method, diff_CG_old)
@@ -1421,7 +1421,7 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
             vcor.update(param_new)
     else:
         log.info("Old result used")
-    
+
     if log.Level[log.verbose] > log.Level["DEBUG0"]:
         errfunc(vcor.param)
         log.debug(1, "rdm1 target:\n%s", rho_target)
@@ -1431,10 +1431,10 @@ def FitVcorEmb(rho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=300,
 def get_dV_dparam_full(vcor, lattice, P_act=None, compact=True):
     """
     Get dV / dparam for the full problem.
-    
+
     Args:
         compact: if true dv is the tril part, dv_tril / dparam
-    
+
     Returns:
         dv_dparam.
     """
@@ -1443,26 +1443,26 @@ def get_dV_dparam_full(vcor, lattice, P_act=None, compact=True):
     nkpts = lattice.nkpts
     assert vcor.is_local()
     grad = vcor.gradient()
-    
+
     dV_dparam = np.empty((vcor.length(), nso, nso))
     dV_dparam[:, :nao, :nao] = grad[:, 0]
     dV_dparam[:, nao:, nao:] = grad[:, 1]
     dV_dparam[:, :nao, nao:] = grad[:, 2]
     dV_dparam[:, nao:, :nao] = grad[:, 2].transpose(0, 2, 1).conj()
-    
+
     grad = None
     vcor.grad   = None
     vcor.grad_k = None
-    
+
     if compact:
         nso_pair = nso * (nso + 1) // 2
         dV_dparam = lib.pack_tril(dV_dparam.reshape(-1, nso, nso))
         dV_dparam = dV_dparam.reshape(vcor.length(), nso_pair)
-    
+
     return dV_dparam
 
 def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
-                imp_fit=False, imp_idx=None, det=False, det_idx=None, 
+                imp_fit=False, imp_idx=None, det=False, det_idx=None,
                 CG_check=False, BFGS=False, diff_criterion=None, scf=False,
                 **kwargs):
     """
@@ -1510,22 +1510,22 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
         det_idx = []
     imp_idx = list(imp_idx)
     det_idx = list(det_idx)
-    
+
     def convert_idx(idx0, norb):
         idx0_a, idx0_b = idx_ao2so(idx0, norb)
         return idx0_a + idx0_b
-    
+
     if not imp_bath_fit:
         # ZHC NOTE here should use nao, not nimp
         imp_idx = convert_idx(imp_idx, nao)
         det_idx = convert_idx(det_idx, nao)
-     
+
     log.info("impurity fitting? %s", imp_fit)
     log.debug(1, "imp_idx: %s", format_idx(imp_idx))
     log.info("det (diagonal fitting)? %s", det)
     log.debug(1, "det_idx: %s", format_idx(det_idx))
     log.debug(1, "only fit bogoliubov part: %s", bogo_only)
-    
+
     fit_idx = imp_idx + det_idx
     nimp, nidx = len(imp_idx), len(fit_idx)
     nimp_half = nimp // 2
@@ -1536,14 +1536,14 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     det_mesh = (det_idx, det_idx)
     imp_fill_mesh = (slice(nimp), slice(nimp))
     det_fill_mesh = (range(nimp, nidx), range(nimp, nidx))
-    
+
     imp_fill_mesh_aa = (slice(nimp_half), slice(nimp_half))
     imp_fill_mesh_bb = (slice(nimp_half, nimp), slice(nimp_half, nimp))
     det_fill_mesh_aa = (range(nimp, nimp + ndet_half), range(nimp, nimp + ndet_half))
     det_fill_mesh_bb = (range(nimp + ndet_half, nidx), range(nimp + ndet_half, nidx))
     if len(np.unique(fit_idx)) != nidx:
         log.warn("fit_idx has repeated indices: %s", format_idx(fit_idx))
-    
+
     # ZHC NOTE
     # rho should be rho_glob (R = 0) with shape (nso, nso)
     if rho.shape[-1] != nso:
@@ -1552,7 +1552,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     rho_target = np.zeros((nidx, nidx))
     rho_target[imp_fill_mesh] = rho[imp_mesh]
     rho_target[det_fill_mesh] = rho[det_mesh]
-    
+
     # ZHC NOTE
     # choose to fit only bogoliubov part
     if bogo_only:
@@ -1573,18 +1573,18 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     nelec = nkpts * nso * 0.5
     nelec = mfd.check_nelec(nelec, None)[0]
     dV_dparam = get_dV_dparam_full(vcor, lattice, compact=True)
-    
+
     if kwargs.get("use_mpi", False):
         log.info("fitting with MPI.")
         from libdmet.routine import mfd_mpi
         kpairs, kidx = mfd_mpi.get_kpairs_kidx(lattice.cell, lattice.kpts)
-        
+
         def errfunc(param):
             vcor.update(param)
             vcor_mat = vcor.get(0, True)
             ew, ev = mfd_mpi.DiagGHF_symm(lattice.cell, GFock, vcor_mat, mu=None, kpairs=kpairs, kidx=kidx)
             ewocc, mu_quasi, nerr = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)
-            
+
             if imp_bath_fit:
                 GRho = np.empty_like(ev)
                 for k in range(nkpts):
@@ -1598,7 +1598,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                 if max_abs(GRhoT.imag) > mfd.IMAG_DISCARD_TOL:
                     log.warn("GRhoT has imag part %s", max_abs(GRhoT.imag))
                 GRhoT = GRhoT.real
-                
+
                 rho1[imp_fill_mesh] = GRhoT[imp_mesh]
                 rho1[det_fill_mesh] = GRhoT[det_mesh]
 
@@ -1609,7 +1609,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                     rho1[det_fill_mesh_bb] = 0.0
 
             return la.norm((rho1 - rho_target)) / np.sqrt(2)
-        
+
         def gradfunc_ft(param):
             vcor.update(param)
             vcor_mat = vcor.get(0, True)
@@ -1630,7 +1630,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
                 rho1[imp_fill_mesh] = GRhoT[imp_mesh]
                 rho1[det_fill_mesh] = GRhoT[det_mesh]
-                
+
                 if bogo_only:
                     rho1[imp_fill_mesh_aa] = 0.0
                     rho1[imp_fill_mesh_bb] = 0.0
@@ -1643,22 +1643,22 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
             drho = rho1 - rho_target
             val = la.norm(drho)
-            
+
             dw_dparam = 0.0
             for k in range(nkpts):
                 dw_dv = ftsystem.get_dw_dv(ew[k], ev[k], drho, mu_quasi, beta, fix_mu=fix_mu,
-                                           fit_idx=fit_idx, 
+                                           fit_idx=fit_idx,
                                            compact=(dV_dparam.ndim == 2))
                 dw_dparam += dV_dparam.reshape(dV_dparam.shape[0], -1).dot(dw_dv.ravel())
-            
+
             dw_dparam = dw_dparam.real / (2.0 * val * np.sqrt(2.0) * nkpts)
             return dw_dparam
-    else: 
+    else:
         def errfunc(param):
             vcor.update(param)
             ew, ev = mfd.DiagGHF_symm(GFock, vcor, mu=None, lattice=lattice)
             ewocc, mu_quasi, nerr = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)
-            
+
             if imp_bath_fit:
                 GRho = np.empty_like(ev)
                 for k in range(nkpts):
@@ -1672,7 +1672,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                 if max_abs(GRhoT.imag) > mfd.IMAG_DISCARD_TOL:
                     log.warn("GRhoT has imag part %s", max_abs(GRhoT.imag))
                 GRhoT = GRhoT.real
-                
+
                 rho1[imp_fill_mesh] = GRhoT[imp_mesh]
                 rho1[det_fill_mesh] = GRhoT[det_mesh]
 
@@ -1683,7 +1683,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                     rho1[det_fill_mesh_bb] = 0.0
 
             return la.norm((rho1 - rho_target)) / np.sqrt(2)
-        
+
         def gradfunc_ft(param):
             vcor.update(param)
             ew, ev = mfd.DiagGHF_symm(GFock, vcor, mu=None, lattice=lattice)
@@ -1703,7 +1703,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
                 rho1[imp_fill_mesh] = GRhoT[imp_mesh]
                 rho1[det_fill_mesh] = GRhoT[det_mesh]
-                
+
                 if bogo_only:
                     rho1[imp_fill_mesh_aa] = 0.0
                     rho1[imp_fill_mesh_bb] = 0.0
@@ -1716,17 +1716,17 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
             drho = rho1 - rho_target
             val = la.norm(drho)
-            
+
             dw_dparam = 0.0
             for k in range(nkpts):
                 dw_dv = ftsystem.get_dw_dv(ew[k], ev[k], drho, mu_quasi, beta, fix_mu=fix_mu,
-                                           fit_idx=fit_idx, 
+                                           fit_idx=fit_idx,
                                            compact=(dV_dparam.ndim == 2))
                 dw_dparam += dV_dparam.reshape(dV_dparam.shape[0], -1).dot(dw_dv.ravel())
-            
+
             dw_dparam = dw_dparam.real / (2.0 * val * np.sqrt(2.0) * nkpts)
             return dw_dparam
-    
+
     if beta == np.inf:
         log.info("Using analytic gradient for 0 T")
         if not num_grad:
@@ -1746,7 +1746,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
             param_rand = (param_rand - 0.5) * 0.1
         test_grad(param_rand.copy(), errfunc, gradfunc, dx=1e-4)
         test_grad(param_rand.copy(), errfunc, gradfunc, dx=1e-5)
-    
+
     if num_grad:
         log.warn("You are using numerical gradient...")
         gradfunc = None
@@ -1755,12 +1755,12 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     param, err_end, pattern, gnorm_res = minimize(errfunc, param_begin.copy(),
                                                   MaxIter, gradfunc, **kwargs)
     vcor.update(param)
-    
+
     log.info("Minimizer converge pattern: %d ", pattern)
     log.info("Current function value: %15.8f", err_end)
     log.info("Norm of gradients: %s", gnorm_res)
     log.info("Norm diff of x: %15.8f", max_abs(param - param_begin))
-    
+
     if log.Level[log.verbose] > log.Level["DEBUG0"]:
         errfunc(vcor.param)
         log.debug(1, "rdm1 target:\n%s", rho_target)
@@ -1769,7 +1769,7 @@ def FitVcorFull(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     return vcor, err_begin, err_end
 
 def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
-                   imp_fit=False, imp_idx=None, det=False, det_idx=None, 
+                   imp_fit=False, imp_idx=None, det=False, det_idx=None,
                    CG_check=False, BFGS=False, diff_criterion=None, scf=False,
                    use_cvx_frac=False, **kwargs):
     """
@@ -1817,22 +1817,22 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
         det_idx = []
     imp_idx = list(imp_idx)
     det_idx = list(det_idx)
-    
+
     def convert_idx(idx0, norb):
         idx0_a, idx0_b = idx_ao2so(idx0, norb)
         return idx0_a + idx0_b
-    
+
     if not imp_bath_fit:
         # ZHC NOTE here should use nao, not nimp
         imp_idx = convert_idx(imp_idx, nao)
         det_idx = convert_idx(det_idx, nao)
-     
+
     log.info("impurity fitting? %s", imp_fit)
     log.debug(1, "imp_idx: %s", format_idx(imp_idx))
     log.info("det (diagonal fitting)? %s", det)
     log.debug(1, "det_idx: %s", format_idx(det_idx))
     log.debug(1, "only fit bogoliubov part: %s", bogo_only)
-    
+
     fit_idx = imp_idx + det_idx
     nimp, nidx = len(imp_idx), len(fit_idx)
     nimp_half = nimp // 2
@@ -1843,14 +1843,14 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     det_mesh = (det_idx, det_idx)
     imp_fill_mesh = (slice(nimp), slice(nimp))
     det_fill_mesh = (range(nimp, nidx), range(nimp, nidx))
-    
+
     imp_fill_mesh_aa = (slice(nimp_half), slice(nimp_half))
     imp_fill_mesh_bb = (slice(nimp_half, nimp), slice(nimp_half, nimp))
     det_fill_mesh_aa = (range(nimp, nimp + ndet_half), range(nimp, nimp + ndet_half))
     det_fill_mesh_bb = (range(nimp + ndet_half, nidx), range(nimp + ndet_half, nidx))
     if len(np.unique(fit_idx)) != nidx:
         log.warn("fit_idx has repeated indices: %s", format_idx(fit_idx))
-    
+
     # ZHC NOTE
     # rho should be rho_glob (R = 0) with shape (nso, nso)
     if rho.shape[-1] != nso:
@@ -1859,7 +1859,7 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     rho_target = np.zeros((nidx, nidx))
     rho_target[imp_fill_mesh] = rho[imp_mesh]
     rho_target[det_fill_mesh] = rho[det_mesh]
-    
+
     # ZHC NOTE
     # choose to fit only bogoliubov part
     if bogo_only:
@@ -1874,11 +1874,11 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     Fock = lattice.getFock(kspace=True)
     GFock = pbc_hp.combine_H1_k(Fock)
     assert GFock.shape[-1] == lattice.nao * 2
-    
+
     nelec = nkpts * nso * 0.5
-    nelec = mfd.check_nelec(nelec, None)[0]    
+    nelec = mfd.check_nelec(nelec, None)[0]
     nelec_phys_target = nso * filling
-    
+
     # CVX fractional fit
     if use_cvx_frac:
         from libdmet.routine.fit import cvx_frac
@@ -1916,7 +1916,7 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                     else:
                         if v is not None:
                             f[k] = v
-                            
+
         err_begin = err_end = 0.0
         return rdm1_fit, err_begin, err_end
 
@@ -1933,10 +1933,10 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
         def get_nelec_phys(mu):
             vcor_mat = vcor.get(0, True)
             ew, ev = mfd_mpi.DiagGHF_symm(lattice.cell, GFock, vcor_mat, mu=mu, kpairs=kpairs, kidx=kidx)
-            ewocc = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)[0]  
+            ewocc = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)[0]
             ev_sq = np.abs(ev)
             ev_sq **= 2
-            ev_sq_sum  = ev_sq[:, :nao].sum(axis=1) 
+            ev_sq_sum  = ev_sq[:, :nao].sum(axis=1)
             ev_sq_sum -= ev_sq[:, nao:].sum(axis=1)
             nelec_phys = np.dot(ev_sq_sum.ravel(), ewocc.ravel()) / nkpts + nao
             #log.info("nelec_phys %15.8g (target %15.8g)", nelec_phys, nelec_phys_target)
@@ -1945,11 +1945,11 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
         def errfunc(param):
             vcor.update(param)
             vcor_mat = vcor.get(0, True)
-            mu_elec = mono_fit_2(get_nelec_phys, nelec_phys_target, mu_guess[0], thr=1e-6, 
+            mu_elec = mono_fit_2(get_nelec_phys, nelec_phys_target, mu_guess[0], thr=1e-6,
                                  dx=step_guess[0], verbose=False, maxiter=20)
             ew, ev = mfd_mpi.DiagGHF_symm(lattice.cell, GFock, vcor_mat, mu=mu_elec, kpairs=kpairs, kidx=kidx)
             ewocc, mu_quasi, nerr = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)
-            
+
             if imp_bath_fit:
                 GRho = np.empty_like(ev)
                 for k in range(nkpts):
@@ -1963,7 +1963,7 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                 if max_abs(GRhoT.imag) > mfd.IMAG_DISCARD_TOL:
                     log.warn("GRhoT has imag part %s", max_abs(GRhoT.imag))
                 GRhoT = GRhoT.real
-                
+
                 rho1[imp_fill_mesh] = GRhoT[imp_mesh]
                 rho1[det_fill_mesh] = GRhoT[det_mesh]
 
@@ -1974,13 +1974,13 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                     rho1[det_fill_mesh_bb] = 0.0
 
             return la.norm((rho1 - rho_target)) / np.sqrt(2)
-        
+
         def gradfunc_ft(param):
             vcor.update(param)
             vcor_mat = vcor.get(0, True)
-            mu_elec = mono_fit_2(get_nelec_phys, nelec_phys_target, mu_guess[0], thr=1e-6, 
+            mu_elec = mono_fit_2(get_nelec_phys, nelec_phys_target, mu_guess[0], thr=1e-6,
                                  dx=step_guess[0], verbose=False, maxiter=20)
-            
+
             # ZHC NOTE update mu_guess and step_guess
             step_guess[0] = min(max(0.05, abs(mu_elec - mu_guess[0])), 0.2)
             mu_guess[0] = mu_elec
@@ -2002,7 +2002,7 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
                 rho1[imp_fill_mesh] = GRhoT[imp_mesh]
                 rho1[det_fill_mesh] = GRhoT[det_mesh]
-                
+
                 if bogo_only:
                     rho1[imp_fill_mesh_aa] = 0.0
                     rho1[imp_fill_mesh_bb] = 0.0
@@ -2015,26 +2015,26 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
             drho = rho1 - rho_target
             val = la.norm(drho)
-            
+
             #dw_dparam = 0.0
             #for k in range(nkpts):
             #    dw_dv = ftsystem.get_dw_dv(ew[k], ev[k], drho, mu_quasi, beta, fix_mu=fix_mu,
-            #                               fit_idx=fit_idx, 
+            #                               fit_idx=fit_idx,
             #                               compact=(dV_dparam.ndim == 2))
             #    dw_dparam += dV_dparam.reshape(dV_dparam.shape[0], -1).dot(dw_dv.ravel())
             #
             #dw_dparam = dw_dparam.real / (2.0 * val * np.sqrt(2.0) * nkpts)
-            dw_dparam = mfd_mpi.get_dw_dparam(lattice.cell, ew, ev, drho, dV_dparam, val, 
+            dw_dparam = mfd_mpi.get_dw_dparam(lattice.cell, ew, ev, drho, dV_dparam, val,
                                               mu_quasi, beta, fix_mu=fix_mu, fit_idx=fit_idx,
                                               kpairs=kpairs, kidx=kidx)
             return dw_dparam
     else:
         def get_nelec_phys(mu):
             ew, ev = mfd.DiagGHF_symm(GFock, vcor, mu=mu, lattice=lattice)
-            ewocc = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)[0]  
+            ewocc = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)[0]
             ev_sq = np.abs(ev)
             ev_sq **= 2
-            ev_sq_sum  = ev_sq[:, :nao].sum(axis=1) 
+            ev_sq_sum  = ev_sq[:, :nao].sum(axis=1)
             ev_sq_sum -= ev_sq[:, nao:].sum(axis=1)
             nelec_phys = np.dot(ev_sq_sum.ravel(), ewocc.ravel()) / nkpts + nao
             #log.info("nelec_phys %15.8g (target %15.8g)", nelec_phys, nelec_phys_target)
@@ -2042,11 +2042,11 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
         def errfunc(param):
             vcor.update(param)
-            mu_elec = mono_fit_2(get_nelec_phys, nelec_phys_target, mu_guess[0], thr=1e-6, 
+            mu_elec = mono_fit_2(get_nelec_phys, nelec_phys_target, mu_guess[0], thr=1e-6,
                                  dx=step_guess[0], verbose=False, maxiter=20)
             ew, ev = mfd.DiagGHF_symm(GFock, vcor, mu=mu_elec, lattice=lattice)
             ewocc, mu_quasi, nerr = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)
-            
+
             if imp_bath_fit:
                 GRho = np.empty_like(ev)
                 for k in range(nkpts):
@@ -2060,7 +2060,7 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                 if max_abs(GRhoT.imag) > mfd.IMAG_DISCARD_TOL:
                     log.warn("GRhoT has imag part %s", max_abs(GRhoT.imag))
                 GRhoT = GRhoT.real
-                
+
                 rho1[imp_fill_mesh] = GRhoT[imp_mesh]
                 rho1[det_fill_mesh] = GRhoT[det_mesh]
 
@@ -2071,16 +2071,16 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
                     rho1[det_fill_mesh_bb] = 0.0
 
             return la.norm((rho1 - rho_target)) / np.sqrt(2)
-        
+
         def gradfunc_ft(param):
             vcor.update(param)
-            mu_elec = mono_fit_2(get_nelec_phys, nelec_phys_target, mu_guess[0], thr=1e-6, 
+            mu_elec = mono_fit_2(get_nelec_phys, nelec_phys_target, mu_guess[0], thr=1e-6,
                                  dx=step_guess[0], verbose=False, maxiter=20)
-            
+
             # ZHC NOTE update mu_guess and step_guess
             step_guess[0] = min(max(0.05, abs(mu_elec - mu_guess[0])), 0.2)
             mu_guess[0] = mu_elec
-            
+
             ew, ev = mfd.DiagGHF_symm(GFock, vcor, mu=mu_elec, lattice=lattice)
             ewocc, mu_quasi, nerr = assignocc(ew, nelec, beta, mu0=0.0, fix_mu=fix_mu)
 
@@ -2098,7 +2098,7 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
                 rho1[imp_fill_mesh] = GRhoT[imp_mesh]
                 rho1[det_fill_mesh] = GRhoT[det_mesh]
-                
+
                 if bogo_only:
                     rho1[imp_fill_mesh_aa] = 0.0
                     rho1[imp_fill_mesh_bb] = 0.0
@@ -2111,17 +2111,17 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
 
             drho = rho1 - rho_target
             val = la.norm(drho)
-            
+
             dw_dparam = 0.0
             for k in range(nkpts):
                 dw_dv = ftsystem.get_dw_dv(ew[k], ev[k], drho, mu_quasi, beta, fix_mu=fix_mu,
-                                           fit_idx=fit_idx, 
+                                           fit_idx=fit_idx,
                                            compact=(dV_dparam.ndim == 2))
                 dw_dparam += dV_dparam.reshape(dV_dparam.shape[0], -1).dot(dw_dv.ravel())
-            
+
             dw_dparam = dw_dparam.real / (2.0 * val * np.sqrt(2.0) * nkpts)
             return dw_dparam
-    
+
     if beta == np.inf:
         log.info("Using analytic gradient for 0 T")
         if not num_grad:
@@ -2141,7 +2141,7 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
             param_rand = (param_rand - 0.5) * 0.1
         test_grad(param_rand.copy(), errfunc, gradfunc, dx=1e-4)
         test_grad(param_rand.copy(), errfunc, gradfunc, dx=1e-5)
-    
+
     if num_grad:
         log.warn("You are using numerical gradient...")
         gradfunc = None
@@ -2150,12 +2150,12 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     param, err_end, pattern, gnorm_res = minimize(errfunc, param_begin.copy(),
                                                   MaxIter, gradfunc, **kwargs)
     vcor.update(param)
-    
+
     log.info("Minimizer converge pattern: %d ", pattern)
     log.info("Current function value: %15.8f", err_end)
     log.info("Norm of gradients: %s", gnorm_res)
     log.info("Norm diff of x: %15.8f", max_abs(param - param_begin))
-    
+
     if log.Level[log.verbose] > log.Level["DEBUG0"]:
         errfunc(vcor.param)
         log.debug(1, "rdm1 target:\n%s", rho_target)
@@ -2164,8 +2164,8 @@ def FitVcorFull_mu(rho, lattice, basis, vcor, mu, beta, filling, MaxIter=20,
     return vcor, err_begin, err_end
 
 def FitVcorTwoStep(GRho, lattice, basis, vcor, mu, beta=np.inf, MaxIter1=300,
-                   MaxIter2=0, kinetic=False, CG_check=False, BFGS=False, 
-                   serial=True, method='CG', ytol=1e-7, gtol=1e-3, 
+                   MaxIter2=0, kinetic=False, CG_check=False, BFGS=False,
+                   serial=True, method='CG', ytol=1e-7, gtol=1e-3,
                    filling=None, **kwargs):
     """
     Main wrapper for correlation potential fitting.
@@ -2181,14 +2181,14 @@ def FitVcorTwoStep(GRho, lattice, basis, vcor, mu, beta=np.inf, MaxIter1=300,
     vcor_new = copy.deepcopy(vcor)
     log.result("Using two-step vcor fitting")
     err_begin = None
-    
+
     if MaxIter1 > 0:
         log.info("Impurity model stage max %d steps", MaxIter1)
         log.info("Finite temperature used in fitting? beta = %s ", beta)
-        vcor_new, err_begin1, err_end1 = FitVcorEmb(GRho, lattice, basis, vcor_new, 
+        vcor_new, err_begin1, err_end1 = FitVcorEmb(GRho, lattice, basis, vcor_new,
                                                     mu, beta=beta, MaxIter=MaxIter1,
-                                                    CG_check=CG_check, serial=serial, 
-                                                    BFGS=BFGS, method=method, 
+                                                    CG_check=CG_check, serial=serial,
+                                                    BFGS=BFGS, method=method,
                                                     ytol=ytol, gtol=gtol, **kwargs)
         log.info("Embedding Stage:\nbegin %20.12f    end %20.12f" % (err_begin1, err_end1))
 
@@ -2244,7 +2244,7 @@ def localize_mo(mo_coeff, basis):
 
     basis = basis.reshape(-1, neo)
     mo = np.dot(basis, mo_coeff)
-    
+
     # occ before localization
     mo_o = mo[:, :mo.shape[-1]//2]
     w_o = np.einsum("ai, ai -> i", mo_o[alpha_mask], mo_o[alpha_mask],
@@ -2253,7 +2253,7 @@ def localize_mo(mo_coeff, basis):
     w_o = w_o[order_o]
     log.debug(0, "occupied MO character (before localization):\n%s", w_o)
     log.debug(0, "nocc_a: %s (%s)", np.sum(w_o), np.sum(w_o > 0.5))
-    
+
     # occ localization
     mo_o, u_o = scdm.scdm_model(mo_o, return_C_mo_lo=True)
     mo_o = mo_o[0]
@@ -2265,7 +2265,7 @@ def localize_mo(mo_coeff, basis):
     log.debug(0, "occupied MO character (after localization):\n%s", w_o)
     log.debug(0, "nocc_a: %s (%s)", np.sum(w_o), np.sum(w_o > 0.5))
     u_o = u_o[:, order_o]
-    
+
     # vir before localization
     mo_v = mo[:, mo.shape[-1]//2:]
     w_v = np.einsum("ai, ai -> i", mo_v[alpha_mask], mo_v[alpha_mask],
@@ -2274,7 +2274,7 @@ def localize_mo(mo_coeff, basis):
     w_v = w_v[order_v]
     log.debug(0, "virtual MO character (before localization):\n%s", w_v)
     log.debug(0, "nvir_a: %s (%s)", np.sum(w_v), np.sum(w_v > 0.5))
-    
+
     # vir localization
     mo_v, u_v = scdm.scdm_model(mo_v, return_C_mo_lo=True)
     mo_v = mo_v[0]
@@ -2286,7 +2286,7 @@ def localize_mo(mo_coeff, basis):
     log.debug(0, "virtual MO character (after localization):\n%s", w_v)
     log.debug(0, "nvir_a: %s (%s)", np.sum(w_v), np.sum(w_v > 0.5))
     u_v = u_v[:, order_v]
-    
+
     u = la.block_diag(u_o, u_v)
     mo = np.dot(mo_coeff, u)
     return mo, u

@@ -17,7 +17,7 @@ from libdmet.routine import mfd
 from libdmet.utils.misc import (mdot, max_abs, find, add_spin_dim, Iterable,
                                 format_idx)
 from libdmet.utils import logger as log
-from libdmet.settings import IMAG_DISCARD_TOL 
+from libdmet.settings import IMAG_DISCARD_TOL
 
 def transform_trans_inv(basis, lattice, H, symmetric=True):
     ncells = lattice.ncells
@@ -36,11 +36,11 @@ def transform_trans_inv(basis, lattice, H, symmetric=True):
 
 def transform_trans_inv_k(basis_k, H_k):
     """
-    Transform from LO to EO, 
+    Transform from LO to EO,
     using k-basis and k-one-particle quantities.
     basis_k should has shape (nkpts, nlo, nbasis)
     """
-    nkpts, nlo, nbasis = basis_k.shape 
+    nkpts, nlo, nbasis = basis_k.shape
     res = np.zeros((nbasis, nbasis), dtype=np.complex128)
     for k in range(nkpts):
         res += mdot(basis_k[k].conj().T, H_k[k], basis_k[k])
@@ -127,13 +127,13 @@ def transform_4idx(vijkl, ip, jq, kr, ls):
     """
     transform eri with 1-fold symmetry.
     """
-    return np.einsum('ijkl, ip, jq, kr, ls -> pqrs', vijkl, ip, jq, kr, ls, 
+    return np.einsum('ijkl, ip, jq, kr, ls -> pqrs', vijkl, ip, jq, kr, ls,
                      optimize=True)
 
 def transform_eri_local(basis, lattice, H2):
     """
     Transform the local H2 of shape ((spin, ) nscsites, nscsites, nscsites, nscsites),
-    to embedding space. 
+    to embedding space.
     Used for interacting bath formalism.
     """
     if basis.ndim == 3:
@@ -158,13 +158,13 @@ def transform_eri_local(basis, lattice, H2):
 def get_emb_basis_other_cell(lattice, basis, R, reorder_idx=None):
     """
     Get embedding basis for the R cell's problem.
-    
+
     Args:
         lattice: lattice object.
         basis: C_lo_eo, (spin, ncells, nlo, neo)
-        R: the id of embedding problem, 
+        R: the id of embedding problem,
            basis is the 0th embedding problem at the first cell.
-    
+
     Returns:
         basis_R: the embedding basis for Rth problem.
     """
@@ -172,7 +172,7 @@ def get_emb_basis_other_cell(lattice, basis, R, reorder_idx=None):
     old_shape = basis.shape
     if len(old_shape) == 3:
         basis = basis[None]
-    if reorder_idx is None: 
+    if reorder_idx is None:
         spin, ncells, nlo, neo = basis.shape
         reorder_idx = [lattice.subtract(I, R) for I in range(ncells)]
     basis_R = basis[:, reorder_idx]
@@ -180,20 +180,20 @@ def get_emb_basis_other_cell(lattice, basis, R, reorder_idx=None):
         basis_R = basis_R[0]
     return basis_R
 
-def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True, 
+def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
                    sign=None):
     """
     Get rho_glob in site basis, in stripe shape.
     Use democratic partitioning.
     Average of the IJ blocks from I and from J impurity problem.
-    
+
     Args:
         basis: C_lo_eo, (spin, ncells, nlo, neo), or list of C_lo_eo.
         lattice: lattice object, or list of lattices
         rho_emb: rdm1, (spin, neo, neo), or list of rdm1.
 
     Returns:
-        rho_glob_R: global rdm1, 
+        rho_glob_R: global rdm1,
                     if compact (spin, ncells, nlo, nlo)
                     else       (spin, ncells*nlo, ncells*nlo).
     """
@@ -205,7 +205,7 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
         basis_col = basis
         lattice_col = lattice
         rho_emb_col = rho_emb
-    
+
     if sign is None:
         sign = np.ones(len(lattice_col), dtype=int)
     else:
@@ -215,17 +215,17 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
 
     rho_glob = 0.0
     I_idx = 0
-    
-    for basis_I, lattice_I, rho_emb_I, sign_I in zip(basis_col, lattice_col, 
+
+    for basis_I, lattice_I, rho_emb_I, sign_I in zip(basis_col, lattice_col,
                                                      rho_emb_col, sign):
-        log.debug(0, "Build rdm1_glob, impurity %s, indices: %s, sign: %s", 
+        log.debug(0, "Build rdm1_glob, impurity %s, indices: %s, sign: %s",
                   I_idx, format_idx(lattice_I.imp_idx), sign_I)
         basis_I = np.asarray(basis_I)
         if basis_I.ndim == 3:
             basis_I = basis_I[None]
         spin, ncells, nlo, _ = basis_I.shape
         rho_emb_I = add_spin_dim(rho_emb_I, spin, non_spin_dim=2)
-        
+
         if compact:
             rho_R = np.zeros((spin, ncells * nlo, nlo))
             for R in range(ncells):
@@ -269,11 +269,11 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
         I_idx += 1
     return rho_glob
 
-def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True, 
+def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True,
                    sign=None):
     if sign is not None:
         compact = False
-    
+
     rho_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric,
                            compact=compact, sign=sign)
 
@@ -289,7 +289,7 @@ def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True,
             rho_k = lattice.R2k(lattice.extract_stripe(rho_R))
     return rho_k
 
-def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True, 
+def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True,
                       sign=None):
     """
     Get rho_glob in site basis, in full shape.
@@ -297,7 +297,7 @@ def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True,
     """
     if sign is not None:
         compact = False
-    rho_glob_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric, 
+    rho_glob_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric,
                                 compact=compact, sign=sign)
     if compact:
         if isinstance(lattice, Iterable):
@@ -331,17 +331,17 @@ def get_rdm2_glob_R(basis_a, basis_b, lattice, rdm2_emb, symmetric=True):
                 I_J = lattice.subtract(J, I)
                 I_K = lattice.subtract(K, I)
                 I_L = lattice.subtract(L, I)
-                
+
                 J_I = lattice.subtract(I, J)
                 J_J = lattice.subtract(J, J)
                 J_K = lattice.subtract(K, J)
                 J_L = lattice.subtract(L, J)
-                
+
                 K_I = lattice.subtract(I, K)
                 K_J = lattice.subtract(J, K)
                 K_K = lattice.subtract(K, K)
                 K_L = lattice.subtract(L, K)
-                
+
                 L_I = lattice.subtract(I, L)
                 L_J = lattice.subtract(J, L)
                 L_K = lattice.subtract(K, L)
@@ -380,9 +380,9 @@ def get_rho_pdmet_R(basis, lattice, phi_k):
 def get_rdm1_idem(rdm1, nelec, beta):
     """
     Project a rdm1 to the idempotent rdm1, using natural orbitals.
-    
+
     Args:
-        rdm1: rdm1, shape (spin, (nkpts), nlo, nlo). 
+        rdm1: rdm1, shape (spin, (nkpts), nlo, nlo).
               For restricted rdm1, the largest occupancy is 1.
         nelec: the electron number (all kpoints).
         beta: possible smearing.
@@ -416,7 +416,7 @@ def get_rdm1_idem(rdm1, nelec, beta):
         ewocc, mu, nerr = mfd.assignocc(ew, nelec, beta, mu0=-0.5)
         for s in range(spin):
             for k in range(nkpts):
-                rdm1_idem[s, k] = np.dot(ev[s, k] * ewocc[s, k], 
+                rdm1_idem[s, k] = np.dot(ev[s, k] * ewocc[s, k],
                                          ev[s, k].conj().T)
     return rdm1_idem
 
@@ -439,7 +439,7 @@ def get_H1_power_R(lattice, H1_k=None, power=2, return_all_power=False):
         return H1_pow_R_collect
     else:
         H1_pow_R = lattice.FFTtoT(H1_pow_k)
-        return H1_pow_R 
+        return H1_pow_R
 
 def init_H2(norb, eri_symmetry, dtype=np.double, spin_dim=None):
     """
@@ -473,11 +473,11 @@ def init_H2(norb, eri_symmetry, dtype=np.double, spin_dim=None):
 def restore_eri_local(H2, norb):
     """
     Retore ERI symmetry of H2 to 4-fold.
-    
+
     Args:
         H2: shape (spin, 1 or 4 fold symmetry).
         norb: number of orbitals.
-    
+
     Returns:
         H2_s4: H2 with 4-fold symmetry.
     """

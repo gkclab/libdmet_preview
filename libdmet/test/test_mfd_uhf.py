@@ -109,7 +109,7 @@ def test_mfd_uhf():
     rhoT, mu, E = HF(Lat, vcor, occ, restricted, mu0 = 0., beta = np.inf, ires = False)
     Lat.update_Ham(rhoT)
 
-    E_diff = np.abs(E - (kmf.e_tot - kmf.energy_nuc())) 
+    E_diff = np.abs(E - (kmf.e_tot - kmf.energy_nuc()))
     rdm_diff = max_abs(rhoT - Lat.rdm1_lo_R)
 
     print ("diff E between HF and pyscf", E_diff)
@@ -141,7 +141,7 @@ def test_mfd_uhf():
     # UHF solver
     from libdmet.solver.scf import SCF
     solver = SCF(newton_ah=True)
-    # nelec, spin, bcs, restricted 
+    # nelec, spin, bcs, restricted
     solver.set_system((Lat.ncore+Lat.nval)*2, 0, False, False)
     solver.set_integral(ImpHam)
     rdm1_fold = slater.foldRho_k(Lat.rdm1_lo_k, basis_k)
@@ -185,7 +185,7 @@ def test_mfd_uhf():
     E2_aa = 0.5 * np.sum(r2[0]*h2[0])
     E2_bb = 0.5 * np.sum(r2[1]*h2[1])
     E2_ab = np.sum(r2[2]*h2[2])
-    Efrag = E1 + E2_aa + E2_bb + E2_ab + ImpHam_scaled.H0 
+    Efrag = E1 + E2_aa + E2_bb + E2_ab + ImpHam_scaled.H0
 
     print ("Efrag from HF solver", Efrag)
     print ("E from kmf", (kmf.e_tot - kmf.energy_nuc()))

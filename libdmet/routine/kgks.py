@@ -56,17 +56,17 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
         logger.debug(ks, 'nelec by numeric integration = %s', n)
         t0 = logger.timer(ks, 'vxc', *t0)
         return vxc
-    
+
     # ndim = 3 : dm.shape = (nkpts, nso, nso)
     ground_state = (dm.ndim == 3 and kpts_band is None)
-    
+
     assert hermi == 1
     dm = np.asarray(dm)
     nso = dm.shape[-1]
     nao = nso // 2
     dm_a = dm[..., :nao, :nao]
     dm_b = dm[..., nao:, nao:]
-    
+
     if ks.grids.non0tab is None:
         ks.grids.build(with_non0tab=True)
         if (isinstance(ks.grids, gen_grid.BeckeGrids) and
@@ -82,7 +82,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                                         kpts, kpts_band)
         logger.debug(ks, 'nelec by numeric integration = %s', n)
         t0 = logger.timer(ks, 'vxc', *t0)
-    
+
     vxc = [np.asarray(la.block_diag(*vxc[:, k]), dtype=np.result_type(dm, vxc))
            for k in range(len(kpts))]
     vxc = np.asarray(vxc)
@@ -126,12 +126,12 @@ def get_veff_ph(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
 
     omega, alpha, hyb = ks._numint.rsh_and_hybrid_coeff(ks.xc, spin=cell.spin)
     hybrid = abs(hyb) > 1e-10
-    
+
     assert hermi == 1
     dm = np.asarray(dm)
     nso = dm.shape[-1]
     nao = nso // 2
-    
+
     dm_ks = np.array(dm, copy=True)
     nkpts = dm_ks.shape[-3]
     ovlp = ks.get_ovlp()
@@ -148,10 +148,10 @@ def get_veff_ph(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
         vxc[..., nao:, nao:] *= -1
         t0 = logger.timer(ks, 'vxc', *t0)
         return vxc
-    
+
     # ndim = 3 : dm.shape = (nkpts, nso, nso)
     ground_state = (dm.ndim == 3 and kpts_band is None)
-    
+
     if ks.grids.non0tab is None:
         ks.grids.build(with_non0tab=True)
         if (isinstance(ks.grids, gen_grid.BeckeGrids) and
@@ -167,12 +167,12 @@ def get_veff_ph(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                                         hermi=hermi, kpts=kpts, kpts_band=kpts_band)
         logger.debug(ks, 'nelec by numeric integration = %s', n)
         t0 = logger.timer(ks, 'vxc', *t0)
-    
+
     vxc = [np.asarray(la.block_diag(vxc[0, k], -vxc[1, k]), dtype=np.result_type(dm, vxc))
            for k in range(len(kpts))]
     vxc = np.asarray(vxc)
     weight = 1./len(kpts)
-    
+
     if not skip_jk:
         if not hybrid:
             vj = ks.get_j(cell, dm, hermi, kpts, kpts_band)
@@ -195,7 +195,7 @@ def get_veff_ph(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
             ecoul = np.einsum('Kij, Kji', dm, vj).real * .5 * weight
         else:
             ecoul = None
-        
+
         vxc = lib.tag_array(vxc, ecoul=ecoul, exc=exc, vj=None, vk=None)
     else:
         vxc = lib.tag_array(vxc, ecoul=0.0, exc=exc, vj=None, vk=None)
@@ -207,7 +207,7 @@ def energy_elec(mf, dm_kpts=None, h1e_kpts=None, vhf=None):
     if dm_kpts is None: dm_kpts = mf.make_rdm1()
     if vhf is None or getattr(vhf, 'ecoul', None) is None:
         vhf = mf.get_veff(mf.cell, dm_kpts)
-    
+
     h1e_kpts = np.array(h1e_kpts, copy=True) # copy for subrtact Mu
     nkpts, nso, _ = h1e_kpts.shape
     nao = nso // 2

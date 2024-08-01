@@ -19,7 +19,7 @@ def test_gso_rhf(full_fit):
     E_rhf, rho_rhf = t_rhf(full_fit=full_fit)
     E_gso, rho_gso = t_gso(full_fit=full_fit)
     rho_rhf = spinless.transform_rdm1_local(rho_rhf, compact=False)
-    
+
     print ("rdm1 diff compare to RHF SCF")
     print (max_abs(rho_gso - rho_rhf))
     assert max_abs(rho_gso - rho_rhf) < 1e-5
@@ -42,7 +42,7 @@ def t_rhf(full_fit=False):
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -62,7 +62,7 @@ def t_rhf(full_fit=False):
     exxdiv = None
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -178,13 +178,13 @@ def t_rhf(full_fit=False):
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
         rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
         #Lat.update_Ham(rho*2.0)
-        
+
         log.section("\nconstructing impurity problem\n")
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, \
                 matching=True, int_bath=int_bath, incore=True)
@@ -210,20 +210,20 @@ def t_rhf(full_fit=False):
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
         solver.twopdm = None
-        
+
         #np.save("rdm1_imp_ref0", rhoImp)
         #exit()
 
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, \
                 C_ao_lo, rho, Lat.getFock(kspace=False)], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter,
                 MaxIter2=full_fit_iter, method='CG', \
                 imp_fit=imp_fit, ytol=1e-9, gtol=1e-5, test_grad=True)
-        
+
         #if iter >= trace_start:
         #    # to avoid spiral increase of vcor and mu
         #    log.result("Keep trace of vcor unchanged")
@@ -232,20 +232,20 @@ def t_rhf(full_fit=False):
         #dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
         dVcor_per_ele = max_abs(vcor_new.param - vcor.param)
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         #dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         dVcor_per_ele = max_abs(pvcor - vcor.param)
         vcor.update(pvcor)
         #log.result("trace of vcor: %s", \
         #        np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2), axis=1))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
 
@@ -272,10 +272,10 @@ def t_gso(full_fit=False):
     import libdmet.dmet.HubbardGSO as dmet
     from libdmet.routine import spinless
     from libdmet.utils import max_abs, mdot
-    
+
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -296,7 +296,7 @@ def t_gso(full_fit=False):
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -343,7 +343,7 @@ def t_gso(full_fit=False):
 
     # vcor initialization
     vcor = dmet.VcorLocal(restricted, bogoliubov, nscsites, ghf=True)
-    
+
     ### ************************************************************
     ### SCF Mean-field calculation
     ### ************************************************************
@@ -380,26 +380,26 @@ def t_gso(full_fit=False):
     ### ************************************************************
     ### Pre-processing, LO and subspace partition
     ### ************************************************************
-    
+
     log.section("\nPre-process, orbital localization and subspace partition\n")
     kmf = Lat.symmetrize_kmf(kmf)
     C_ao_iao, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat, kmf, minao='minao', full_return=True)
     C_ao_iao = Lat.symmetrize_lo(C_ao_iao)
-    
+
     ncore = 0
     nval = C_ao_iao_val.shape[-1]
     nvirt = cell.nao_nr() - ncore - nval
     Lat.set_val_virt_core(nval, nvirt, ncore)
-    
+
     C_ao_lo = C_ao_iao
     Lat.set_Ham(kmf, gdf, C_ao_lo)
-    
+
     # transform everything to LO
     hcore = kmf.get_hcore()
     ovlp  = kmf.get_ovlp()
     rdm1  = kmf.make_rdm1()
     e_nuc = kmf.energy_nuc()
-    
+
     # p-h transformed hamiltonian.
     C_sao_slo = spinless.combine_mo_coeff_k(C_ao_lo)
     ovlp_ghf = spinless.combine_mo_coeff_k(ovlp)
@@ -410,13 +410,13 @@ def t_gso(full_fit=False):
     GH1 += GV1
     GH0 += GV0
     #GH0 += e_nuc
-    
+
     GRho_k = spinless.transform_rdm1_k(Lat.rdm1_lo_k * 0.5)
-    
+
     # transform back to AO
     GH1_ao_k = make_basis.transform_h1_to_ao(GH1, C_sao_slo, ovlp_ghf)
     GRho_ao_k = make_basis.transform_rdm1_to_ao(GRho_k, C_sao_slo)
-    
+
     cell.nelectron = GRho_k.shape[-1] // 2
     kmf = spinless.KGHFPH(cell, kpts, exxdiv=exxdiv).density_fit()
     kmf.with_df = gdf
@@ -428,9 +428,9 @@ def t_gso(full_fit=False):
     kmf.get_ovlp   = lambda *args: ovlp_ghf
     kmf.energy_nuc = lambda *args: GH0 + e_nuc
     kmf.kernel(dm0=GRho_ao_k)
-    
+
     Lat.set_Ham(kmf, gdf, C_ao_lo, H0=GH0)
-    
+
     ### ************************************************************
     ### DMET procedure
     ### ************************************************************
@@ -445,14 +445,14 @@ def t_gso(full_fit=False):
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
         rho, Mu, res = dmet.GHartreeFock(Lat, vcor, Filling, Mu, beta=beta, full_return=True)
         rho, Mu, res = dmet.GHartreeFock(Lat, vcor, None, Mu, beta=beta, full_return=True)
         #Lat.update_Ham(rho)
-        
+
 
         log.section("\nconstructing impurity problem\n")
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, Mu, localize_bath='scdm')
@@ -468,17 +468,17 @@ def t_gso(full_fit=False):
             delta=delta, step=step)
         dmet.SolveImpHam_with_fitting.save("./frecord")
         last_dmu += dmu
-        
+
         rhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(rhoEmb, EnergyEmb, Lat, basis, ImpHam, H1e, \
                 Mu, last_dmu=last_dmu, int_bath=int_bath, \
                 solver=solver, solver_args=solver_args, add_vcor_to_E=False, \
                 vcor=vcor, rebuild_veff=False)
-        
+
         if iter == 0:
             rdm1_file = os.path.dirname(os.path.realpath(__file__)) + "/rdm1_imp_ref0"
             rdm1_imp_ref0 = np.load(rdm1_file)
-            rdm1_imp_ref0 = spinless.transform_rdm1_local(rdm1_imp_ref0, 
+            rdm1_imp_ref0 = spinless.transform_rdm1_local(rdm1_imp_ref0,
                                                       compact=False)
             print ("rdm1 diff compare to RHF ref 1st iteration")
             print (max_abs(rhoImp - rdm1_imp_ref0))
@@ -487,7 +487,7 @@ def t_gso(full_fit=False):
         EnergyImp *= nscsites
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
-        
+
         #rdm1_glob_k = spinless.get_rho_glob_k(basis, Lat, rhoEmb)
         #rdm1_glob_k = res["rho_k"]
         #E_GV1 = 0.5 * np.einsum('kpq, kqp ->', GV1, rdm1_glob_k) / nkpts
@@ -495,17 +495,17 @@ def t_gso(full_fit=False):
         solver.twopdm = None
 
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis,
-                                  rhoImp, C_ao_lo, rho, 
+                                  rhoImp, C_ao_lo, rho,
                                   Lat.getFock(kspace=False)], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis,
                    vcor, Mu, beta=beta, MaxIter1=emb_fit_iter,
-                   MaxIter2=full_fit_iter, kinetic=False, CG_check=False, BFGS=False, 
+                   MaxIter2=full_fit_iter, kinetic=False, CG_check=False, BFGS=False,
                    serial=True, method='CG', ytol=1e-9, gtol=1e-5,
                    num_grad=False, imp_fit=imp_fit, test_grad=True)
-        
+
         #if iter >= trace_start:
         #    # to avoid spiral increase of vcor and mu
         #    log.result("Keep trace of vcor unchanged")
@@ -513,20 +513,20 @@ def t_gso(full_fit=False):
 
         #dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         #dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         dVcor_per_ele = max_abs(pvcor - vcor.param)
         vcor.update(pvcor)
         #log.result("trace of vcor: %s", \
         #        np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2), axis=1))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
 

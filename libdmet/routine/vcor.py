@@ -29,7 +29,7 @@ class Vcor(object):
 
     def islocal(self):
         return self.local
-    
+
     def is_local(self):
         return self.local
 
@@ -57,7 +57,7 @@ class Vcor(object):
 
     def assign(self, v0):
         if self.is_local():
-            log.eassert(v0.shape == self.gradient().shape[1:], 
+            log.eassert(v0.shape == self.gradient().shape[1:],
                         "The correlation potential should have shape %s, rather than %s",
                         self.gradient().shape[1:], v0.shape)
 
@@ -119,11 +119,11 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
     """
     nscsites = Lat.nscsites
     ncells = Lat.nkpts
-    
+
     if idx_range is None:
         idx_range = list(range(0, nscsites))
     nidx = len(idx_range)
-    
+
     # compute the related cell indices by inversion.
     hermi_list = -np.ones((ncells,), dtype=int)
     weight_list = np.ones((ncells,), dtype=int)
@@ -135,7 +135,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
             if idx != R:
                 weight_list[R] = 2
                 weight_list[idx] = 0
-    
+
     # security checks:
     # elements in weight_list must be 0 or 1 or 2.
     assert np.max(weight_list) <= 2
@@ -231,7 +231,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                         V[0, R, i, j] = \
                         V[0, R, j, i] = \
                         self.param[idx]
-                        
+
                         V[1, R, i, j] = \
                         V[1, R, j, i] = \
                         self.param[idx + nV_1_per_spin]
@@ -287,7 +287,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                         V[0, R, i, j] = \
                         V[0, R, j, i] = \
                         self.param[idx]
-                        
+
                         V[2, R, i, j] = \
                         V[2, R, j, i] = \
                         self.param[idx + nV_1]
@@ -299,7 +299,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                         V[0, R, i, j] = \
                         V[0, hermi_list[R], j, i] = \
                         self.param[idx]
-                        
+
                         V[2, R, i, j] = \
                         V[2, hermi_list[R], j, i] = \
                         self.param[idx + nV_2]
@@ -315,7 +315,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                                 start=param_range[R]):
                             g[idx, 0, R, i, j] = \
                             g[idx, 0, R, j, i] = 1
-                            
+
                             g[idx + nV_1, 2, R, i, j] = \
                             g[idx + nV_1, 2, R, j, i] = 1
 
@@ -325,7 +325,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                                 start=param_range[R]):
                             g[idx, 0, R, i, j] = \
                             g[idx, 0, hermi_list[R], j, i] = 1
-                            
+
                             g[idx + nV_2, 2, R, i, j] = \
                             g[idx + nV_2, 2, hermi_list[R], j, i] = 1
                 self.grad = g
@@ -345,7 +345,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                             V[0, R, i, j] = \
                             V[0, R, j, i] = \
                             self.param[idx]
-                            
+
                             V[1, R, i, j] = \
                             V[1, R, j, i] = \
                             self.param[idx + nV_1_per_spin]
@@ -361,11 +361,11 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                             V[0, R, i, j] = \
                             V[0, hermi_list[R], j, i] = \
                             self.param[idx]
-                            
+
                             V[1, R, i, j] = \
                             V[1, hermi_list[R], j, i] = \
                             self.param[idx + nV_2_per_spin]
-                            
+
                             V[2, R, i, j] = \
                             V[2, hermi_list[R], j, i] = \
                             self.param[idx + nV_2]
@@ -381,10 +381,10 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                                     start=param_range[R]):
                                 g[idx, 0, R, i, j] = \
                                 g[idx, 0, R, j, i] = 1
-                                
+
                                 g[idx + nV_1_per_spin, 1, R, i, j] = \
                                 g[idx + nV_1_per_spin, 1, R, j, i] = 1
-                                
+
                                 g[idx + nV_1, 2, R, i, j] = \
                                 g[idx + nV_1, 2, R, j, i] = 1
 
@@ -394,10 +394,10 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                                     start=param_range[R]):
                                 g[idx, 0, R, i, j] = \
                                 g[idx, 0, hermi_list[R], j, i] = 1
-                                
+
                                 g[idx + nV_2_per_spin, 1, R, i, j] = \
                                 g[idx + nV_2_per_spin, 1, hermi_list[R], j, i] = 1
-                                
+
                                 g[idx + nV_2, 2, R, i, j] = \
                                 g[idx + nV_2, 2, hermi_list[R], j, i] = 1
                     self.grad = g
@@ -416,11 +416,11 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                             V[0, R, i, j] = \
                             V[0, R, j, i] = \
                             self.param[idx]
-                            
+
                             V[1, R, i, j] = \
                             V[1, R, j, i] = \
                             self.param[idx + nV_1_per_spin]
-                        
+
                         for idx, (i, j) in enumerate(\
                                 it.product(idx_range, repeat=2),
                                 start=param_range[R]+nV_1):
@@ -433,14 +433,14 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                             V[0, R, i, j] = \
                             V[0, hermi_list[R], j, i] = \
                             self.param[idx]
-                            
+
                             V[1, R, i, j] = \
                             V[1, hermi_list[R], j, i] = \
                             self.param[idx + nV_2_per_spin]
-                            
+
                             V[2, R, i, j] = \
                             self.param[idx + nV_2]
-                            
+
                             V[2, hermi_list[R], i, j] = \
                             self.param[idx + nV_2 + nidx * nidx]
                 return V
@@ -455,10 +455,10 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                                     start=param_range[R]):
                                 g[idx, 0, R, i, j] = \
                                 g[idx, 0, R, j, i] = 1
-                                
+
                                 g[idx + nV_1_per_spin, 1, R, i, j] = \
                                 g[idx + nV_1_per_spin, 1, R, j, i] = 1
-                                
+
                             for idx, (i, j) in enumerate(\
                                     it.product(idx_range, repeat=2),
                                     start=param_range[R]+nV_1):
@@ -470,24 +470,24 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                                     start=param_range[R]):
                                 g[idx, 0, R, i, j] = \
                                 g[idx, 0, hermi_list[R], j, i] = 1
-                                
+
                                 g[idx + nV_2_per_spin, 1, R, i, j] = \
                                 g[idx + nV_2_per_spin, 1, hermi_list[R], j, i] = 1
-                                
+
                                 g[idx + nV_2, 2, R, i, j] = 1
                                 g[idx + nV_2 + nidx * nidx, 2, hermi_list[R], i, j] = 1
-                    
+
                     self.grad = g
                     self.grad_k = np.asarray([Lat.R2k(g[i]) for i in \
                             range(g.shape[0])])
                 return self.grad
-        
+
     def update(self, param):
         assert len(param) == self.length()
         self.param = param
         self.value = self.evaluate()
         self.value_k = Lat.R2k(self.value)
-    
+
     def get(self, i=0, kspace=True, return_all=False):
         log.eassert(self.value is not None, "Vcor not initialized yet")
         if kspace:
@@ -500,7 +500,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
                 return self.value
             else:
                 return self.value[:, i]
-    
+
     def assign(self, v0):
         log.eassert(v0.shape == self.gradient().shape[1:], \
             "The correlation potential should have shape %s, rather than %s",
@@ -513,7 +513,7 @@ def VcorNonLocal(restricted, bogoliubov, Lat, idx_range=None, \
         self.update(param)
         log.check(la.norm(v0-self.get(kspace=False, return_all=True)) < 1e-7, \
                 "symmetrization imposed on initial guess")
-    
+
     v.local = False
     v.evaluate = types.MethodType(evaluate, v)
     v.gradient = types.MethodType(gradient, v)
@@ -559,7 +559,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
         vcor: vcor object.
     """
     # nparam_per_k = nV + nD
-    
+
     # param (nkpts_irep, ndeg, nparam_per_k) a list
     # ndeg can be 1 (real) or 2 (real + imag)
 
@@ -580,7 +580,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
 
     if v_idx is None:
         if restricted:
-            nv      = nidx * nidx 
+            nv      = nidx * nidx
             nv_real = nidx * (nidx + 1) // 2
             nv_imag = nidx * (nidx - 1) // 2
         else:
@@ -589,7 +589,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
             nv_imag = nidx * (nidx - 1)
     else:
         raise NotImplementedError
-    
+
     if d_idx is None:
         if bogoliubov and restricted:
             nd  = nidx * (nidx + 1) // 2
@@ -602,9 +602,9 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
             nd = 0
     else:
         raise NotImplementedError
-    
+
     nparam_kpts = [nv_real + nd if len(kpts) == 1 else nv_real + nv_imag + nd for kpts in kpts_map]
-    
+
     param_idx_start = 0
     param_idx_end   = 0
     param_k_slices  = []
@@ -624,7 +624,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
                 slice(param_idx_start + nparam_k // 2, param_idx_end)
             ))
             param_idx_start = param_idx_end
-    
+
     nparam_tot = param_idx_end
 
     v = Vcor()
@@ -659,7 +659,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
                     V[k1, 0, idy1, idx1] = param_k
                     V[k1, 1, idx1, idy1] = param_k
                     V[k1, 1, idy1, idx1] = param_k
-                    
+
                 else:
                     idx1, idy1 = np.tril_indices(nscsites)
                     idx2, idy2 = np.tril_indices(nscsites, -1)
@@ -692,10 +692,10 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
                     V[k2, 1, idy2, idx2] += param_k_imag * 1j
 
             return V
-        
+
         def gradient(self):
             raise NotImplementedError
-        
+
         def diag_indices(self):
             if self.diag_idx is None:
                 self.diag_idx = [utils.triu_diag_indices(len(idx_range))]
@@ -723,7 +723,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
                     V[k1, 0, idy1, idx1] = param_k_alpha
                     V[k1, 1, idx1, idy1] = param_k_beta
                     V[k1, 1, idy1, idx1] = param_k_beta
-                    
+
                 else:
                     idx1, idy1 = np.tril_indices(nscsites)
                     idx2, idy2 = np.tril_indices(nscsites, -1)
@@ -764,7 +764,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
 
         def gradient(self):
             raise NotImplementedError
-        
+
         def diag_indices(self):
             if self.diag_idx is None:
                 idx = utils.triu_diag_indices(len(idx_range))
@@ -785,7 +785,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
 
     else: # not restricted and bogoliubov
         raise NotImplementedError
-    
+
     def show(self):
         vcor_mat = self.get()
         string = "vcor\n"
@@ -795,7 +795,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
         string += str(vcor_mat[np.ix_(np.arange(vcor_mat.shape[0]), idx_range,
                                       idx_range)])
         return string
-    
+
     v.evaluate = types.MethodType(evaluate, v)
     v.gradient = types.MethodType(gradient, v)
     v.diag_indices = types.MethodType(diag_indices, v)
@@ -805,7 +805,7 @@ def VcorKpoints(restricted, bogoliubov, lattice, idx_range=None, bogo_res=False,
     v.kpts_map = kpts_map
     v.show = types.MethodType(show, v)
     v.idx_range = idx_range
-    
+
     param0 = np.zeros(nparam_tot)
     v.update(param0)
     v.local = False

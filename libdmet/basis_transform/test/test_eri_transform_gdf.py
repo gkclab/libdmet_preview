@@ -31,7 +31,7 @@ def _test_ERI(cell, gdf, kpts, C_ao_lo):
     eri_k2gamma = eri_transform.get_emb_eri(cell, gdf, C_ao_lo=C_ao_lo, \
             max_memory=0.02, t_reversal_symm=True, symmetry=4)
     eri_k2gamma = eri_k2gamma[0]
-    
+
     # outcore routine
     eri_transform.ERI_SLICE = 3
     eri_outcore = eri_transform.get_emb_eri(cell, gdf, C_ao_lo=C_ao_lo, \
@@ -40,7 +40,7 @@ def _test_ERI(cell, gdf, kpts, C_ao_lo):
     print ("outcore difference")
     print (diff_outcore)
     assert diff_outcore < 1e-12
-    
+
     # compared to supercell
     scell, phase = eri_transform.get_phase(cell, kpts)
     mydf_scell = df.GDF(scell)
@@ -55,15 +55,15 @@ def _test_ERI(cell, gdf, kpts, C_ao_lo):
     print ('Fast ERI compared to supcell', max_abs(eri_scell-eri_k2gamma))
     assert max_abs(eri_scell.imag) < 1e-8
     assert max_abs(eri_scell - eri_k2gamma) < 1e-8
-    
+
     # Fast 1st unit cell ERI (for DMFT)
-    eri_k2gamma = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo, 
+    eri_k2gamma = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo,
                                              t_reversal_symm=True, symmetry=1)
-    eri_k2gamma_no_tr = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo, 
+    eri_k2gamma_no_tr = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo,
                                                    t_reversal_symm=False,
                                                    symmetry=1)
     eri_k2gamma = eri_k2gamma[0]
-    print ('Fast 1st unit cell ERI compared to supcell', 
+    print ('Fast 1st unit cell ERI compared to supcell',
            max_abs(eri_scell[:nao,:nao,:nao,:nao] - eri_k2gamma))
     assert max_abs(eri_k2gamma - eri_k2gamma_no_tr) < 1e-10
     assert max_abs(eri_scell[:nao,:nao,:nao,:nao] - eri_k2gamma) < 1e-8
@@ -91,17 +91,17 @@ def test_ERI_gdf(kmesh):
     gdf = df.GDF(cell, kpts)
     gdf._cderi = gdf_fname
     gdf._cderi_to_save = gdf_fname
-    
+
     #if not os.path.isfile(gdf_fname):
     if True:
         gdf.build()
-    
+
     if kmesh != [1, 1, 4]:
         print ('### Test AO ERI transform ###')
         C_ao_lo = np.zeros((nkpts, nao, nao),dtype=complex)
         C_ao_lo[:, range(nao), range(nao)] = 1.0
         _test_ERI(cell, gdf, kpts, C_ao_lo)
-    
+
 #    print ('### Test Lowdin AO ERI transform ###')
 #    ovlp = np.asarray(cell.pbc_intor('cint1e_ovlp_sph',kpts=kpts))
 #    X = np.zeros_like(ovlp)

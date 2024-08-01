@@ -74,18 +74,18 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
         eri_ao = mycc._scf._eri
     else:
         raise ValueError("Unknown ERI length %s"%(len(mycc._scf._eri)))
-    
+
     # aa
     o = np.arange(0, nocca)
     v = np.arange(nocca, nmoa)
-    
+
     # ZHC NOTE special treatment for OO-CCD,
     if (naoa == nmoa) and (max_abs(moa - np.eye(nmoa)) < 1e-13):
         eri_aa = ao2mo.restore(4, eri_ao[0], naoa)
     else:
         eri_aa = ao2mo.full(ao2mo.restore(4, eri_ao[0], naoa),
                             moa, compact=True)
-    
+
     eris.oooo = take_eri(eri_aa, o, o, o, o)
     eris.ovoo = take_eri(eri_aa, o, v, o, o)
     eris.ovov = take_eri(eri_aa, o, v, o, v)
@@ -95,10 +95,10 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
     idx1 = tril_take_idx(o, v, compact=False)
     idx2 = tril_take_idx(v, v, compact=True)
     eris.ovvv = eri_aa[np.ix_(idx1, idx2)].reshape(nocca, nvira, nvira*(nvira+1)//2)
-    
+
     eris.vvvv = take_eri(eri_aa, v, v, v, v, compact=True)
     eri_aa = None
-    
+
     # bb
     O = np.arange(0, noccb)
     V = np.arange(noccb, nmob)
@@ -118,7 +118,7 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
     idx1 = tril_take_idx(O, V, compact=False)
     idx2 = tril_take_idx(V, V, compact=True)
     eris.OVVV = eri_bb[np.ix_(idx1, idx2)].reshape(noccb, nvirb, nvirb*(nvirb+1)//2)
-    
+
     eris.VVVV = take_eri(eri_bb, V, V, V, V, compact=True)
     eri_bb = None
 
@@ -137,12 +137,12 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
     eris.ovOV = take_eri(eri_ab, o, v, O, V)
     eris.ooVV = take_eri(eri_ab, o, o, V, V)
     eris.ovVO = take_eri(eri_ab, o, v, V, O)
-    
+
     idx1 = tril_take_idx(o, v, compact=False)
     eris.ovVV = eri_ab[np.ix_(idx1, idx2)].reshape(nocca, nvira, nvirb*(nvirb+1)//2)
-    
+
     eris.vvVV = take_eri(eri_ab, v, v, V, V, compact=True)
-    
+
     # ba
     eri_ba = eri_ab.T
     eri_ab = None
@@ -150,13 +150,13 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
     eris.OVoo = take_eri(eri_ba, O, V, o, o)
     eris.OOvv = take_eri(eri_ba, O, O, v, v)
     eris.OVvo = take_eri(eri_ba, O, V, v, o)
-    
+
     idx1 = tril_take_idx(O, V, compact=False)
     idx2 = tril_take_idx(v, v, compact=True)
     eris.OVvv = eri_ba[np.ix_(idx1, idx2)].reshape(noccb, nvirb, nvira*(nvira+1)//2)
     eri_ba = None
     return eris
-    
+
 def ao2mo_uhf(mycc, mo_coeff=None):
     nmoa, nmob = mycc.get_nmo()
     nao = mycc.mo_coeff[0].shape[0]
@@ -178,7 +178,7 @@ def ao2mo_uhf(mycc, mo_coeff=None):
     else:
         raise NotImplementedError
         return _make_eris_outcore(mycc, mo_coeff)
-    
+
 def init_amps_uhf(mycc, eris=None):
     time0 = logger.process_clock(), logger.perf_counter()
     if eris is None:
@@ -193,7 +193,7 @@ def init_amps_uhf(mycc, eris=None):
     mo_eb_v = eris.mo_energy[1][noccb:] + mycc.level_shift
     eia_a = lib.direct_sum('i-a->ia', mo_ea_o, mo_ea_v)
     eia_b = lib.direct_sum('i-a->ia', mo_eb_o, mo_eb_v)
-    
+
     t1a = fova.conj() / eia_a
     t1b = fovb.conj() / eia_b
 
@@ -214,7 +214,7 @@ def init_amps_uhf(mycc, eris=None):
     logger.info(mycc, 'Init t2, MP2 energy = %.15g', mycc.emp2)
     logger.timer(mycc, 'init mp2', *time0)
     return mycc.emp2, (t1a,t1b), (t2aa,t2ab,t2bb)
-    
+
 def make_rdm2_uhf(mycc, t1=None, t2=None, l1=None, l2=None, ao_repr=False):
     from libdmet.solver import uccsd_rdm
     if t1 is None: t1 = mycc.t1
@@ -244,7 +244,7 @@ class UICCD(UCCD):
 
 def _make_eris_incore_ghf_direct(mycc, mo_coeff=None, ao2mofn=None):
     """
-    Incore GGCC ERI ao2mo. 
+    Incore GGCC ERI ao2mo.
     Memory usage is optimized:
     required additional memory ~ vvvv + 1/8 * pppp (normal case is 2 * pppp)
     """
@@ -266,7 +266,7 @@ def _make_eris_incore_ghf_direct(mycc, mo_coeff=None, ao2mofn=None):
             eri = ao2mo.kernel(mycc._scf._eri, eris.mo_coeff)
         if eri.size == nmo ** 4:
             eri = ao2mo.restore(8, eri, nmo)
-        
+
     #eri = eri.transpose(0,2,1,3) - eri.transpose(0,2,3,1)
     # resverse index # 0 2 1 3 - 0 3 1 2
     o = np.arange(0, nocc)
@@ -286,7 +286,7 @@ def _make_eris_incore_ghf_direct(mycc, mo_coeff=None, ao2mofn=None):
     #eris.doovv = tmp.transpose(0, 2, 1, 3)
     eris.oovv = tmp.transpose(0, 2, 1, 3) #- tmp.transpose(0, 2, 3, 1)
     tmp = None
-    
+
     tmp_oovv = take_eri(eri, o, o, v, v)
     tmp_ovvo = take_eri(eri, o, v, v, o)
     #eris.dovov = tmp_oovv.transpose(0, 2, 1, 3)
@@ -299,7 +299,7 @@ def _make_eris_incore_ghf_direct(mycc, mo_coeff=None, ao2mofn=None):
     #eris.dovvv = tmp.transpose(0, 2, 1, 3)
     eris.ovvv = tmp.transpose(0, 2, 1, 3) - tmp.transpose(0, 2, 3, 1)
     tmp = None
-    
+
     tmp = take_eri(eri, v, v, v, v)
     #eris.dvvvv = tmp.transpose(0, 2, 1, 3)
     eris.vvvv = tmp.transpose(0, 2, 1, 3) #- tmp.transpose(0, 2, 3, 1)
@@ -309,7 +309,7 @@ def _make_eris_incore_ghf_direct(mycc, mo_coeff=None, ao2mofn=None):
 
 def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
     """
-    Incore GGCC ERI ao2mo. 
+    Incore GGCC ERI ao2mo.
     Memory usage is optimized:
     required additional memory ~ vvvv + 1/8 * pppp (normal case is 2 * pppp)
     """
@@ -331,7 +331,7 @@ def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
             eri = ao2mo.kernel(mycc._scf._eri, eris.mo_coeff)
         if eri.size == nmo ** 4:
             eri = ao2mo.restore(8, eri, nmo)
-        
+
     #eri = eri.transpose(0,2,1,3) - eri.transpose(0,2,3,1)
     # resverse index # 0 2 1 3 - 0 3 1 2
     o = np.arange(0, nocc)
@@ -348,7 +348,7 @@ def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
     tmp = take_eri(eri, o, v, o, v)
     eris.oovv = tmp.transpose(0, 2, 1, 3) - tmp.transpose(0, 2, 3, 1)
     tmp = None
-    
+
     tmp_oovv = take_eri(eri, o, o, v, v)
     tmp_ovvo = take_eri(eri, o, v, v, o)
     eris.ovov = tmp_oovv.transpose(0, 2, 1, 3) - tmp_ovvo.transpose(0, 2, 3, 1)
@@ -358,12 +358,12 @@ def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
     tmp = take_eri(eri, o, v, v, v)
     eris.ovvv = tmp.transpose(0, 2, 1, 3) - tmp.transpose(0, 2, 3, 1)
     tmp = None
-    
+
     tmp = take_eri(eri, v, v, v, v)
     eris.vvvv = tmp.transpose(0, 2, 1, 3) - tmp.transpose(0, 2, 3, 1)
     tmp = None
     return eris
-    
+
 def ao2mo_ghf(mycc, mo_coeff=None):
     nmo = mycc.nmo
     mem_incore = nmo**4*2 * 8/1e6
@@ -396,7 +396,7 @@ def init_amps_ghf(mycc, eris=None):
     """
     if eris is None:
         eris = mycc.ao2mo(mycc.mo_coeff)
-    
+
     nocc = mycc.nocc
     mo_e_o = eris.mo_energy[:nocc]
     mo_e_v = eris.mo_energy[nocc:] + mycc.level_shift
@@ -418,7 +418,7 @@ def init_d_amps_ghf(mycc, eris=None):
     """
     if eris is None:
         eris = mycc.ao2mo(mycc.mo_coeff)
-    
+
     nocc = mycc.nocc
     mo_e_o = eris.mo_energy[:nocc]
     mo_e_v = eris.mo_energy[nocc:] + mycc.level_shift
@@ -457,7 +457,7 @@ def analyze_amps(mycc):
     nvir, nocc = t1T.shape
     dic_o = {'a': slice(0, nocc_a), 'b': slice(nocc_a, nocc)}
     dic_v = {'a': slice(0, nvir_a), 'b': slice(nvir_a, nvir)}
-    
+
     labs_o = {'a': "a (p)", 'b': "b (h)"}
     labs_v = {'a': "a (h)", 'b': "b (p)"}
 
@@ -468,12 +468,12 @@ def analyze_amps(mycc):
             norm_tot = la.norm(block)
             log.info("T1 %6s %6s %6s %6s %12.6f %12.6f",
                      labs_o[o0], labs_v[v0], "", "", norm_max, norm_tot)
-    
+
     t2T = t2.transpose(2, 3, 0, 1)
-        
+
     dic_o = {'a': slice(0, nocc_a), 'b': slice(nocc_a, nocc)}
     dic_v = {'a': slice(0, nvir_a), 'b': slice(nvir_a, nvir)}
-    
+
     log.info('-' * 79)
     for o0 in ['a', 'b']:
         for v0 in ['a', 'b']:
@@ -524,7 +524,7 @@ try:
     from CC_Variants import (ringccd, ringccsd, ladderccsd, dringccsd, dladderccsd,
                              dringccd, dringccsd_diag, dringccsd_diag_krylov)
     from CC_Variants.dladderccsd import _PhysicistsERIs as _PhysicistsERIsdirect
-    
+
     class RINGGCCD(ringccd.RINGCCD):
         init_amps = init_amps_ghf
         ao2mo = ao2mo_ghf
@@ -540,7 +540,7 @@ try:
     class DRINGGCCSD_DIAG(dringccsd_diag.DRINGCCSD):
         init_amps = init_d_amps_ghf
         ao2mo = ao2mo_ghf_direct
-    
+
     class DRINGGCCSD_DIAG_KRYLOV(dringccsd_diag_krylov.DRINGCCSD_KRYLOV):
         init_amps = init_d_amps_ghf
         ao2mo = ao2mo_ghf_direct
@@ -565,9 +565,9 @@ except ImportError:
 # ****************************************************************************
 
 class CCSD(object):
-    def __init__(self, nproc=1, nnode=1, nthread=28, TmpDir="./tmp", SharedDir=None, 
-                 restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-7, 
-                 tol_normt=1e-5, max_cycle=200, level_shift=0.0, frozen=0, 
+    def __init__(self, nproc=1, nnode=1, nthread=28, TmpDir="./tmp", SharedDir=None,
+                 restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-7,
+                 tol_normt=1e-5, max_cycle=200, level_shift=0.0, frozen=0,
                  max_memory=40000, compact_rdm2=False, scf_newton=True,
                  diis_space=8, diis_start_cycle=None, iterative_damping=1.0,
                  linear=False, approx_l=False, alpha=None, beta=np.inf, tcc=False,
@@ -614,14 +614,14 @@ class CCSD(object):
 
         self.ovlp_tol = ovlp_tol
         self.optimized = False
-    
+
     def run(self, Ham=None, nelec=None, guess=None, restart=False,
             dump_tl=False, fcc_name="fcc.h5", fcc_name_save=None,
             calc_rdm2=False, Mu=None, **kwargs):
         """
         Main kernel function of the solver.
         NOTE: the spin order for unrestricted H2 is aa, bb, ab.
-        
+
         kwargs:
             remove_h2: if True, will modify the Ham object, set Ham.H2["ccdd"] = None.
         """
@@ -631,7 +631,7 @@ class CCSD(object):
         log.info("CC solver: start")
         spin = Ham.H1["cd"].shape[0]
         if spin > 1:
-            log.eassert(not self.restricted, "CC solver: spin (%s) > 1 " 
+            log.eassert(not self.restricted, "CC solver: spin (%s) > 1 "
                         "requires unrestricted", spin)
         if nelec is None:
             if self.bcs:
@@ -643,17 +643,17 @@ class CCSD(object):
                                  "for RCC or UCC.")
 
         nelec_a, nelec_b = (nelec + self.Sz) // 2, (nelec - self.Sz) // 2
-        log.eassert(nelec_a >= 0 and nelec_b >=0, "CC solver: " 
+        log.eassert(nelec_a >= 0 and nelec_b >=0, "CC solver: "
                     "nelec_a (%s), nelec_b (%s) should >= 0", nelec_a, nelec_b)
-        log.eassert(nelec_a + nelec_b == nelec, "CC solver: " 
-                    "nelec_a (%s) + nelec_b (%s) should == nelec (%s)", 
+        log.eassert(nelec_a + nelec_b == nelec, "CC solver: "
+                    "nelec_a (%s) + nelec_b (%s) should == nelec (%s)",
                     nelec_a, nelec_b, nelec)
-        
+
         # *********************************************************************
         # 2. mean-field calculation
         # *********************************************************************
         log.debug(1, "CC solver: mean-field")
-        self.scfsolver.set_system(nelec, self.Sz, False, self.restricted, 
+        self.scfsolver.set_system(nelec, self.Sz, False, self.restricted,
                                   max_memory=self.max_memory)
         self.scfsolver.set_integral(Ham)
 
@@ -669,9 +669,9 @@ class CCSD(object):
             scf_max_cycle = 1 # need not to do scf
         else:
             bcc_restart = False
-        
+
         if self.ghf:
-            E_HF, rhoHF = self.scfsolver.GGHF(tol=min(self.conv_tol*0.1, 1e-10), 
+            E_HF, rhoHF = self.scfsolver.GGHF(tol=min(self.conv_tol*0.1, 1e-10),
                                               MaxIter=scf_max_cycle,
                                               InitGuess=dm0,
                                               Mu=Mu,
@@ -687,7 +687,7 @@ class CCSD(object):
             log.info("adjust mf.alpha to 1.0 for CC.")
             self.scfsolver.mf.alpha = 1.0
 
-        log.debug(1, "CC solver: mean-field converged: %s", 
+        log.debug(1, "CC solver: mean-field converged: %s",
                   self.scfsolver.mf.converged)
 
         if "mo_energy_custom" in kwargs:
@@ -698,12 +698,12 @@ class CCSD(object):
             log.info("Use customized MO as reference.")
             self.scfsolver.mf.mo_coeff = kwargs["mo_coeff_custom"]
             self.scfsolver.mf.e_tot = self.scfsolver.mf.energy_tot()
-        
-        log.debug(2, "CC solver: mean-field rdm1: \n%s", 
+
+        log.debug(2, "CC solver: mean-field rdm1: \n%s",
                   self.scfsolver.mf.make_rdm1())
         if remove_h2:
             Ham.H2["ccdd"] = None
-        
+
         # *********************************************************************
         # 3. CC kernel
         # *********************************************************************
@@ -748,7 +748,7 @@ class CCSD(object):
                             if isinstance(self.ite, str):
                                 log.info("Using ring MPI krylov CCSD solver.")
                                 from CC_Variants import grccsd_krylov
-                                self.cisolver = grccsd_krylov.GGCCSD_KRYLOV(self.scfsolver.mf, 
+                                self.cisolver = grccsd_krylov.GGCCSD_KRYLOV(self.scfsolver.mf,
                                                                     method=self.ite,
                                                                     precond=kwargs.get("precond", 'finv'),
                                                                     inner_m=kwargs.get("inner_m", 10),
@@ -774,7 +774,7 @@ class CCSD(object):
                         if isinstance(self.ite, str):
                             log.info("Using ladder MPI krylov CCSD solver.")
                             from CC_Variants import glccsd_krylov
-                            self.cisolver = glccsd_krylov.GGCCSD_KRYLOV(self.scfsolver.mf, 
+                            self.cisolver = glccsd_krylov.GGCCSD_KRYLOV(self.scfsolver.mf,
                                                                 method=self.ite,
                                                                 precond=kwargs.get("precond", 'finv'),
                                                                 inner_m=kwargs.get("inner_m", 10),
@@ -796,11 +796,11 @@ class CCSD(object):
                         log.info("Using ladder CCSD solver.")
                         self.cisolver = LADGGCCSD(self.scfsolver.mf)
                 elif self.directring:
-                    if self.use_mpi:                        
+                    if self.use_mpi:
                         if isinstance(self.ite, str):
                             from CC_Variants import gdrccsd_krylov
                             log.info("Using direct ring MPI krylov CCSD solver.")
-                            self.cisolver = gdrccsd_krylov.GGCCSD_KRYLOV(self.scfsolver.mf, 
+                            self.cisolver = gdrccsd_krylov.GGCCSD_KRYLOV(self.scfsolver.mf,
                                                                 method=self.ite,
                                                                 precond=kwargs.get("precond", 'finv'),
                                                                 inner_m=kwargs.get("inner_m", 10),
@@ -836,7 +836,7 @@ class CCSD(object):
                         if isinstance(self.ite, str):
                             from CC_Variants import gdlccsd_krylov
                             log.info("Using direct ladder MPI krylov CCSD solver.")
-                            self.cisolver = gdlccsd_krylov.GGCCSD_KRYLOV(self.scfsolver.mf, 
+                            self.cisolver = gdlccsd_krylov.GGCCSD_KRYLOV(self.scfsolver.mf,
                                                                 method=self.ite,
                                                                 precond=kwargs.get("precond", 'finv'),
                                                                 inner_m=kwargs.get("inner_m", 10),
@@ -861,7 +861,7 @@ class CCSD(object):
                     if self.use_mpi:
                         from mpi4pyscf import cc as mpicc
                         if isinstance(self.ite, str):
-                            self.cisolver = mpicc.GGCCSD_KRYLOV(self.scfsolver.mf, 
+                            self.cisolver = mpicc.GGCCSD_KRYLOV(self.scfsolver.mf,
                                                                 method=self.ite,
                                                                 precond=kwargs.get("precond", 'finv'),
                                                                 inner_m=kwargs.get("inner_m", 10),
@@ -910,9 +910,9 @@ class CCSD(object):
                     self.cisolver = UICCSDITE(self.scfsolver.mf, dt=self.ite)
                 else:
                     self.cisolver = UICCSD(self.scfsolver.mf)
-        
+
         self.cisolver.set(frozen=self.frozen)
-        
+
         if self.beta < np.inf:
             # ZHC NOTE overwrite cc.nocc for smearing cases,
             # this allows that eris.fock comes from a smeared dm.
@@ -955,7 +955,7 @@ class CCSD(object):
                     occ_idx_a[:nelec_a] = True
                     occ_idx_a[list(frozen[0])] = False
                     nocc_a = np.count_nonzero(occ_idx_a)
-                    
+
                     occ_idx_b = np.zeros(self.cisolver.mo_occ[1].shape, dtype=bool)
                     occ_idx_b[:nelec_b] = True
                     occ_idx_b[list(frozen[1])] = False
@@ -964,14 +964,14 @@ class CCSD(object):
                     nocc = (nocc_a, nocc_b)
                 else:
                     raise ValueError
-            
+
             # ZHC NOTE for TCC with smearing, we need to rewrite nocc
             if self.tcc:
                 self.cisolver = GGTCCSD(self.scfsolver.mf, ncas=ncas,
                                         nelecas=nelecas, nocc=nocc)
                 self.cisolver.set(frozen=self.frozen)
             self.cisolver.nocc = nocc
-        
+
         # ZHC NOTE if dm is customized then this dm will be used to compute fock in CC.
         if "dm_custom" in kwargs:
             self.cisolver.dm = kwargs["dm_custom"]
@@ -989,16 +989,16 @@ class CCSD(object):
         self.cisolver.verbose = self.verbose
 
         # *********************************************************************
-        # 4. solve t1, t2, restart can use the previously saved t1 and t2 
+        # 4. solve t1, t2, restart can use the previously saved t1 and t2
         # *********************************************************************
         if (not self.use_mpi):
             eris = self.cisolver.ao2mo(self.cisolver.mo_coeff)
-        
+
         if restart:
             log.eassert("basis" in kwargs, "restart requires basis passed in")
         if restart and self.optimized:
-            t1, t2, l1, l2 = self.load_t12_from_h5(fcc_name, kwargs["basis"], 
-                                                   self.scfsolver.mf.mo_coeff, 
+            t1, t2, l1, l2 = self.load_t12_from_h5(fcc_name, kwargs["basis"],
+                                                   self.scfsolver.mf.mo_coeff,
                                                    bcc_restart=bcc_restart)
         else:
             if isinstance(guess, str) and guess == 'cisd':
@@ -1027,7 +1027,7 @@ class CCSD(object):
             E_corr, t1, t2 = self.cisolver.kernel()
         else:
             E_corr, t1, t2 = self.cisolver.kernel(t1=t1, t2=t2, eris=eris)
-        
+
         # brueckner CC
         if bcc:
             assert not self.use_mpi
@@ -1042,7 +1042,7 @@ class CCSD(object):
             self.scfsolver.mf.e_tot = self.cisolver._scf.e_tot
             t1, t2 = self.cisolver.t1, self.cisolver.t2
             eris = self.cisolver.ao2mo(self.cisolver.mo_coeff)
-            
+
             if l1 is not None and l2 is not None:
                 # transform l1, l2 to the new BCC basis
                 log.info("transform old l1, l2 to new BCC basis...")
@@ -1059,7 +1059,7 @@ class CCSD(object):
                                                 self.scfsolver.mf.get_ovlp()))
                     l1 = transform_l1_to_bo(l1, umat)
                     l2 = transform_l2_to_bo(l2, umat)
-        
+
         # *********************************************************************
         # 5. (T) and solve lambda
         # *********************************************************************
@@ -1079,9 +1079,9 @@ class CCSD(object):
 
             lambda_drv, rdm1_drv, rdm2_drv = self._get_ccsdt_drv(eris=eris)
             l1, l2 = self.cisolver.l1, self.cisolver.l2 = \
-                    lambda_drv(self.cisolver, eris=eris, t1=t1, t2=t2, 
-                               max_cycle=self.max_cycle, 
-                               tol=self.conv_tol_normt, 
+                    lambda_drv(self.cisolver, eris=eris, t1=t1, t2=t2,
+                               max_cycle=self.max_cycle,
+                               tol=self.conv_tol_normt,
                                verbose=self.verbose)[1:]
         else:
             if self.use_mpi:
@@ -1106,13 +1106,13 @@ class CCSD(object):
                                                         eris=eris)
             rdm1_drv = rdm2_drv = None
             e_t = 0.0
-        
+
         # *********************************************************************
         # 6. collect properties
         # *********************************************************************
         # energy
         E = self.cisolver.e_tot + e_t
-        
+
         if self.beta < np.inf:
             # ZHC NOTE modify the mo_occ since the frozen may need it in rdm
             log.info("adjust mf.mo_occ to integer for CC.")
@@ -1137,11 +1137,11 @@ class CCSD(object):
             if fcc_name_save is None:
                 fcc_name_save = fcc_name
             self.save_t12_to_h5(fcc_name_save, kwargs["basis"], self.cisolver.mo_coeff)
-        
+
         if not self.cisolver.converged:
             log.warn("CC solver not converged...")
         self.optimized = True
-        
+
         if kwargs.get("analyze_amps", False):
             self.cisolver.analyze_amps()
 
@@ -1151,7 +1151,7 @@ class CCSD(object):
             self.cisolver._release_regs()
 
         return self.onepdm, E
-    
+
     def _get_ccsdt_drv(self, eris=None):
         if self.ghf:
             from pyscf.cc.gccsd_t_lambda import kernel as lambda_drv
@@ -1164,9 +1164,9 @@ class CCSD(object):
             from pyscf.cc import uccsd_t_rdm as rdm_mod
         rdm1_drv = partial(rdm_mod.make_rdm1, mycc=self.cisolver, eris=eris)
         rdm2_drv = partial(rdm_mod.make_rdm2, mycc=self.cisolver, eris=eris)
-        return lambda_drv, rdm1_drv, rdm2_drv 
-    
-    def run_dmet_ham(self, Ham, last_aabb=True, save_dmet_ham=False, 
+        return lambda_drv, rdm1_drv, rdm2_drv
+
+    def run_dmet_ham(self, Ham, last_aabb=True, save_dmet_ham=False,
                      dmet_ham_fname='dmet_ham.h5', use_calculated_twopdm=False,
                      **kwargs):
         """
@@ -1174,12 +1174,12 @@ class CCSD(object):
         NOTE: the spin order for H2 is aa, bb, ab, the same as ImpHam.
         """
         if kwargs.get("ccsdt", False) or use_calculated_twopdm:
-            return self.run_dmet_ham_slow(Ham, last_aabb=last_aabb, 
+            return self.run_dmet_ham_slow(Ham, last_aabb=last_aabb,
                                           save_dmet_ham=save_dmet_ham,
-                                          dmet_ham_fname=dmet_ham_fname, 
+                                          dmet_ham_fname=dmet_ham_fname,
                                           use_calculated_twopdm=use_calculated_twopdm,
                                           **kwargs)
-        
+
         log.info("CC solver Run DMET Hamiltonian.")
         log.debug(0, "ao2mo for DMET Hamiltonian.")
         Ham = ao2mo_Ham(Ham, self.cisolver.mo_coeff, compact=True, in_place=True)
@@ -1200,7 +1200,7 @@ class CCSD(object):
             H2 = Ham.H2["ccdd"]
             H0 = Ham.H0
             E = exp_val_uccsd(self.cisolver, H1, H2, H0=H0)
-                  
+
         if save_dmet_ham:
             fdmet_ham = h5py.File(dmet_ham_fname, 'w')
             fdmet_ham['H0'] = Ham.H0
@@ -1209,8 +1209,8 @@ class CCSD(object):
             fdmet_ham['mo_coeff'] = self.cisolver.mo_coeff
             fdmet_ham.close()
         return E
-    
-    def run_dmet_ham_slow(self, Ham, last_aabb=True, save_dmet_ham=False, 
+
+    def run_dmet_ham_slow(self, Ham, last_aabb=True, save_dmet_ham=False,
                           dmet_ham_fname='dmet_ham.h5',
                           use_calculated_twopdm=False, **kwargs):
         """
@@ -1241,7 +1241,7 @@ class CCSD(object):
             r2 = self.twopdm
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = einsum('ij, ji', h1, r1)
             E2 = 0.5 * einsum('ijkl, ijkl', h2, r2)
         elif Ham.restricted:
@@ -1251,7 +1251,7 @@ class CCSD(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = 2.0 * einsum('ij, ji', h1[0], r1[0])
             E2 = 0.5 * einsum('ijkl, ijkl', h2[0], r2[0])
         else:
@@ -1263,19 +1263,19 @@ class CCSD(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             # energy
             E1 = einsum('sij, sji', h1, r1)
             E2_aa = 0.5 * einsum('ijkl, ijkl', h2[0], r2[0])
             E2_bb = 0.5 * einsum('ijkl, ijkl', h2[1], r2[1])
             E2_ab =       einsum('ijkl, ijkl', h2[2], r2[2])
             E2 = E2_aa + E2_bb + E2_ab
-        
+
         E = E1 + E2
         E += Ham.H0
-        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, " 
+        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, "
                 "E2 = %20.12f, E = %20.12f", Ham.H0, E1, E2, E)
-        
+
         if save_dmet_ham:
             fdmet_ham = h5py.File(dmet_ham_fname, 'w')
             fdmet_ham['H0'] = Ham.H0
@@ -1284,7 +1284,7 @@ class CCSD(object):
             fdmet_ham['mo_coeff'] = self.cisolver.mo_coeff
             fdmet_ham.close()
         return E
-    
+
     def make_rdm1(self, Ham=None, drv=None):
         log.debug(1, "CC solver: solve rdm1")
         if drv is None:
@@ -1292,7 +1292,7 @@ class CCSD(object):
         if self.use_mpi:
             onepdm = drv()
         else:
-            onepdm = drv(t1=self.cisolver.t1, t2=self.cisolver.t2, 
+            onepdm = drv(t1=self.cisolver.t1, t2=self.cisolver.t2,
                          l1=self.cisolver.l1, l2=self.cisolver.l2)
 
         if self.ghf: # GHF
@@ -1304,7 +1304,7 @@ class CCSD(object):
 
         # rotate back to the AO basis
         log.debug(1, "CC solver: rotate rdm1 to AO")
-        self.onepdm = transform_rdm1_to_ao_mol(self.onepdm_mo, 
+        self.onepdm = transform_rdm1_to_ao_mol(self.onepdm_mo,
                                                self.cisolver.mo_coeff)
         return self.onepdm
 
@@ -1323,10 +1323,10 @@ class CCSD(object):
                 twopdm_mo = drv(with_dm1=with_dm1)
         else:
             if with_dm1:
-                twopdm_mo = drv(t1=self.cisolver.t1, t2=self.cisolver.t2, 
+                twopdm_mo = drv(t1=self.cisolver.t1, t2=self.cisolver.t2,
                                 l1=self.cisolver.l1, l2=self.cisolver.l2)
             else:
-                twopdm_mo = drv(t1=self.cisolver.t1, t2=self.cisolver.t2, 
+                twopdm_mo = drv(t1=self.cisolver.t1, t2=self.cisolver.t2,
                                 l1=self.cisolver.l1, l2=self.cisolver.l2,
                                 with_dm1=with_dm1)
 
@@ -1343,12 +1343,12 @@ class CCSD(object):
         # NOTE: the transform function use aa, ab, bb order.
         if ao_repr:
             log.debug(1, "CC solver: rotate rdm2 to AO")
-            self.twopdm = transform_rdm2_to_ao_mol(self.twopdm_mo, 
+            self.twopdm = transform_rdm2_to_ao_mol(self.twopdm_mo,
                                                    self.cisolver.mo_coeff)
             self.twopdm_mo = None
         else:
             self.twopdm = None
-            
+
         if not self.restricted and not self.ghf:
             if self.twopdm_mo is not None:
                 self.twopdm_mo = self.twopdm_mo[[0, 2, 1]]
@@ -1387,10 +1387,10 @@ class CCSD(object):
                     l1_old = [np.asarray(fcc['l1_%s'%s]) for s in range(spin)]
                     l2_old = [np.asarray(fcc['l2_%s'%s]) for s in range(spin*(spin+1)//2)]
         fcc.close()
-        
+
         mo_coeff_new = np.asarray(mo_coeff_new)
         if mo_coeff_new.shape != mo_coeff_old.shape:
-            log.warn("CC solver: mo_coeff shape changed (%s -> %s).", 
+            log.warn("CC solver: mo_coeff shape changed (%s -> %s).",
                      mo_coeff_old.shape, mo_coeff_new.shape)
             return None, None, None, None
         nao, nmo = mo_coeff_new.shape[-2:]
@@ -1402,12 +1402,12 @@ class CCSD(object):
             log.debug(2, "restart with the same basis.")
         else:
             log.debug(2, "restart with the different basis.")
-        
+
         try:
             if bcc_restart:
                 # ZHC NOTE
-                # restart for a bcc calculation, 
-                # new mo is estimated by maximizing the overlap 
+                # restart for a bcc calculation,
+                # new mo is estimated by maximizing the overlap
                 # w.r.t. last calculation
                 # self.scfsolver.mf.mo_coeff and
                 # self.cisolver.mo_coeff are overwritten
@@ -1434,24 +1434,24 @@ class CCSD(object):
                     l2 = l2_old
 
             else: # normal CCSD restart
-                if mo_coeff_new.ndim == 2: # RHF and GHF 
+                if mo_coeff_new.ndim == 2: # RHF and GHF
                     # umat maximally match the basis, C_old U ~ C_new
                     basis_cas_old = basis_old.reshape(-1, nmo).dot(mo_coeff_old[:, mo_idx])
                     basis_cas_new = basis_new.reshape(-1, nmo).dot(mo_coeff_new[:, mo_idx])
                     mo_ovlp = abs(la.det(np.dot(basis_cas_old.conj().T, basis_cas_new)))
                     umat = find_closest_mo(basis_cas_old, basis_cas_new, return_rotmat=True)[1]
-                else: # UHF 
+                else: # UHF
                     umat = []
-                    mo_ovlp = 1.0 
+                    mo_ovlp = 1.0
                     for s in range(2):
-                        basis_cas_old = np.dot(basis_old[s].reshape(-1, nmo), 
+                        basis_cas_old = np.dot(basis_old[s].reshape(-1, nmo),
                                                mo_coeff_old[s][:, mo_idx[s]])
-                        basis_cas_new = np.dot(basis_new[s].reshape(-1, nmo), 
+                        basis_cas_new = np.dot(basis_new[s].reshape(-1, nmo),
                                                mo_coeff_new[s][:, mo_idx[s]])
                         mo_ovlp = min(mo_ovlp, abs(la.det(np.dot(basis_cas_old.conj().T, basis_cas_new))))
-                        umat.append(find_closest_mo(basis_cas_old, basis_cas_new, 
+                        umat.append(find_closest_mo(basis_cas_old, basis_cas_new,
                                                     return_rotmat=True)[1])
-                
+
                 log.debug(1, "CC solver: restart ovlp: %.8g", mo_ovlp)
                 if mo_ovlp < ovlp_tol:
                     log.debug(1, "CC solver: restart ovlp smaller than ovlp_tol (%.8g), "
@@ -1470,12 +1470,12 @@ class CCSD(object):
         except np.linalg.LinAlgError:
             log.warn("SVD error catched during matching basis...")
             t1 = t2 = l1 = l2 = None
-        
+
         if (self.linear or self.approx_l):
             l1 = t1
             l2 = t2
         return t1, t2, l1, l2
-    
+
     def save_t12_to_h5(self, fcc_name, basis_new, mo_coeff_new,
                        mo_occ=None, mo_energy=None):
         """
@@ -1493,7 +1493,7 @@ class CCSD(object):
             mo_energy = self.scfsolver.mf.mo_energy
         fcc['mo_energy'] = np.asarray(mo_energy)
         if not self.use_mpi:
-            if mo_coeff_new.ndim == 2: 
+            if mo_coeff_new.ndim == 2:
                 fcc['t1'] = np.asarray(self.cisolver.t1)
                 fcc['t2'] = np.asarray(self.cisolver.t2)
                 if not (self.linear or self.approx_l):
@@ -1519,22 +1519,22 @@ class CCSD(object):
         frdm['rdm2'] = np.asarray(self.twopdm_mo)
         frdm["mo_coeff"] = np.asarray(self.cisolver.mo_coeff)
         frdm.close()
-    
+
     def load_rdm_mo(self, rdm_fname='rdm_mo_cc.h5'):
         frdm = h5py.File(rdm_fname, 'r')
         rdm1 = np.asarray(frdm["rdm1"])
         rdm2 = np.asarray(frdm["rdm2"])
         mo_coeff = np.asarray(frdm["mo_coeff"])
         frdm.close()
-        return rdm1, rdm2, mo_coeff 
-    
+        return rdm1, rdm2, mo_coeff
+
     def load_dmet_ham(self, dmet_ham_fname='dmet_ham.h5'):
         fdmet_ham = h5py.File(dmet_ham_fname, 'r')
         H1 = np.asarray(fdmet_ham["H1"])
         H2 = np.asarray(fdmet_ham["H2"])
         fdmet_ham.close()
-        return H1, H2 
-    
+        return H1, H2
+
     def onepdm(self):
         log.debug(1, "Compute 1pdm")
         return self.onepdm
@@ -1575,7 +1575,7 @@ def transform_t1_to_bo(t1, umat):
     if isinstance(t1, np.ndarray) and t1.ndim == 2: # RHF GHF
         nocc, nvir = t1.shape
         umat_occ = umat[:nocc, :nocc]
-        umat_vir = umat[nocc:, nocc:] 
+        umat_vir = umat[nocc:, nocc:]
         return mdot(umat_occ.conj().T, t1, umat_vir)
     else: # UHF
         spin = len(t1)
@@ -1611,7 +1611,7 @@ transform_l2_to_bo = transform_t2_to_bo
 def bcc_loop(mycc, u=None, utol=1e-5, max_cycle=10, diis=True, verbose=2):
     """
     Brueckner coupled-cluster wrapper, using an outer-loop algorithm.
-    """ 
+    """
     def max_abs(x):
         if isinstance(x, np.ndarray):
             if np.iscomplexobj(x):
@@ -1653,7 +1653,7 @@ def bcc_loop(mycc, u=None, utol=1e-5, max_cycle=10, diis=True, verbose=2):
             if not mycc.converged:
                 log.warn("CC not converged")
             t1_norm = max_abs(mycc.t1)
-            log.info("BCC iter: %4d  E: %20.12f  dE: %12.3e  |t1|: %12.3e", 
+            log.info("BCC iter: %4d  E: %20.12f  dE: %12.3e  |t1|: %12.3e",
                      i, mycc.e_tot, dE, t1_norm)
             if t1_norm < utol:
                 break
@@ -1669,7 +1669,7 @@ def bcc_loop(mycc, u=None, utol=1e-5, max_cycle=10, diis=True, verbose=2):
 def exp_val_rccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     """
     Expectation value of H0, H1 and H2, using an outcore routine.
-    H1 and H2 are in MO basis. 
+    H1 and H2 are in MO basis.
     H2 is real and has 8-fold symmetry, 1, 4, 8-fold array are ok.
 
     Args:
@@ -1693,7 +1693,7 @@ def exp_val_rccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         rdm1_core[core_idx, core_idx] = 2.0
         veff_core = _get_veff(rdm1_core, H2)[0]
         E_core = einsum('ij, ji', H1 + veff_core*0.5, rdm1_core)
-        
+
         H0 += E_core
         H1 = (H1 + veff_core)[np.ix_(act_idx, act_idx)]
         H2 = take_eri(H2, act_idx, act_idx, act_idx, act_idx, compact=True)
@@ -1703,7 +1703,7 @@ def exp_val_rccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     cc.ccsd_rdm._gamma2_outcore(mycc, t1, t2, l1, l2, f, False)
     nocc, nvir = t1.shape
     norb = nocc + nvir
-    
+
     # E1
     d1 = cc.ccsd_rdm._gamma1_intermediates(mycc, t1, t2, l1, l2)
     doo, dov, dvo, dvv = d1
@@ -1712,7 +1712,7 @@ def exp_val_rccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
          + einsum('ij, ji', H1[:nocc, nocc:], dvo) \
          + einsum('ij, ji', H1[nocc:, nocc:], dvv) \
          + np.sum(H1[range(nocc), range(nocc)])) * 2
-    
+
     # product part
     rdm1_mo = cc.ccsd_rdm._make_rdm1(mycc, d1, with_frozen=False)
     rdm1_mo[np.diag_indices(nocc)] -= 2.0
@@ -1726,15 +1726,15 @@ def exp_val_rccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     unit = nvir**3 * 6
     if blksize is None:
         blksize = min(nocc, nvir, max(cc.ccsd.BLKMIN, int(max_memory*0.9e6/8/unit)))
-    
-    log.debug(0, "exp_val_rccsd: current memory: %s MB (max_memory: %s MB)", 
+
+    log.debug(0, "exp_val_rccsd: current memory: %s MB (max_memory: %s MB)",
               lib.current_memory()[0], mycc.max_memory)
     log.debug(1, "unit size: %s , blksize: %s", unit, blksize)
 
     oidx = np.arange(nocc)
     vidx = np.arange(nocc, norb)
     E2_cum = 0.0
-    
+
     for p0, p1 in lib.prange(0, nocc, blksize):
         cidx = oidx[p0:p1]
 
@@ -1746,34 +1746,34 @@ def exp_val_rccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
 
         # oovv
         eri_oovv = take_eri(H2, cidx, oidx, vidx, vidx)
-        E_oovv = einsum('ijkl, ijkl', eri_oovv, f['doovv'][p0:p1]) 
+        E_oovv = einsum('ijkl, ijkl', eri_oovv, f['doovv'][p0:p1])
         E2_cum += E_oovv
         eri_oovv = None
-    
+
         # ovvo
         eri_ovvo = take_eri(H2, cidx, vidx, vidx, oidx)
         E_ovvo = einsum('ijkl, ijkl', eri_ovvo, f['dovvo'][p0:p1])
         E2_cum += E_ovvo
         eri_ovvo = None
-        
+
         # oooo
         eri_oooo = take_eri(H2, cidx, oidx, oidx, oidx)
         E_oooo = einsum('ijkl, ijkl', eri_oooo, f['doooo'][p0:p1])
         E2_cum += E_oooo
         eri_oooo = None
-    
+
         # ovvv
         eri_ovvv = take_eri(H2, cidx, vidx, vidx, vidx)
         E_ovvv = einsum('ijkl, ijkl', eri_ovvv, f['dovvv'][p0:p1])
         E2_cum += E_ovvv
         eri_ovvv = None
-        
+
         # ooov
         eri_ooov = take_eri(H2, cidx, oidx, oidx, vidx)
         E_ooov = einsum('ijkl, ijkl', eri_ooov, f['dooov'][p0:p1])
         E2_cum += E_ooov
         eri_ooov = None
-        
+
     for p0, p1 in lib.prange(0, nvir, blksize):
         cidx = vidx[p0:p1]
         # vvvv
@@ -1781,20 +1781,20 @@ def exp_val_rccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         E_vvvv = einsum('ijkl, ijkl', eri_vvvv, f['dvvvv'][p0:p1])
         E2_cum += E_vvvv
         eri_vvvv = None
-    
+
     E2_cum *= 2.0
     E2 = E2_prod + E2_cum
-    
+
     E_tot = H0 + E1 + E2
     log.debug(0, "CC exp_val: E0: %20.12f, E1: %20.12f, E2: %20.12f \n"
-              "(prod: %20.12f, cum: %20.12f), E_tot: %20.12f", 
+              "(prod: %20.12f, cum: %20.12f), E_tot: %20.12f",
               H0, E1, E2, E2_prod, E2_cum, E_tot)
     return E_tot
 
 def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     """
     Expectation value of H0, H1 and H2, using an outcore routine.
-    H1 and H2 are in MO basis. 
+    H1 and H2 are in MO basis.
     H2 is real and has 4-fold symmetry, 1, 4-fold array are ok.
 
     Args:
@@ -1822,7 +1822,7 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
             rdm1_core[s, core_idx[s], core_idx[s]] = 1.0
         veff_core = _get_veff(rdm1_core, H2)
         E_core = einsum('sij, sji', H1 + veff_core*0.5, rdm1_core)
-        
+
         H0 += E_core
         H1 = [(H1[s] + veff_core[s])[np.ix_(act_idx[s], act_idx[s])] for s in range(2)]
         H2 = [take_eri(H2[0], act_idx[0], act_idx[0], act_idx[0], act_idx[0], compact=True),
@@ -1837,7 +1837,7 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     norba = nocca + nvira
     noccb, nvirb = t1[1].shape
     norbb = noccb + nvirb
-    
+
     # E1
     d1 = uccsd_rdm._gamma1_intermediates(mycc, t1, t2, l1, l2)
     doo, dOO = d1[0]
@@ -1854,7 +1854,7 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
          + einsum('ij, ji', H1[1][:noccb, noccb:], dVO) \
          + einsum('ij, ji', H1[1][noccb:, noccb:], dVV) \
          + np.sum(H1[1][range(noccb), range(noccb)])
-    
+
     # product part
     rdm1_mo = uccsd_rdm._make_rdm1(mycc, d1, with_frozen=False)
     rdm1_mo = list(rdm1_mo)
@@ -1864,7 +1864,7 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     rdm1_hf = [np.zeros((norba, norba)), np.zeros((norbb, norbb))]
     rdm1_hf[0][range(nocca), range(nocca)] = 1.0
     rdm1_hf[1][range(noccb), range(noccb)] = 1.0
-    
+
     # veff_hf shape can be different for different spin
     vj00, vk00 = hf.dot_eri_dm(H2[0], rdm1_hf[0], hermi=1)
     vj11, vk11 = hf.dot_eri_dm(H2[1], rdm1_hf[1], hermi=1)
@@ -1879,7 +1879,7 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         rdm1_b = lib.pack_tril(rdm1_b)
         vj01 = np.dot(H2[2], rdm1_b)
         vj01 = lib.unpack_tril(vj01)
-        
+
         rdm1_a = rdm1_hf[0] * 2.0
         rdm1_a[range(norba), range(norba)] *= 0.5
         rdm1_a = lib.pack_tril(rdm1_a)
@@ -1891,25 +1891,25 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     E2_prod = 0.0
     for s in range(2):
         E2_prod += 0.5 * einsum('ij, ji', veff_hf[s], rdm1_hf[s] + rdm1_mo[s] * 2.0)
-    
+
     # cumulant part
     max_memory = max(0, mycc.max_memory - lib.current_memory()[0])
     unit = max(nvira, nvirb)**3 * 6
     if blksize is None:
-        blksize = min(nocca, noccb, nvira, nvirb, max(cc.ccsd.BLKMIN, 
+        blksize = min(nocca, noccb, nvira, nvirb, max(cc.ccsd.BLKMIN,
                       int(max_memory*0.9e6/8/unit)))
         if blksize <= 0:
             blksize = 100
-    
-    log.debug(0, "exp_val_uccsd: current memory: %s MB (max_memory: %s MB)", 
+
+    log.debug(0, "exp_val_uccsd: current memory: %s MB (max_memory: %s MB)",
               lib.current_memory()[0], mycc.max_memory)
     log.debug(1, "exp_val_uccsd: unit size: %s , blksize: %s", unit, blksize)
-    
+
     # AAAA part
     E2_aa = 0.0
     oidxa = np.arange(nocca)
     vidxa = np.arange(nocca, norba)
-    
+
     for p0, p1 in lib.prange(0, nocca, blksize):
         cidx = oidxa[p0:p1]
 
@@ -1921,34 +1921,34 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
 
         # oovv
         eri_oovv = take_eri(H2[0], cidx, oidxa, vidxa, vidxa)
-        E_oovv = einsum('ijkl, ijkl', eri_oovv, f['doovv'][p0:p1]) 
+        E_oovv = einsum('ijkl, ijkl', eri_oovv, f['doovv'][p0:p1])
         E2_aa += E_oovv * 2
         eri_oovv = None
-    
+
         # ovvo
         eri_ovvo = take_eri(H2[0], cidx, vidxa, vidxa, oidxa)
         E_ovvo = einsum('ijkl, ijkl', eri_ovvo, f['dovvo'][p0:p1])
         E2_aa += E_ovvo * 2
         eri_ovvo = None
-        
+
         # oooo
         eri_oooo = take_eri(H2[0], cidx, oidxa, oidxa, oidxa)
         E_oooo = einsum('ijkl, ijkl', eri_oooo, f['doooo'][p0:p1])
         E2_aa += E_oooo
         eri_oooo = None
-    
+
         # ovvv
         eri_ovvv = take_eri(H2[0], cidx, vidxa, vidxa, vidxa)
         E_ovvv = einsum('ijkl, ijkl', eri_ovvv, f['dovvv'][p0:p1])
         E2_aa += E_ovvv * 4
         eri_ovvv = None
-        
+
         # ooov
         eri_ooov = take_eri(H2[0], cidx, oidxa, oidxa, vidxa)
         E_ooov = einsum('ijkl, ijkl', eri_ooov, f['dooov'][p0:p1])
         E2_aa += E_ooov * 4
         eri_ooov = None
-        
+
     for p0, p1 in lib.prange(0, nvira, blksize):
         cidx = vidxa[p0:p1]
         # vvvv
@@ -1961,7 +1961,7 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     E2_bb = 0.0
     Oidxb = np.arange(noccb)
     Vidxb = np.arange(noccb, norbb)
-    
+
     for p0, p1 in lib.prange(0, noccb, blksize):
         cidx = Oidxb[p0:p1]
 
@@ -1973,34 +1973,34 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
 
         # oovv
         eri_oovv = take_eri(H2[1], cidx, Oidxb, Vidxb, Vidxb)
-        E_oovv = einsum('ijkl, ijkl', eri_oovv, f['dOOVV'][p0:p1]) 
+        E_oovv = einsum('ijkl, ijkl', eri_oovv, f['dOOVV'][p0:p1])
         E2_bb += E_oovv * 2
         eri_oovv = None
-    
+
         # ovvo
         eri_ovvo = take_eri(H2[1], cidx, Vidxb, Vidxb, Oidxb)
         E_ovvo = einsum('ijkl, ijkl', eri_ovvo, f['dOVVO'][p0:p1])
         E2_bb += E_ovvo * 2
         eri_ovvo = None
-        
+
         # oooo
         eri_oooo = take_eri(H2[1], cidx, Oidxb, Oidxb, Oidxb)
         E_oooo = einsum('ijkl, ijkl', eri_oooo, f['dOOOO'][p0:p1])
         E2_bb += E_oooo
         eri_oooo = None
-    
+
         # ovvv
         eri_ovvv = take_eri(H2[1], cidx, Vidxb, Vidxb, Vidxb)
         E_ovvv = einsum('ijkl, ijkl', eri_ovvv, f['dOVVV'][p0:p1])
         E2_bb += E_ovvv * 4
         eri_ovvv = None
-        
+
         # ooov
         eri_ooov = take_eri(H2[1], cidx, Oidxb, Oidxb, Vidxb)
         E_ooov = einsum('ijkl, ijkl', eri_ooov, f['dOOOV'][p0:p1])
         E2_bb += E_ooov * 4
         eri_ooov = None
-        
+
     for p0, p1 in lib.prange(0, nvirb, blksize):
         cidx = Vidxb[p0:p1]
         # vvvv
@@ -2008,7 +2008,7 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         E_vvvv = einsum('ijkl, ijkl', eri_vvvv, f['dVVVV'][p0:p1])
         E2_bb += E_vvvv
         eri_vvvv = None
-    
+
     # AABB part
     E2_ab = 0.0
     for p0, p1 in lib.prange(0, nocca, blksize):
@@ -2019,7 +2019,7 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         E_ovOV = einsum('ijkl, ijkl', eri_ovOV, f['dovOV'][p0:p1])
         E2_ab += E_ovOV * 2
         eri_ovOV = None
-        
+
         # ooVV
         eri_ooVV = take_eri(H2[2], cidx, oidxa, Vidxb, Vidxb)
         E_ooVV = einsum('ijkl, ijkl', eri_ooVV, f['dooVV'][p0:p1])
@@ -2037,28 +2037,28 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         E_ooOO = einsum('ijkl, ijkl', eri_ooOO, f['dooOO'][p0:p1])
         E2_ab += E_ooOO
         eri_ooOO = None
-        
+
         # ovVV
         eri_ovVV = take_eri(H2[2], cidx, vidxa, Vidxb, Vidxb)
         E_ovVV = einsum('ijkl, ijkl', eri_ovVV, f['dovVV'][p0:p1])
         E2_ab += E_ovVV * 2
         eri_ovVV = None
-        
+
         # ooOV
         eri_ooOV = take_eri(H2[2], cidx, oidxa, Oidxb, Vidxb)
         E_ooOV = einsum('ijkl, ijkl', eri_ooOV, f['dooOV'][p0:p1])
         E2_ab += E_ooOV * 2
         eri_ooOV = None
-        
+
         # ovOO
         eri_ovOO = take_eri(H2[2], cidx, vidxa, Oidxb, Oidxb)
         E_ovOO = einsum('ijkl, klij', eri_ovOO, f['dOOov'][:, :, p0:p1])
         E2_ab += E_ovOO * 2
         eri_ovOO = None
-    
+
     for p0, p1 in lib.prange(0, nvira, blksize):
         cidx = vidxa[p0:p1]
-        
+
         # vvOO
         eri_vvOO = take_eri(H2[2], cidx, vidxa, Oidxb, Oidxb)
         E_vvOO = einsum('ijkl, klij', eri_vvOO, f['dOOvv'][:, :, p0:p1])
@@ -2076,20 +2076,20 @@ def exp_val_uccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         E_vvOV = einsum('ijkl, klij', eri_vvOV, f['dOVvv'][:, :, p0:p1])
         E2_ab += E_vvOV * 2
         eri_vvOV = None
-    
+
     E2_cum = 0.5 * (E2_aa + E2_bb) + E2_ab
     E2 = E2_prod + E2_cum
-    
+
     E_tot = H0 + E1 + E2
     log.debug(0, "CC exp_val: E0: %20.12f, E1: %20.12f, E2: %20.12f \n"
-              "(prod: %20.12f, cum: %20.12f), E_tot: %20.12f", 
+              "(prod: %20.12f, cum: %20.12f), E_tot: %20.12f",
               H0, E1, E2, E2_prod, E2_cum, E_tot)
     return E_tot
 
 def exp_val_gccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     """
     Expectation value of H0, H1 and H2, using an outcore routine.
-    H1 and H2 are in MO basis. 
+    H1 and H2 are in MO basis.
     H2 is real and has 8-fold symmetry, 1, 4, 8-fold array are ok.
 
     Args:
@@ -2102,11 +2102,11 @@ def exp_val_gccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     Returns:
         E_tot: the expectation value of H0, H1 and H2.
     """
-    # ZHC NOTE TODO support outcore routine 
+    # ZHC NOTE TODO support outcore routine
     # currently I save intermidiates to disk and then load
     # also, we may load H2 from disk
     log.debug(0, "exp_val_gccsd: start")
-    
+
     # frozen core
     mo_idx = mycc.get_frozen_mask()
     if not all(mo_idx):
@@ -2117,11 +2117,11 @@ def exp_val_gccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         rdm1_core[core_idx, core_idx] = 1.0
         veff_core = _get_veff_ghf(rdm1_core, H2)
         E_core = einsum('ij, ji', H1 + veff_core*0.5, rdm1_core)
-        
+
         H0 += E_core
         H1 = (H1 + veff_core)[np.ix_(act_idx, act_idx)]
         H2 = take_eri(H2, act_idx, act_idx, act_idx, act_idx, compact=True)
-    
+
     f = lib.H5TmpFile(filename=rdm2_tmp_fname, mode='w')
     t1, t2, l1, l2 = mycc.t1, mycc.t2, mycc.l1, mycc.l2
     d2 = cc.gccsd_rdm._gamma2_intermediates(mycc, t1, t2, l1, l2)
@@ -2129,7 +2129,7 @@ def exp_val_gccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
     f["dovov"], f["dvvvv"], f["doooo"], f["doovv"], \
     f["dovvo"], f["dvvov"], f["dovvv"], f["dooov"] = d2
     d2 = None
-    
+
     nocc, nvir = t1.shape
     norb = nocc + nvir
 
@@ -2141,7 +2141,7 @@ def exp_val_gccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
          + einsum('ij, ji', H1[:nocc, nocc:], dvo) \
          + einsum('ij, ji', H1[nocc:, nocc:], dvv) \
          + np.sum(H1[range(nocc), range(nocc)])
-    
+
     # product part
     rdm1_mo = cc.gccsd_rdm._make_rdm1(mycc, d1, with_frozen=False)
     rdm1_mo = np.asarray(rdm1_mo)
@@ -2149,62 +2149,62 @@ def exp_val_gccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
 
     rdm1_hf = np.zeros((norb, norb))
     rdm1_hf[range(nocc), range(nocc)] = 1.0
-    
+
     veff_hf = _get_veff_ghf(rdm1_hf, H2)
     E2_prod = 0.5 * einsum('ij, ji', veff_hf, rdm1_hf + rdm1_mo * 2.0)
-    
+
     # cumulant part
     max_memory = max(0, mycc.max_memory - lib.current_memory()[0])
     unit = nvir**3 * 6
     if blksize is None:
         blksize = min(nocc, nvir, max(cc.ccsd.BLKMIN, int(max_memory*0.9e6/8/unit)))
-    
-    log.debug(0, "exp_val_gccsd: current memory: %s MB (max_memory: %s MB)", 
+
+    log.debug(0, "exp_val_gccsd: current memory: %s MB (max_memory: %s MB)",
               lib.current_memory()[0], mycc.max_memory)
     log.debug(1, "exp_val_gccsd: unit size: %s , blksize: %s", unit, blksize)
-    
+
     E2_cum = 0.0
     oidx = np.arange(nocc)
     vidx = np.arange(nocc, norb)
-    
+
     for p0, p1 in lib.prange(0, nocc, blksize):
         cidx = oidx[p0:p1]
-        
+
         # ovov
         eri_ovov = take_eri(H2, cidx, vidx, oidx, vidx)
         E_ovov = einsum('ijkl, ijkl', eri_ovov, f['dovov'][p0:p1])
         E2_cum += E_ovov * 2
         eri_ovov = None
-        
+
         eri_oovv = take_eri(H2, cidx, oidx, vidx, vidx)
         E_oovv = -einsum('ijkl, iklj', eri_oovv, f['dovvo'][p0:p1])
         E2_cum += E_oovv * 2
         eri_oovv = None
-    
+
         # ovvo
         eri_ovvo = take_eri(H2, cidx, vidx, vidx, oidx)
         E_ovvo = einsum('ijkl, ijkl', eri_ovvo, f['dovvo'][p0:p1])
         E2_cum += E_ovvo * 2
         eri_ovvo = None
-        
+
         # oooo
         eri_oooo = take_eri(H2, cidx, oidx, oidx, oidx)
         E_oooo = einsum('ijkl, ijkl', eri_oooo, f['doooo'][p0:p1])
         E2_cum += E_oooo
         eri_oooo = None
-    
+
         # ovvv
         eri_ovvv = take_eri(H2, cidx, vidx, vidx, vidx)
         E_ovvv = einsum('ijkl, ijkl', eri_ovvv, f['dovvv'][p0:p1])
         E2_cum += E_ovvv * 4
         eri_ovvv = None
-        
+
         # ooov
         eri_ooov = take_eri(H2, cidx, oidx, oidx, vidx)
         E_ooov = einsum('ijkl, ijkl', eri_ooov, f['dooov'][p0:p1])
         E2_cum += E_ooov * 4
         eri_ooov = None
-        
+
     for p0, p1 in lib.prange(0, nvir, blksize):
         cidx = vidx[p0:p1]
         # vvvv
@@ -2212,13 +2212,13 @@ def exp_val_gccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
         E_vvvv = einsum('ijkl, ijkl', eri_vvvv, f['dvvvv'][p0:p1])
         E2_cum += E_vvvv
         eri_vvvv = None
-    
+
     E2_cum *= 0.5
     E2 = E2_prod + E2_cum
-    
+
     E_tot = H0 + E1 + E2
     log.debug(0, "CC exp_val: E0: %20.12f, E1: %20.12f, E2: %20.12f \n"
-              "(prod: %20.12f, cum: %20.12f), E_tot: %20.12f", 
+              "(prod: %20.12f, cum: %20.12f), E_tot: %20.12f",
               H0, E1, E2, E2_prod, E2_cum, E_tot)
     return E_tot
 
@@ -2227,9 +2227,9 @@ def exp_val_gccsd(mycc, H1, H2, H0=0.0, rdm2_tmp_fname=None, blksize=None):
 # ****************************************************************************
 
 class CCDAsFCISolver(object):
-    def __init__(self, restricted=True, ghf=True, max_cycle=200, 
+    def __init__(self, restricted=True, ghf=True, max_cycle=200,
                  level_shift=0.0, conv_tol=1e-7,
-                 conv_tol_normt=1e-5, diis_space=8, iterative_damping=1.0, 
+                 conv_tol_normt=1e-5, diis_space=8, iterative_damping=1.0,
                  max_memory=120000, restart=False, verbose=4, fname='mcscf',
                  fcivec=None, approx_l=False, fix_fcivec=False, alpha=None,
                  Mu=None, linear=False, **kwargs):
@@ -2252,7 +2252,7 @@ class CCDAsFCISolver(object):
 
         self.alpha = alpha
         self.Mu = Mu
-        
+
         self.restart = restart
         self.fname = fname
         self.fcivec = fcivec
@@ -2269,13 +2269,13 @@ class CCDAsFCISolver(object):
             scfsolver.set_system(nelec, 0, False, True,
                                  max_memory=self.max_memory)
             scfsolver.set_integral(Ham)
-            
+
             scfsolver.GGHF(alpha=self.alpha, Mu=self.Mu)
             fake_hf = scfsolver.mf
             fake_hf.mo_coeff = np.eye(norb)
             fake_hf.mo_occ   = np.zeros(norb)
             fake_hf.mo_occ[:nelec] = 1
-            
+
             if self.linear:
                 log.info("LGGCCD used.")
                 self.mycc = LGGCCD(fake_hf)
@@ -2308,20 +2308,20 @@ class CCDAsFCISolver(object):
                     t1 = t2 = l1 = l2 = None
             else:
                 t1 = t2 = l1 = l2 = None
-            
+
             if (not self.fix_fcivec) or (t1 is None) or (t2 is None):
                 e_corr, t1, t2 = self.mycc.kernel(t1=t1, t2=t2, eris=eris)
 
             if (not self.fix_fcivec) or (l1 is None) or (l2 is None):
                 if (not self.approx_l):
                     l1, l2 = self.mycc.solve_lambda(l1, l2, eris=eris)
-            
+
             if self.fix_fcivec:
                 self.mycc.e_hf = getattr(eris, 'e_hf', None)
                 self.mycc.e_corr = self.mycc.energy(t1=t1, t2=t2, eris=eris)
-            
+
             e_tot = self.mycc.e_tot
-            
+
             if self.restart:
                 self.fcivec = CCSDAmplitudesAsCIWfn([t1, t2, l1, l2])
             return e_tot, CCSDAmplitudesAsCIWfn([t1, t2, l1, l2])
@@ -2344,14 +2344,14 @@ class CCDAsFCISolver(object):
             scfsolver.set_system(nelec[0] + nelec[1], nelec[0] - nelec[1],
                                  False, False, max_memory=self.max_memory)
             scfsolver.set_integral(Ham)
-            
+
             scfsolver.HF(alpha=self.alpha, Mu=self.Mu)
             fake_hf = scfsolver.mf
             fake_hf.mo_coeff = np.array((np.eye(norb), np.eye(norb)))
             fake_hf.mo_occ   = np.zeros((2, norb))
             fake_hf.mo_occ[0, :nelec[0]] = 1
             fake_hf.mo_occ[1, :nelec[1]] = 1
-            
+
             if self.linear:
                 raise NotImplementedError
             else:
@@ -2385,20 +2385,20 @@ class CCDAsFCISolver(object):
                     t1 = t2 = l1 = l2 = None
             else:
                 t1 = t2 = l1 = l2 = None
-            
+
             if (not self.fix_fcivec) or (t1 is None) or (t2 is None):
                 e_corr, t1, t2 = self.mycc.kernel(t1=t1, t2=t2, eris=eris)
 
             if (not self.fix_fcivec) or (l1 is None) or (l2 is None):
                 if (not self.approx_l):
                     l1, l2 = self.mycc.solve_lambda(l1, l2, eris=eris)
-            
+
             if self.fix_fcivec:
                 self.mycc.e_hf = getattr(eris, 'e_hf', None)
                 self.mycc.e_corr = self.mycc.energy(t1=t1, t2=t2, eris=eris)
-            
+
             e_tot = self.mycc.e_tot
-            
+
             if self.restart:
                 self.fcivec = CCSDAmplitudesAsCIWfn([t1, t2, l1, l2])
             return e_tot, CCSDAmplitudesAsCIWfn([t1, t2, l1, l2])
@@ -2410,7 +2410,7 @@ class CCDAsFCISolver(object):
             l2 = t2
         dm1 = self.mycc.make_rdm1(t1, t2, l1, l2)
         return dm1
-    
+
     make_rdm1s = make_rdm1
 
     def make_rdm12(self, fake_ci, norb, nelec):
@@ -2421,7 +2421,7 @@ class CCDAsFCISolver(object):
         dm2 = self.mycc.make_rdm2(t1, t2, l1, l2)
         dm1 = self.make_rdm1(fake_ci, norb, nelec)
         return dm1, dm2
-    
+
     make_rdm12s = make_rdm12
 
     def load_fcivec(self, fname):
@@ -2500,14 +2500,14 @@ def _make_eris_incore_uhf_ref(mycc, mo_coeff=None, ao2mofn=None):
     mob = eris.mo_coeff[1]
     nmoa = moa.shape[1]
     nmob = mob.shape[1]
-    
+
     if len(mycc._scf._eri) == 1:
         eri_ao = [mycc._scf._eri[0], mycc._scf._eri[0], mycc._scf._eri[0]]
     elif len(mycc._scf._eri) == 3:
         eri_ao = mycc._scf._eri
     else:
         raise ValueError("Unknown ERI length %s"%(len(mycc._scf._eri)))
-    
+
     # aa
     eri_aa = ao2mo.restore(1, ao2mo.full(eri_ao[0], moa), nmoa)
     eri_aa = eri_aa.reshape(nmoa,nmoa,nmoa,nmoa)
@@ -2522,7 +2522,7 @@ def _make_eris_incore_uhf_ref(mycc, mo_coeff=None, ao2mofn=None):
     ovvv = ovvv.reshape(nocca*nvira, nvira, nvira)
     eris.ovvv = lib.pack_tril(ovvv).reshape(nocca, nvira, nvira*(nvira+1)//2)
     ovvv = None
-    
+
     vvvv = eri_aa[nocca:, nocca:, nocca:, nocca:].copy()
     eri_aa = None
     eris.vvvv = ao2mo.restore(4, vvvv, nvira)
@@ -2537,12 +2537,12 @@ def _make_eris_incore_uhf_ref(mycc, mo_coeff=None, ao2mofn=None):
     eris.OVOV = eri_bb[:noccb,noccb:,:noccb,noccb:].copy()
     eris.OOVV = eri_bb[:noccb,:noccb,noccb:,noccb:].copy()
     eris.OVVO = eri_bb[:noccb,noccb:,noccb:,:noccb].copy()
-    
+
     OVVV = eri_bb[:noccb, noccb:, noccb:, noccb:].copy()
     OVVV = OVVV.reshape(noccb*nvirb,nvirb,nvirb)
     eris.OVVV = lib.pack_tril(OVVV).reshape(noccb, nvirb, nvirb*(nvirb+1)//2)
     OVVV = None
-    
+
     VVVV = eri_bb[noccb:, noccb:, noccb:, noccb:].copy()
     eri_bb = None
     eris.VVVV = ao2mo.restore(4, VVVV, nvirb)
@@ -2559,19 +2559,19 @@ def _make_eris_incore_uhf_ref(mycc, mo_coeff=None, ao2mofn=None):
     eris.ovOV = eri_ab[:nocca,nocca:,:noccb,noccb:].copy()
     eris.ooVV = eri_ab[:nocca,:nocca,noccb:,noccb:].copy()
     eris.ovVO = eri_ab[:nocca,nocca:,noccb:,:noccb].copy()
-    
+
     ovVV = eri_ab[:nocca, nocca:, noccb:, noccb:].copy()
     ovVV = ovVV.reshape(nocca*nvira, nvirb, nvirb)
     eris.ovVV = lib.pack_tril(ovVV).reshape(nocca, nvira, nvirb*(nvirb+1)//2)
     ovVV = None
-    
+
     vvVV = eri_ab[nocca:, nocca:, noccb:, noccb:].copy()
     vvVV = vvVV.reshape(nvira**2, nvirb**2)
     idxa = np.tril_indices(nvira)
     idxb = np.tril_indices(nvirb)
     eris.vvVV = lib.take_2d(vvVV, idxa[0]*nvira+idxa[1], idxb[0]*nvirb+idxb[1])
     vvVV = None
-    
+
     # ba
     eri_ba = eri_ab.transpose(2,3,0,1)
     eri_ab = None
@@ -2581,11 +2581,11 @@ def _make_eris_incore_uhf_ref(mycc, mo_coeff=None, ao2mofn=None):
     #eris.OVov = eri_ba[:noccb,noccb:,:nocca,nocca:].copy()
     eris.OOvv = eri_ba[:noccb,:noccb,nocca:,nocca:].copy()
     eris.OVvo = eri_ba[:noccb,noccb:,nocca:,:nocca].copy()
-    
+
     OVvv = eri_ba[:noccb,noccb:,nocca:,nocca:].copy()
     #eris.VVvv = eri_ba[noccb:,noccb:,nocca:,nocca:].copy()
     eri_ba = None
-        
+
     OVvv = OVvv.reshape(noccb*nvirb, nvira, nvira)
     eris.OVvv = lib.pack_tril(OVvv).reshape(noccb, nvirb, nvira*(nvira+1)//2)
     OVvv = None
@@ -2605,7 +2605,7 @@ def _make_eris_incore_ghf_ref(mycc, mo_coeff=None, ao2mofn=None):
         if (nao == nmo) and (max_abs(eris.mo_coeff - np.eye(nmo)) < 1e-13):
             eri = ao2mo.restore(1, mycc._scf._eri, nao)
         else:
-            eri = ao2mo.kernel(mycc._scf._eri, eris.mo_coeff) 
+            eri = ao2mo.kernel(mycc._scf._eri, eris.mo_coeff)
             if eri.dtype == np.double:
                 eri = ao2mo.restore(1, eri, nmo)
 

@@ -22,7 +22,7 @@ def test_poscar():
     cell.verbose = 4
     cell.precision = 1e-12
     cell.build(unit='Angstrom')
-    
+
     write_poscar(cell, species=False)
     write_poscar(cell, cart=True)
     cell2 = read_poscar()
@@ -44,16 +44,16 @@ def test_struct_dump():
     from libdmet.system.lattice import Square3BandSymm
     ImpSize = [2, 2, 1]
     cellsize = np.eye(3) * 2.0
-    atoms = [(np.array([0.0, 0.0, 0.0]), "Cu"), 
+    atoms = [(np.array([0.0, 0.0, 0.0]), "Cu"),
              (np.array([1.0, 0.0, 0.0]),  "O"),
              (np.array([0.0, 1.0, 0.0]),  "O")]
-    
+
     struct_dump(cellsize, ImpSize, atoms, fmt="POSCAR", frac=False, center=None, \
         filename=None, elements=None)
-    
+
     struct_dump(cellsize, ImpSize, atoms, fmt="XYZ", frac=False, center=None, \
         filename="CuO2.xyz", elements=None)
-    
+
     latt = Square3BandSymm(1, 1, 1, 1)
     sc2POSCAR(latt.supercell, fout="test.vasp")
 
@@ -83,7 +83,7 @@ def test_match_lattice_orbitals():
     from libdmet.utils import misc
     from libdmet.utils import iotools
     from libdmet.utils.misc import max_abs
-    
+
     np.set_printoptions(3, linewidth=1000, suppress=True)
     pos_pm = os.path.dirname(os.path.realpath(__file__)) + "/CuO2_PM"
     pos_2x2 = os.path.dirname(os.path.realpath(__file__)) + "/CuO2_2x2"
@@ -98,7 +98,7 @@ def test_match_lattice_orbitals():
     cell_new.build()
     cell_new = tools.super_cell(cell_new, [2, 1, 1])
     idx = iotools.match_lattice_orbitals(cell_old, cell_new)
-    assert max_abs(idx[-10:] - 
+    assert max_abs(idx[-10:] -
                    np.asarray([45, 46, 47, 48, 49, 165, 166, 167, 168, 169])) < 1e-10
 
 if __name__ == "__main__":

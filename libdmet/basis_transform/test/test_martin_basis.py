@@ -18,10 +18,10 @@ def test_martin_basis():
     from libdmet.basis_transform import make_basis
 
     np.set_printoptions(3, linewidth=1000, suppress=False)
-    
+
     eps = 1e-7
     nbands = 5
-    kpt_idx = 1 
+    kpt_idx = 1
     NH = 6
     R  = 1.5
     nkz = 11
@@ -39,11 +39,11 @@ def test_martin_basis():
     cell.pseudo  = None
     cell.precision = cell_prec
     cell.verbose = 4
-    cell.spin = 0 
+    cell.spin = 0
     cell.build()
 
     kpts_scaled_z = np.linspace(0, 0.5, nkz)
-    kpts_scaled = np.array([[0.0, 0.0, kz] for kz in kpts_scaled_z]) 
+    kpts_scaled = np.array([[0.0, 0.0, kz] for kz in kpts_scaled_z])
     kpts_abs = np.array(cell.get_abs_kpts(kpts_scaled))
     kpts = kpts_abs[kpt_idx][np.newaxis]
     nkpts = len(kpts)
@@ -88,7 +88,7 @@ def test_martin_basis():
             hcore = kmf.get_hcore()
         else:
             hcore = np.load('hcore.npy')
-        
+
         if not os.path.isfile('ovlp.npy'):
             ovlp = kmf.get_ovlp()
         else:
@@ -142,7 +142,7 @@ def test_martin_basis():
     print ("hcore:", max_abs(hcore_rao.imag))
     print ("ovlp:", max_abs(ovlp_rao.imag))
     print ("fock:", max_abs(fock_rao.imag))
-    print ("") 
+    print ("")
     assert max_abs(hcore_rao.imag) < 1e-7
     assert max_abs(ovlp_rao.imag) < 1e-7
     assert max_abs(fock_rao.imag) < 1e-7

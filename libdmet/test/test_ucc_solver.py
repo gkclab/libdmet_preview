@@ -72,7 +72,7 @@ def test_ucc_solver(incore):
     chkfname = '%s.chk'%name
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -205,7 +205,7 @@ def test_ucc_solver(incore):
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %s", Mu)
@@ -225,7 +225,7 @@ def test_ucc_solver(incore):
             restart = True
         solver_args = {"restart": restart, "basis": basis, "nelec": min((Lat.ncore+Lat.nval)*2, nkpts*cell.nelectron), \
                 "dm0": dmet.foldRho_k(res["rho_k"], basis_k), 'ccd': False}
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
             solver_args=solver_args, thrnelec=nelec_tol, \
@@ -237,21 +237,21 @@ def test_ucc_solver(incore):
             dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
             lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
             solver=solver, solver_args=solver_args, labels=lo_labels)
-        
+
         r_a = rhoImp[0][0, 0]
         r_b = rhoImp[1][0, 0]
         m = 0.5*(r_a - r_b)
         fm.write('%s %s\n'%(iter, m))
-        
-        
+
+
         E_DMET_per_cell = EnergyImp*nscsites / ncell_sc
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", E_DMET_per_cell)
-        
+
         # DUMP results:
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, C_ao_lo], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter, \
@@ -266,21 +266,21 @@ def test_ucc_solver(incore):
 
         dVcor_per_ele = np.max(np.abs(vcor_new.param - vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = np.max(np.abs(pvcor - vcor.param))
         vcor.update(pvcor)
         log.result("Trace of vcor: %s", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2), axis=1))
-        
+
         history.update(E_DMET_per_cell, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
-        
+
         if dVcor_per_ele < u_tol and abs(dE) < E_tol and iter > iter_tol :
             conv = True
             break

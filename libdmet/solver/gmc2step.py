@@ -126,7 +126,7 @@ def kernel(casscf, mo_coeff, tol=1e-7, conv_tol_grad=None,
 if __name__ == '__main__':
     from pyscf import gto, scf, ao2mo
     from pyscf import mcscf
-    
+
     np.set_printoptions(4, linewidth=1000, suppress=True)
     np.random.seed(10086)
 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
                  'O': '6-31g',}
     mol.incore_anyway = True
     mol.build()
-    
+
     # reference RCASSCF
     from pyscf.mcscf import CASSCF, UCASSCF
     import os
@@ -155,7 +155,7 @@ if __name__ == '__main__':
         mf.__dict__.update(data)
     else:
         mf.kernel()
-    
+
     mf = scf.addons.convert_to_uhf(mf)
     mc = UCASSCF(mf, 4, 4)
     #mc.internal_rotation = True
@@ -184,11 +184,11 @@ if __name__ == '__main__':
     scfsolver.set_system(mol.nelectron, 0, False, True, max_memory=mol.max_memory)
     scfsolver.set_integral(Ham)
     ehf, rhoHF = scfsolver.GGHF(tol=1e-12, InitGuess=dm0)
-    
+
     mf = scfsolver.mf
     from libdmet.solver.gmc1step import GCASSCF
     mc = GCASSCF(mf, 4, (4,0))
     #mc.internal_rotation = True
-    
+
     mc.mc2step()
 

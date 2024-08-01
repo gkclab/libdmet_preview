@@ -24,21 +24,21 @@ from pyscf.tools import mo_mapping
 
 from libdmet.utils import logger as log
 from libdmet.utils.misc import max_abs, mdot, cartesian_prod
-from libdmet.settings import IMAG_DISCARD_TOL 
-from libdmet.routine import ftsystem 
+from libdmet.settings import IMAG_DISCARD_TOL
+from libdmet.routine import ftsystem
 
 def get_grid_uniform_mol(mol, mesh=[201, 201, 201], box=np.eye(3)*20.0,
                          origin=None, **kwargs):
     '''
-    Generate a cubic grid for molecule. 
-    '''    
+    Generate a cubic grid for molecule.
+    '''
     log.debug(1, "uniform grid mesh: %s", mesh)
     if origin is None:
         origin = -np.array(box) * 0.5
     origin = origin.sum(axis=0)
     mesh = np.asarray(mesh)
     ngrids = np.prod(mesh)
-    qv = lib.cartesian_prod([np.arange(x) for x in mesh])   
+    qv = lib.cartesian_prod([np.arange(x) for x in mesh])
     a_frac = np.einsum('i, ij -> ij', 1./mesh, box)
     coords = np.dot(qv, a_frac) + origin
     weights = np.empty(ngrids)
@@ -53,7 +53,7 @@ def get_grid_becke_mol(mol, level=5, **kwargs):
     grids = dft.gen_grid.Grids(mol)
     grids.level = level
     grids.build(with_non0tab=True)
-    return grids.coords, grids.weights 
+    return grids.coords, grids.weights
 
 def get_uniform_grids(cell, mesh=None, order='C', **kwargs):
     """
@@ -111,7 +111,7 @@ def get_grid_becke_cell(cell, level=5, **kwargs):
     grids = pdft.gen_grid.BeckeGrids(cell)
     grids.level = level
     grids.build(with_non0tab=True)
-    return grids.coords, grids.weights 
+    return grids.coords, grids.weights
 
 def scdm_model(mo_coeff, return_C_mo_lo=False, **kwargs):
     """
@@ -121,14 +121,14 @@ def scdm_model(mo_coeff, return_C_mo_lo=False, **kwargs):
     if mo_coeff.ndim == 2:
         mo_coeff = mo_coeff[np.newaxis]
     spin, nao, nmo = mo_coeff.shape
-    
+
     # SCDM
     nlo = nmo
     C_mo_lo = np.zeros((spin, nmo, nlo), dtype=mo_coeff.dtype)
     C_ao_lo = np.zeros((spin, nao, nlo), dtype=mo_coeff.dtype)
     for s in range(spin):
         mo_g = mo_coeff[s]
-        log.debug(1, "SCDM: ovlp of mo_g (spin %s):\n%s", 
+        log.debug(1, "SCDM: ovlp of mo_g (spin %s):\n%s",
                   s, mo_g.conj().T.dot(mo_g))
         psiT = mo_g.conj().T
         Q, R, perm = la.qr(psiT, pivoting=True)
@@ -136,7 +136,7 @@ def scdm_model(mo_coeff, return_C_mo_lo=False, **kwargs):
             C_mo_lo[s] = Q
         else: # Lowdin
             C_mo_lo[s] = lo.vec_lowdin(psiT[:, perm[:nlo]])
-        
+
         sorted_idx = mo_mapping.mo_1to1map(C_mo_lo[s])
         C_mo_lo[s] = C_mo_lo[s][:, sorted_idx]
 
@@ -160,21 +160,21 @@ def scdm_mol(mol, mo_coeff, grid='becke', return_C_mo_lo=False, **kwargs):
         coords, weights = get_grid_uniform_mol(mol, **kwargs)
     ao_g = mol.eval_gto('GTOval_sph', coords) * \
            np.sqrt(weights[:, None].astype(np.complex128))
-    
+
     # MO on grids
     mo_coeff = np.asarray(mo_coeff)
     if mo_coeff.ndim == 2:
         mo_coeff = mo_coeff[np.newaxis]
     spin, nao, nmo = mo_coeff.shape
     ngrids = ao_g.shape[0]
-    
+
     # SCDM
     nlo = nmo
     C_mo_lo = np.zeros((spin, nmo, nlo), dtype=ao_g.dtype)
     C_ao_lo = np.zeros((spin, nao, nlo), dtype=ao_g.dtype)
     for s in range(spin):
         mo_g = np.dot(ao_g, mo_coeff[s])
-        log.debug(1, "SCDM: ovlp of mo_g (spin %s):\n%s", 
+        log.debug(1, "SCDM: ovlp of mo_g (spin %s):\n%s",
                   s, mo_g.conj().T.dot(mo_g))
         psiT = mo_g.conj().T
         Q, R, perm = la.qr(psiT, pivoting=True)
@@ -186,7 +186,7 @@ def scdm_mol(mol, mo_coeff, grid='becke', return_C_mo_lo=False, **kwargs):
 
     if max_abs(C_ao_lo.imag) < IMAG_DISCARD_TOL:
         C_ao_lo = C_ao_lo.real
-    
+
     if max_abs(C_mo_lo.imag) < IMAG_DISCARD_TOL:
         C_mo_lo = C_mo_lo.real
 
@@ -195,7 +195,7 @@ def scdm_mol(mol, mo_coeff, grid='becke', return_C_mo_lo=False, **kwargs):
     else:
         return C_ao_lo
 
-def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False, 
+def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False,
            use_gamma_perm=True, nlo=None, smear_func=None, **kwargs):
     """
     SCDM for k-MO.
@@ -206,19 +206,19 @@ def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False,
     else:
         coords, weights = get_grid_uniform_cell(cell, **kwargs)
     weights_factor = np.sqrt(weights[:, None].astype(np.complex128))
-    
+
     mo_coeff = np.asarray(mo_coeff)
     if mo_coeff.ndim == 3:
         mo_coeff = mo_coeff[np.newaxis]
     spin, nkpts, nao, nmo = mo_coeff.shape
     ngrids = weights_factor.shape[0]
-    
+
     # SCDM
     if nlo is None:
         nlo = nmo
     C_mo_lo = np.zeros((spin, nkpts, nmo, nlo), dtype=np.complex128)
     C_ao_lo = np.zeros((spin, nkpts, nao, nlo), dtype=np.complex128)
-    
+
     perm_spin = []
     for k in range(nkpts):
         # AO on grids
@@ -242,7 +242,7 @@ def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False,
                     perm = perm_spin[s]
             else:
                 Q, R, perm = la.qr(psiT, pivoting=True)
-            
+
             C_mo_lo[s, k] = lo.vec_lowdin(psiT[:, perm[:nlo]])
             C_ao_lo[s, k] = mo_coeff[s, k].dot(C_mo_lo[s, k])
 
@@ -255,7 +255,7 @@ def scdm_k(cell, mo_coeff, kpts, grid='becke', return_C_mo_lo=False,
 
 def smear_func(mo_energy, mu, sigma, method='erfc'):
     """
-    Smear function for disentanglement. 
+    Smear function for disentanglement.
     """
     mo_energy = np.asarray(mo_energy)
     if mo_energy.ndim == 2:
@@ -287,7 +287,7 @@ def smear_func_fermi(mo_energy, mu, sigma):
 if __name__ == '__main__':
     from pyscf import gto, scf, tools
     from pyscf.tools import molden
-    np.set_printoptions(3, linewidth=1000) 
+    np.set_printoptions(3, linewidth=1000)
     log.verbose = "DEBUG2"
     atom_coords = np.array([[3.17500000, 3.17500000, 3.17500000],
                             [2.54626556, 2.54626556, 2.54626556],
@@ -297,11 +297,11 @@ if __name__ == '__main__':
                  - np.array([3.17500000, 3.17500000, 3.17500000])
     mol = gto.Mole()
     mol.build(
-        atom = [['C', atom_coords[0]], 
-                ['H', atom_coords[1]], 
+        atom = [['C', atom_coords[0]],
+                ['H', atom_coords[1]],
                 ['H', atom_coords[2]],
-                ['H', atom_coords[3]], 
-                ['H', atom_coords[4]]], 
+                ['H', atom_coords[3]],
+                ['H', atom_coords[4]]],
         basis = 'ccpvdz')
 
     mf = scf.RHF(mol)
@@ -321,7 +321,7 @@ if __name__ == '__main__':
     log.info("Dipole cf values:")
     log.info("cf (MO): %s", loc.cost_function())
     log.info("cf (SCDM): %s", loc.cost_function(u=C_mo_lo))
-    
+
     loc_orb = loc.kernel()
     log.info("cf (Boys): %s", loc.cost_function())
     molden.from_mo(mol, 'CH4_Boys.molden', loc_orb)

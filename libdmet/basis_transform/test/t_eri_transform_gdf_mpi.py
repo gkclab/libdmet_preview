@@ -27,12 +27,12 @@ log.verbose = "DEBUG2"
 
 def _test_ERI(cell, gdf, kpts, C_ao_lo):
     # Fast 1st unit cell ERI (for DMFT)
-    eri_mpi = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo, 
+    eri_mpi = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo,
                                          t_reversal_symm=True, symmetry=1,
                                          use_mpi=True)
-    eri_ref = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo, 
+    eri_ref = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo,
                                          t_reversal_symm=True, symmetry=1)
-    print ('Fast 1st unit cell ERI compared to supcell', 
+    print ('Fast 1st unit cell ERI compared to supcell',
            max_abs(eri_ref - eri_mpi))
     assert max_abs(eri_ref - eri_mpi) < 1e-10
 
@@ -59,16 +59,16 @@ def t_ERI_gdf(kmesh):
     gdf = df.GDF(cell, kpts)
     gdf._cderi = gdf_fname
     gdf._cderi_to_save = gdf_fname
-    
+
     #if not os.path.isfile(gdf_fname):
     if True:
         gdf.build()
-    
+
     print ('### Test AO ERI transform ###')
     C_ao_lo = np.zeros((nkpts, nao, nao),dtype=complex)
     C_ao_lo[:, range(nao), range(nao)] = 1.0
     _test_ERI(cell, gdf, kpts, C_ao_lo)
-    
+
 if __name__ == "__main__":
     from mpi4pyscf.tools import mpi
     t_ERI_gdf(kmesh=[1, 1, 10])

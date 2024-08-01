@@ -18,7 +18,7 @@ from libdmet.utils.misc import add_spin_dim, format_idx, Iterable
 
 # ***********************************************************************************
 # Molecule class
-# *********************************************************************************** 
+# ***********************************************************************************
 
 class Molecule(object):
     def __init__(self, mol):
@@ -28,20 +28,20 @@ class Molecule(object):
         self.nscsites = self.nao = self.supercell.nsites = self.mol.nao_nr()
         names, coords = zip(*mol._atom)
         self.names, self.coords = np.asarray(names), np.asarray(coords)
-         
-        self.dim = 0 # dim          
+
+        self.dim = 0 # dim
         self.csize = np.asarray(self.kmesh) # cellsize, kmesh
         self.ncells = np.prod(self.csize) # num of cells
         # cells' coordinates
         self.cells = lib.cartesian_prod((np.arange(self.kmesh[0]),
                                          np.arange(self.kmesh[1]),
-                                         np.arange(self.kmesh[2]))) 
+                                         np.arange(self.kmesh[2])))
         # map: cell coord -> cell idx
-        self.celldict = dict(zip(map(tuple, self.cells), range(self.ncells))) 
+        self.celldict = dict(zip(map(tuple, self.cells), range(self.ncells)))
         self.kpts_scaled = [[0,0,0]]
         self.kpts = self.kpts_abs = [[0,0,0]]
         self.nkpts = len(self.kpts)
-        
+
         # phase
         self.bigcell = mol
         self.phase = [[1.]]
@@ -52,8 +52,8 @@ class Molecule(object):
         # basis related:
         self.val_idx  = []
         self.virt_idx = []
-        self.core_idx = [] 
-        
+        self.core_idx = []
+
         # Hamiltonian related:
         self.kmf = None
         self.kmf_lo = None
@@ -92,25 +92,25 @@ class Molecule(object):
     @property
     def ncore(self):
         return len(self.core_idx)
-    
+
     @property
     def nval(self):
         return len(self.val_idx)
-    
+
     @property
     def nvirt(self):
         return len(self.virt_idx)
-    
+
     @property
     def nimp(self):
         return self.nval + self.nvirt
-    
+
     limp = nimp
-    
+
     @property
     def imp_idx(self):
         return list(self.val_idx) + list(self.virt_idx)
-    
+
     @property
     def has_orb_info(self):
         return (self.nimp != 0)
@@ -118,7 +118,7 @@ class Molecule(object):
     def set_val_virt_core(self, val, virt, core):
         """
         Set valence, virtual and core indices.
-        
+
         Args:
             val : valence indices, list or number
             virt: virtual indices, list or number
@@ -128,12 +128,12 @@ class Molecule(object):
             self.core_idx = list(core)
         else:
             self.core_idx = list(range(0, core))
-        
+
         if isinstance(val, Iterable):
             self.val_idx = list(val)
         else:
             self.val_idx  = list(range(self.ncore, self.ncore + val))
-        
+
         if isinstance(virt, Iterable):
             self.virt_idx = list(virt)
         else:
@@ -141,15 +141,15 @@ class Molecule(object):
                     self.ncore + self.nval + virt))
 
         if self.ncore + self.nval + self.nvirt != self.nao:
-            log.warn("ncore (%s) + nval (%s) + nvirt (%s) != nao (%s), \n" 
-                     "set_val_virt_core may be incorrect.", 
+            log.warn("ncore (%s) + nval (%s) + nvirt (%s) != nao (%s), \n"
+                     "set_val_virt_core may be incorrect.",
                      self.ncore, self.nval, self.nvirt, self.nao)
-        log.info("ncore: %s, nval: %s, nvirt: %s", 
+        log.info("ncore: %s, nval: %s, nvirt: %s",
                  self.ncore, self.nval, self.nvirt)
         log.debug(0, "core_idx : %s", format_idx(self.core_idx))
         log.debug(0, "val_idx  : %s", format_idx(self.val_idx))
         log.debug(0, "virt_idx : %s", format_idx(self.virt_idx))
-    
+
     """
     mol functions:
     """
@@ -167,22 +167,22 @@ class Molecule(object):
 
     def subtract(self, i, j):
         return self.cell_pos2idx(self.cell_idx2pos(i) - self.cell_idx2pos(j))
-    
+
     """
     Functions on matrices in the system:
     """
     def FFTtoK(self, A):
         return A
-    
+
     def FFTtoT(self, B):
         return B
 
     def k2R(self, A):
         return A
-    
+
     def R2k(self, B):
         return B
-    
+
     def k2R_H2(self, H2_k):
         return H2_k
 
@@ -196,7 +196,7 @@ class Molecule(object):
         """
         assert A.shape[-3] == self.ncells
         nscsites = A.shape[-1]
-        nsites = A.shape[-1] * A.shape[-3] 
+        nsites = A.shape[-1] * A.shape[-3]
         if A.ndim == 3:
             bigA = np.zeros((nsites, nsites), dtype=A.dtype)
             if dense:
@@ -223,7 +223,7 @@ class Molecule(object):
         else:
             raise ValueError("unknown shape of A, %s" % A.shape)
         return bigA
-    
+
     def extract_stripe(self, A):
         """
         Full to stripe, inverse function of expand.
@@ -237,7 +237,7 @@ class Molecule(object):
             return A.reshape((spin, ncells, nscsites, ncells, nscsites))[:, :, :, 0]
         else:
             raise ValueError("unknown shape of A, %s"%A.shape)
-    
+
     def expand_orb(self, C):
         """
         Expand ncells * nao * nmo translational invariant wannier function C^{T, 0}_{pm}
@@ -263,7 +263,7 @@ class Molecule(object):
         else:
             raise ValueError("unknown shape of C, %s"%C.shape)
         return bigC
-    
+
     def transpose(self, A):
         """
         return the transpose of ncells * nscsites * nscsites translational invariant matrix
@@ -278,7 +278,7 @@ class Molecule(object):
                     AT[s, n] = A[s, self.cell_pos2idx(-self.cell_idx2pos(n))].T
         else:
             raise ValueError("unknown shape of A, %s"%A.shape)
-            
+
         return AT
 
     """
@@ -290,19 +290,19 @@ class Molecule(object):
         1/Nk factor for k to R.
         """
         return self.k2R(basis_k)
-    
+
     def R2k_basis(self, basis_R):
         """
         Transform R-basis to k-basis
         No factor for R to k.
         """
         return self.R2k(basis_R)
-    
+
     """
     Hamiltonian functions:
     """
-    def set_Ham(self, mf, C_ao_lo, eri_symmetry=4, 
-                ovlp=None, hcore=None, rdm1=None, fock=None, vj=None, vk=None, 
+    def set_Ham(self, mf, C_ao_lo, eri_symmetry=4,
+                ovlp=None, hcore=None, rdm1=None, fock=None, vj=None, vk=None,
                 vxc=None, use_hcore_as_emb_ham=False, H0=0.0):
         """
         Set Hamiltonian:
@@ -423,7 +423,7 @@ class Molecule(object):
         """
         Transform objects (hcore, fock, rdm1) to klo and RLO basis.
         """
-        from libdmet.basis_transform import make_basis 
+        from libdmet.basis_transform import make_basis
         # transform to LO basis
         self.hcore_lo_k = \
                 make_basis.transform_h1_to_lo(self.hcore_ao_k, self.C_ao_lo)
@@ -444,7 +444,7 @@ class Molecule(object):
         self.veff_lo_k = add_spin_dim(self.veff_lo_k, self.spin)
         self.vhf_lo_k = add_spin_dim(self.vhf_lo_k, self.spin)
         self.rdm1_lo_k = add_spin_dim(self.rdm1_lo_k, self.spin)
-        
+
         # FFT to real basis (stripe)
         self.hcore_lo_R = self.k2R(self.hcore_lo_k)
         self.ovlp_lo_R = self.k2R(self.ovlp_lo_k)
@@ -452,7 +452,7 @@ class Molecule(object):
         self.veff_lo_R = self.k2R(self.veff_lo_k)
         self.vhf_lo_R = self.k2R(self.vhf_lo_k)
         self.rdm1_lo_R = self.k2R(self.rdm1_lo_k)
-        
+
         # DFT vxc
         if self.vxc_ao_k is not None:
             self.vxc_lo_k = make_basis.transform_h1_to_lo(self.vxc_ao_k, self.C_ao_lo)
@@ -464,10 +464,10 @@ class Molecule(object):
         Update lo.
         """
         log.info("Update lo.")
-        
+
         self.C_ao_lo = np.asarray(C_ao_lo)
         self.transform_obj_to_lo()
-    
+
     def getH1(self, kspace=True):
         if kspace:
             return self.hcore_lo_k
@@ -479,7 +479,7 @@ class Molecule(object):
             return self.fock_lo_k
         else:
             return self.fock_lo_R
-    
+
     def get_ovlp(self, kspace=True):
         if kspace:
             return self.ovlp_lo_k
@@ -488,7 +488,7 @@ class Molecule(object):
 
     def get_JK_emb(self):
         return self.JK_emb
-    
+
     def get_JK_core(self):
         return self.JK_core
 
@@ -509,10 +509,10 @@ class Molecule(object):
             return self.Ham.getImpJK()
         else:
             return None
-     
+
     def getH0(self):
         return self.H0
- 
+
     get_JK_imp = getImpJK
 
 if __name__ == '__main__':
@@ -522,12 +522,12 @@ if __name__ == '__main__':
         basis = 'sto3g',
     )
     Mole = Molecule(mol)
-    
+
     mf = scf.HF(mol)
     mf.kernel()
     C_ao_lo = lo.orth_ao(mf)
     Mole.set_Ham(mf, C_ao_lo)
 
     print (Mole.getH2().shape)
-    
+
 

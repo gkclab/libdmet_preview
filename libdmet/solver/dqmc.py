@@ -21,7 +21,7 @@ from pyscf import gto
 from libdmet.utils import logger as log
 from libdmet.solver import scf
 from libdmet.solver.scf import ao2mo_Ham, restore_Ham
-from libdmet.basis_transform import make_basis 
+from libdmet.basis_transform import make_basis
 
 from libdmet.utils import cholesky
 from libdmet.utils.misc import mdot
@@ -44,7 +44,7 @@ def make_ints_dqmc_uhf(ImpHam, nelec, tol=1e-7, filename="FCIDUMP_chol"):
     h1 = ImpHam.H1['cd']
     eri = ImpHam.H2['ccdd']
     enuc = float(ImpHam.H0)
-    chol = cholesky.get_cderi_uhf(eri, norb, tol=tol) 
+    chol = cholesky.get_cderi_uhf(eri, norb, tol=tol)
     nchol = chol.shape[1]
 
     # writing dqmc ints
@@ -52,7 +52,7 @@ def make_ints_dqmc_uhf(ImpHam, nelec, tol=1e-7, filename="FCIDUMP_chol"):
     v0_dn = 0.5 * np.einsum('nik, njk -> ij', chol[1], chol[1], optimize=True)
     h1_mod = [h1[0] - v0_up, h1[1] - v0_dn]
     chol_flat = [chol[0].reshape(nchol, -1), chol[1].reshape(nchol, -1)]
-    write_ints_dqmc_uhf(h1, h1_mod, chol_flat, sum(nelec), norb, enuc, 
+    write_ints_dqmc_uhf(h1, h1_mod, chol_flat, sum(nelec), norb, enuc,
                         ms=nelec[0] - nelec[1], filename=filename)
 
 def write_ints_dqmc_ghf(hcore, hcore_mod, chol, nelec, nmo, enuc, ms=0,
@@ -71,12 +71,12 @@ def make_ints_dqmc_ghf(ImpHam, nelec, tol=1e-7, filename="FCIDUMP_chol"):
     enuc = float(ImpHam.H0)
     chol = cholesky.get_cderi_rhf(eri, norb, tol=tol)
     nchol = chol.shape[0]
-  
+
     # writing dqmc ints
     v0 = 0.5 * np.einsum('nik, njk -> ij', chol, chol, optimize=True)
     h1_mod = h1 - v0
     chol_flat = chol.reshape(nchol, -1)
-    write_ints_dqmc_ghf(h1, h1_mod, chol_flat, sum(nelec), norb, enuc, 
+    write_ints_dqmc_ghf(h1, h1_mod, chol_flat, sum(nelec), norb, enuc,
                         ms=nelec[0] - nelec[1], filename=filename)
 
 def write_input_dqmc(int_type, dt=0.005, nsteps=50, ndets=100, fname='dqmc.json',
@@ -116,7 +116,7 @@ def write_input_dqmc(int_type, dt=0.005, nsteps=50, ndets=100, fname='dqmc.json'
     "scratchDir": "%s"
   }
 }
-"""%(int_type, integrals, left, right, determinants, ndets, 
+"""%(int_type, integrals, left, right, determinants, ndets,
      np.random.randint(1, 1e6), dt, nsteps, nwalk,
      choleskyThreshold, orthoSteps, stochasticIter, prefix)
     with open(fname, "w") as f:
@@ -148,7 +148,7 @@ def write_conf_dice(fname, nelec, prefix="./", orbitals="./FCIDUMP",
         f.write("%d " % (2 * i + 1))
     #for i in range(nelec[0] + nelec[1]):
     #    f.write("%d " % i)
-    
+
     f.write("\n")
     f.write("end \n")
     f.write("orbitals %s \n" % orbitals)
@@ -171,7 +171,7 @@ targetError 0.0001
 sampleN 200
 
 #misc
-io 
+io
 prefix %s
 """ % prefix
     f.write(pt_string)
@@ -189,8 +189,8 @@ class DQMC(object):
     name = "DQMC"
     nnode = 1
 
-    def __init__(self, nproc=1, nnode=1, TmpDir="./tmp", SharedDir=None, 
-                 restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-6, 
+    def __init__(self, nproc=1, nnode=1, TmpDir="./tmp", SharedDir=None,
+                 restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-6,
                  max_cycle=200, max_memory=40000, compact_rdm2=False,
                  scf_newton=False, mpiprefix=None, alpha=None, beta=np.inf,
                  **kwargs):
@@ -219,9 +219,9 @@ class DQMC(object):
         self.fcivec = None
         self.onepdm = None
         self.twopdm = None
-        self.compact_rdm2 = compact_rdm2 
+        self.compact_rdm2 = compact_rdm2
         self.optimized = False
-        
+
         self.nnode = nnode
         self.nproc = nproc
         self.count = 0
@@ -229,7 +229,7 @@ class DQMC(object):
     @property
     def mpipernode(self):
         return ["mpirun", "-np", "%d"%(self.nnode * self.nproc)]
-    
+
     def run(self, Ham, nelec=None, guess=None, calc_rdm2=False, restart=False,
             Mu=None, dt=0.005, nsteps=50, ndets=50, fname='dqmc.json',
             integrals="FCIDUMP_chol", left=None, right=None,
@@ -267,7 +267,7 @@ class DQMC(object):
 
         if self.ghf:
             log.eassert(nelec_b == 0, "GHF DQMC need all particle alpha spin.")
-            self.scfsolver.set_system(nelec, 0, False, False, 
+            self.scfsolver.set_system(nelec, 0, False, False,
                                       max_memory=self.max_memory)
             self.scfsolver.set_integral(Ham)
             E_HF, rhoHF = self.scfsolver.GGHF(tol=min(1e-10, self.conv_tol*0.1),
@@ -282,7 +282,7 @@ class DQMC(object):
             self.scfsolver.set_integral(Ham)
             E_HF, rhoHF = self.scfsolver.HF(tol=min(1e-10, self.conv_tol*0.1),
                                             MaxIter=scf_max_cycle,
-                                            InitGuess=dm0, Mu=Mu, 
+                                            InitGuess=dm0, Mu=Mu,
                                             alpha=self.alpha,
                                             beta=self.beta)
             if self.restricted:
@@ -308,24 +308,24 @@ class DQMC(object):
 
         log.debug(2, "DQMC solver: mean-field rdm1: \n%s",
                   self.scfsolver.mf.make_rdm1())
-        
+
         fname = "%s/%s.%03d"%(self.TmpDir, fname, self.count)
         fints = "%s/%s"%(self.TmpDir, integrals)
 
         if nwalk is None:
             nwalk = max(int(nwalk_tot / (self.nnode * self.nproc) + 0.5), 1)
-        
 
-        write_input_dqmc(int_type, dt=dt, nsteps=nsteps, ndets=ndets, 
+
+        write_input_dqmc(int_type, dt=dt, nsteps=nsteps, ndets=ndets,
                          fname=fname,
-                         integrals=fints, 
+                         integrals=fints,
                          left=left, right=right,
                          nwalk=nwalk, choleskyThreshold=choleskyThreshold,
                          orthoSteps=orthoSteps, stochasticIter=stochasticIter,
                          prefix=self.TmpDir)
-        
+
         Ham_mo = ao2mo_Ham(Ham, self.scfsolver.mf.mo_coeff)
-        
+
         # SHCI prepare
         if left == "multislater":
             log.info("shci prepare for multislater.")
@@ -334,9 +334,9 @@ class DQMC(object):
 
             f_shci = self.TmpDir + "/dice.conf.%03d" % self.count
             fints_shci = self.TmpDir + "/FCIDUMP"
-            
+
             from libdmet.system.integral import dumpFCIDUMP_as_ghf
-            #dumpFCIDUMP_as_ghf(fints_shci, Ham_mo, thr=min(self.conv_tol * 0.01, 1e-7), 
+            #dumpFCIDUMP_as_ghf(fints_shci, Ham_mo, thr=min(self.conv_tol * 0.01, 1e-7),
             #                   buffered_io=False, nelec=self.nelec, spin=None,
             #                   dump_as_complex=True, aabb=False)
             #Ham_mo.dump(fints_shci, nelec=self.nelec, dump_as_complex=True)
@@ -347,15 +347,15 @@ class DQMC(object):
             import QMCUtils
             ham_ints = {'enuc': Ham_mo.H0, 'h1': Ham_mo.H1["cd"], 'eri': Ham_mo.H2["ccdd"]}
             QMCUtils.write_hci_ghf_uhf_integrals(ham_ints, Ham_mo.norb, sum(self.nelec), filename=fints_shci)
-        
+
         if self.ghf:
-            make_ints_dqmc_ghf(Ham_mo, self.nelec, tol=min(self.conv_tol * 0.01, 1e-7), 
+            make_ints_dqmc_ghf(Ham_mo, self.nelec, tol=min(self.conv_tol * 0.01, 1e-7),
                                filename=fints)
         else:
             if self.restricted:
                 raise NotImplementedError
             else:
-                make_ints_dqmc_uhf(Ham_mo, self.nelec, tol=min(self.conv_tol * 0.01, 1e-7), 
+                make_ints_dqmc_uhf(Ham_mo, self.nelec, tol=min(self.conv_tol * 0.01, 1e-7),
                                    filename=fints)
 
         Ham_mo = None
@@ -374,7 +374,7 @@ class DQMC(object):
                 cmd = [*self.mpipernode, DICE_PATH, f_shci]
                 log.debug(1, " ".join(cmd))
                 sub.check_call(cmd, stdout=f)
-        
+
         if self.ghf:
             write_coeff("ghf", mo)
         else:
@@ -391,23 +391,23 @@ class DQMC(object):
             cmd = [*self.mpipernode, DQMC_PATH, fname]
             log.debug(1, " ".join(cmd))
             sub.check_call(cmd, stdout=f)
-        
+
         # compute average energy
         outputfile = os.path.join(self.TmpDir, "blocking.out.%03d" % self.count)
         with open(outputfile, "w", buffering=1) as f:
             cmd = ["python", DQMC_BLOCKING, "samples.dat", "50"]
             log.debug(1, " ".join(cmd))
             sub.check_call(cmd, stdout=f)
-            os.rename("samples.dat", 
+            os.rename("samples.dat",
                       os.path.join(self.TmpDir, "samples.dat.%03d" % self.count))
-            os.rename("%s.txt" % ("%shf"%int_type), 
+            os.rename("%s.txt" % ("%shf"%int_type),
                       os.path.join(self.TmpDir, "%s.txt.%03d" % ("%shf"%int_type, self.count)))
-        
+
         with open(outputfile, "r") as f:
             lines = f.readlines()
             E = float(lines[1].split()[-1])
-        
-        if left == "multislater": 
+
+        if left == "multislater":
             self.make_rdm1(Ham, ndets=ndets)
         else:
             self.make_rdm1(Ham, ndets=0)
@@ -420,14 +420,14 @@ class DQMC(object):
                 E -= np.einsum('pq, qp', Mu_mat, self.onepdm_mo[0])
         if calc_rdm2:
             self.make_rdm2(Ham)
-        
+
         self.optimized = True
         self.E = E
         log.info("DQMC total energy: %s", self.E)
         self.count += 1
-        
+
         return self.onepdm, E
-    
+
     def run_dmet_ham(self, Ham, last_aabb=True, **kwargs):
         """
         Run scaled DMET Hamiltonian.
@@ -437,7 +437,7 @@ class DQMC(object):
         Ham = ao2mo_Ham(Ham, self.scfsolver.mf.mo_coeff, compact=True,
                         in_place=True)
         Ham = restore_Ham(Ham, 1, in_place=True)
-        
+
         # calculate rdm2 in aa, bb, ab order
         self.make_rdm2(Ham)
         if self.ghf:
@@ -447,7 +447,7 @@ class DQMC(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('pq, qp', h1, r1)
             E2 = np.einsum('pqrs, pqrs', h2, r2) * 0.5
         elif Ham.restricted:
@@ -457,7 +457,7 @@ class DQMC(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('pq, qp', h1[0], r1[0]) * 2.0
             E2 = np.einsum('pqrs, pqrs', h2[0], r2[0]) * 0.5
         else:
@@ -469,20 +469,20 @@ class DQMC(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('spq, sqp', h1, r1)
-            
+
             E2_aa = 0.5 * np.einsum('pqrs, pqrs', h2[0], r2[0])
             E2_bb = 0.5 * np.einsum('pqrs, pqrs', h2[1], r2[1])
             E2_ab = np.einsum('pqrs, pqrs', h2[2], r2[2])
             E2 = E2_aa + E2_bb + E2_ab
-        
+
         E = E1 + E2
         E += Ham.H0
-        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, " 
+        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, "
                   "E2 = %20.12f, E = %20.12f", Ham.H0, E1, E2, E)
         return E
-    
+
     def make_rdm1(self, Ham, ndets=0, extrap=False, hermi=True):
         """
         hermi: if True, will hermitize D = (D + D.conj().T) * 0.5
@@ -492,7 +492,7 @@ class DQMC(object):
         if self.ghf:
             rdm1 = 0.0
             cols = np.arange(Ham.norb)
-            
+
             weight_tot = 0.0
             for i in range(self.nproc):
                 filename = self.TmpDir + "/rdm_%d.dat"%i
@@ -511,7 +511,7 @@ class DQMC(object):
                 rdm1_a = 0.0
                 rdm1_b = 0.0
                 cols = np.arange(Ham.norb)
-                
+
                 weight_tot = 0.0
                 for i in range(self.nproc):
                     filename = self.TmpDir + "/rdm_up_%d.dat"%i
@@ -520,7 +520,7 @@ class DQMC(object):
                     df = np.loadtxt(filename, skiprows=1)
                     rdm1_a += df * weight
                     weight_tot += weight
-                    
+
                     filename = self.TmpDir + "/rdm_dn_%d.dat"%i
                     with open(filename) as fh:
                         weight = float(fh.readline())
@@ -530,12 +530,12 @@ class DQMC(object):
                 rdm1 = np.asarray((rdm1_a, rdm1_b))
                 rdm1 /= weight_tot
                 self.onepdm_mo = rdm1
-        
+
         if self.ghf: # GHF
             pass
         elif Ham.restricted:
             self.onepdm_mo = (self.onepdm_mo * 0.5)[np.newaxis]
-        
+
         if hermi:
             self.onepdm_mo = 0.5 * (self.onepdm_mo + np.swapaxes(self.onepdm_mo.conj(), -1, -2))
 
@@ -555,12 +555,12 @@ class DQMC(object):
 
         # rotate back to the AO basis
         log.debug(1, "DQMC solver: rotate rdm1 to AO")
-        self.onepdm = make_basis.transform_rdm1_to_ao_mol(self.onepdm_mo, 
+        self.onepdm = make_basis.transform_rdm1_to_ao_mol(self.onepdm_mo,
                                                           self.scfsolver.mf.mo_coeff)
-        
+
     def make_rdm2(self, Ham, ao_repr=False):
         raise NotImplementedError
-    
+
     def onepdm(self):
         return self.onepdm
 

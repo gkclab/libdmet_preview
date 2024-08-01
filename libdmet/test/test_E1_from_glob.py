@@ -27,7 +27,7 @@ def test_E1_from_glob():
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=False)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -48,7 +48,7 @@ def test_E1_from_glob():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -160,13 +160,13 @@ def test_E1_from_glob():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
         rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
         #Lat.update_Ham(rho*2.0)
-        
+
         log.section("\nconstructing impurity problem\n")
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, \
                 matching=True, int_bath=int_bath, orth=True, incore=True)
@@ -183,7 +183,7 @@ def test_E1_from_glob():
             delta=delta, step=step)
         dmet.SolveImpHam_with_fitting.save("./frecord")
         last_dmu += dmu
-        
+
         veff_ao, rdm1_glob_R = slater.get_veff_from_rdm1_emb(Lat, rhoEmb, \
                 basis, return_update=True)[1:]
         rdm1_glob_k = Lat.R2k(rdm1_glob_R)
@@ -202,7 +202,7 @@ def test_E1_from_glob():
         #        H = np.einsum('ip, pq, qj -> ij', basis[s, R].conj().T, hcore_R[s, R],
         #                      basis[s, 0], optimize=True)
         #        E += np.einsum('pq, qp ->', H, rhoEmb[s])
-        #        
+        #
         #        H = np.einsum('ip, pq, qj -> ij', basis[s, 0].conj().T, hcore_R[s, Lat.subtract(0, R)],
         #                      basis[s, R], optimize=True)
         #        E += np.einsum('pq, qp ->', H, rhoEmb[s])
@@ -224,7 +224,7 @@ def test_E1_from_glob():
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, \
                 C_ao_lo, rho, Lat.getFock(kspace=False)], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter,
@@ -238,19 +238,19 @@ def test_E1_from_glob():
 
         dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
         log.result("trace of vcor: %s", \
                 np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2), axis=1))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
 

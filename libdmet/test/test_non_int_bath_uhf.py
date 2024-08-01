@@ -39,7 +39,7 @@ def test_non_int_bath_uhf():
     #             0.0     0.0     6.0 '''
     #cell.atom = ''' H 5.0      5.0      0.75
     #                H 5.0      5.0      2.25
-    #                H 5.0      5.0      3.75 
+    #                H 5.0      5.0      3.75
     #                H 5.0      5.0      5.25'''
     cell.basis = '321g'
     cell.verbose = 4
@@ -63,7 +63,7 @@ def test_non_int_bath_uhf():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -106,10 +106,10 @@ def test_non_int_bath_uhf():
     #imp_fit = True
     emb_fit_iter = 300 # embedding fitting
     full_fit_iter = 0
-    #emb_fit_iter = 0 
+    #emb_fit_iter = 0
     #full_fit_iter = 100 # full fitting
     ytol = 1e-8
-    gtol = 1e-4 
+    gtol = 1e-4
     CG_check = True
 
     # vcor initialization
@@ -187,7 +187,7 @@ def test_non_int_bath_uhf():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -195,7 +195,7 @@ def test_non_int_bath_uhf():
         Lat.update_Ham(rho)
 
         log.section("\nconstructing impurity problem\n")
-        ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, 
+        ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor,
                 matching=True, int_bath=int_bath, add_vcor=True, incore=False)
         ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
@@ -219,13 +219,13 @@ def test_non_int_bath_uhf():
             dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
             lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
             solver=solver, solver_args=solver_args)
-         
+
         EnergyImp *= nscsites
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
         print ("diff: ", abs(EnergyImp - -1.238248899089))
         assert abs(EnergyImp - -1.238248899089) < 1e-7
-        return 
+        return
 
 if __name__ == "__main__":
     test_non_int_bath_uhf()

@@ -130,8 +130,8 @@ def ibo_loc(mol, orbocc, iaos, s, exponent=2, grad_tol=1e-8, max_iter=1000,
 
     #dynamic variables
     Converged = False
-    
-    if iao_mol is None and labels is None: 
+
+    if iao_mol is None and labels is None:
         # render Atoms list without ghost atoms
         iao_mol = iao.reference_mol(mol, minao=minao)
         Atoms = [iao_mol.atom_pure_symbol(i) for i in range(iao_mol.natm)]

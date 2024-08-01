@@ -7,7 +7,7 @@ import pytest
 
 def test_get_emb_basis():
     import os
-    import numpy as np 
+    import numpy as np
 
     from libdmet.system import lattice
     from libdmet.routine.slater import get_emb_basis
@@ -28,18 +28,18 @@ def test_get_emb_basis():
     kpts = Lat.kpts
     nao = Lat.nao
     nkpts = Lat.nkpts
-    
+
     nval  = 2
     nvirt = 2
     ncore = 0
     Lat.set_val_virt_core(nval, nvirt, ncore)
-    
+
     rdm1_lo_file = os.path.dirname(os.path.realpath(__file__)) + "/rdm1_lo"
     rdm1_lo = np.load(rdm1_lo_file)
-    
+
     basis = get_emb_basis(Lat, rdm1_lo)
     print (basis)
-    
+
     Lat.val_idx = list(range(4))
     Lat.virt_idx = []
     basis_trunc = get_emb_basis(Lat, rdm1_lo, nbath=2, valence_bath=False)
@@ -58,7 +58,7 @@ def test_active_projector():
     Test with H6 321G, FCI@RHF.
     """
     import os
-    import numpy as np 
+    import numpy as np
 
     from pyscf import lib, fci, ao2mo
     from pyscf.pbc.lib import chkfile
@@ -90,7 +90,7 @@ def test_active_projector():
     exxdiv = None
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -175,7 +175,7 @@ def test_active_projector():
     log.section("\nPre-process, orbital localization and subspace partition\n")
     C_ao_iao, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat, kmf, minao='minao', full_return=True)
     C_ao_iao = Lat.symmetrize_lo(C_ao_iao)
-    
+
     ncore = 0
     nval = C_ao_iao_val.shape[-1]
     nvirt = cell.nao_nr() - ncore - nval
@@ -184,34 +184,34 @@ def test_active_projector():
     C_ao_lo = C_ao_iao
     nlo = C_ao_lo.shape[-1]
     Lat.set_Ham(kmf, gdf, C_ao_lo)
-    
+
     # check the hole density matrix
     ovlp = Lat.ovlp_ao_k
     rdm1_lo_k = Lat.rdm1_lo_k
-    ovlp_lo_k = Lat.ovlp_lo_k 
+    ovlp_lo_k = Lat.ovlp_lo_k
     rdm1_lo_R = Lat.rdm1_lo_R
     C_ao_mo = np.asarray(kmf.mo_coeff)
     C_lo_mo = make_basis.get_mo_ovlp_k(C_ao_lo, C_ao_mo, ovlp)
-    
+
     rdm1_lo_k_h = ovlp_lo_k - rdm1_lo_k * 0.5
-    
+
     # ref1 from the lattice supercell
     rdm1_lo_sc = Lat.expand(rdm1_lo_R)
     rdm1_lo_sc_h = Lat.R2k(Lat.extract_stripe(np.eye(rdm1_lo_sc.shape[-1]) - \
             rdm1_lo_sc * 0.5))
     assert max_abs(rdm1_lo_k_h - rdm1_lo_sc_h) < 1e-12
-    
+
     # ref2 from lattice virtuals
     mo_occ_h = np.array(kmf.mo_occ)
     mo_occ_h = (mo_occ_h == 0).astype(int)
     rdm1_h = np.asarray(kmf.make_rdm1(C_lo_mo, mo_occ_h))
     assert max_abs(rdm1_lo_k_h - rdm1_h) < 1e-12
-    
+
     act_idx = np.asarray([0])
     nact = len(act_idx)
     P_act, nocc = get_active_projector(act_idx, rdm1_lo_k, ovlp_lo_k)
     #P_act_no_orth = get_active_projector(act_idx, rdm1_lo_k, ovlp_lo_k, orth=False)
-    
+
     # reference from definition
     #spin, nkpts, nlo, _ = rdm1_lo_k.shape
     #mo_occ = np.asarray(kmf.mo_occ)
@@ -240,7 +240,7 @@ def test_unit2emb():
     from libdmet.utils.misc import max_abs
     nao = 5
     neo = 8
-    
+
     # 1-fold
     H2_unit = np.random.random((nao, nao, nao, nao))
     H2_unit = H2_unit + H2_unit.transpose(1, 0, 2, 3)
@@ -253,17 +253,17 @@ def test_unit2emb():
     H2_emb_ref[:nao, :nao, :nao, :nao] = H2_unit
     H2_emb_ref_s4 = ao2mo.restore(4, H2_emb_ref, neo)
     H2_emb_ref_s8 = ao2mo.restore(8, H2_emb_ref, neo)
-    
+
     # 1-fold
-    H2_emb = unit2emb(H2_unit[None], neo) 
+    H2_emb = unit2emb(H2_unit[None], neo)
     assert max_abs(H2_emb - H2_emb_ref) < 1e-12
 
     # 4-fold
-    H2_emb_s4 = unit2emb(H2_unit_s4[None], neo) 
+    H2_emb_s4 = unit2emb(H2_unit_s4[None], neo)
     assert max_abs(H2_emb_s4 - H2_emb_ref_s4) < 1e-12
-    
+
     # 8-fold
-    H2_emb_s8 = unit2emb(H2_unit_s8[None], neo) 
+    H2_emb_s8 = unit2emb(H2_unit_s8[None], neo)
     assert max_abs(H2_emb_s8 - H2_emb_ref_s8) < 1e-12
 
 def test_trace():
@@ -277,12 +277,12 @@ def test_trace():
     nscsites = 5
     # zero vcor
     vcor = vcor_zeros(restricted, bogoliubov, nscsites)
-    print (vcor.get()) 
-    
+    print (vcor.get())
+
     ave = vcor_diag_average(vcor)
     assert (max_abs(ave) < 1e-12)
     addDiag(vcor, ave)
-    
+
     idx_range = [0, 1, 3]
     vcor = vcor_zeros(restricted, bogoliubov, nscsites, idx_range=idx_range)
     vcor_mat = np.arange(nscsites*nscsites).reshape(nscsites, nscsites)
@@ -290,7 +290,7 @@ def test_trace():
     vcor.assign(vcor_mat)
     vcor_mat = vcor.get()
     ave_old = vcor_diag_average(vcor, idx_range=idx_range)
-    
+
     vcor_new = vcor_zeros(restricted, bogoliubov, nscsites, idx_range=idx_range)
     vcor_new.assign(vcor_mat + np.diag(np.random.random(nscsites)))
     vcor_new = make_vcor_trace_unchanged(vcor_new, vcor, idx_range=idx_range)
@@ -321,23 +321,23 @@ def test_get_rho_idem():
     rdm1_mf = myhf.make_rdm1()
     ovlp = myhf.get_ovlp()
     C_ao_lo = lo.orth_ao(mol, 'meta_lowdin')
-    
+
     # mf rdm1
     rdm1_lo = make_basis.transform_rdm1_to_mo_mol(rdm1_mf, C_ao_lo, ovlp)[None] \
             * 0.5
-    rdm1_idem = slater.get_rdm1_idem(rdm1_lo, mol.nelectron * 0.5, beta=1000.0) 
-    
+    rdm1_idem = slater.get_rdm1_idem(rdm1_lo, mol.nelectron * 0.5, beta=1000.0)
+
     assert abs(rdm1_idem[0].trace() - mol.nelectron * 0.5) < 1e-10
     assert max_abs(np.dot(rdm1_idem[0], rdm1_idem[0]) - rdm1_idem) < 1e-10
-    assert max_abs(rdm1_idem - rdm1_lo) < 1e-10 
-    
+    assert max_abs(rdm1_idem - rdm1_lo) < 1e-10
+
     # CC rdm1
     mycc = myhf.CCSD().run()
     E_cc_ref = mycc.e_tot
     rdm1 = mycc.make_rdm1(ao_repr=True)
     rdm1_lo = make_basis.transform_rdm1_to_mo_mol(rdm1, C_ao_lo, ovlp)[None] \
             * 0.5
-    rdm1_idem = slater.get_rdm1_idem(rdm1_lo, mol.nelectron * 0.5, beta=np.inf) 
+    rdm1_idem = slater.get_rdm1_idem(rdm1_lo, mol.nelectron * 0.5, beta=np.inf)
     assert abs(rdm1_idem[0].trace() - mol.nelectron * 0.5) < 1e-12
     assert max_abs(np.dot(rdm1_idem[0], rdm1_idem[0]) - rdm1_idem) < 1e-12
 
@@ -347,7 +347,7 @@ def test_drho_dparam():
     """
     import os
     import numpy as np
-    
+
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, df
 
@@ -358,7 +358,7 @@ def test_drho_dparam():
 
     log.verbose = "DEBUG1"
     np.set_printoptions(3, linewidth=1000, suppress=True)
-    
+
     cell = lattice.HChain()
     cell.basis = '321G'
     cell.verbose = 4
@@ -433,16 +433,16 @@ def test_drho_dparam():
     log.result("Mu (guess) = %20.12f", Mu)
     rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
     Lat.update_Ham(rho*2.0, rdm1_lo_k=res["rho_k"]*2.0)
-    
+
     log.section("\nconstructing impurity problem\n")
     ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, \
             matching=True, int_bath=int_bath, orth=True)
     ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
     basis_k = Lat.R2k_basis(basis)
-    
+
     drho_dparam = dmet.FitVcor(dmet.foldRho_k(res["rho_k"], basis_k)*2.0, \
             Lat, basis, vcor, beta, Filling, return_drho_dparam=True)
-    
+
     print (drho_dparam.shape)
     print (drho_dparam)
 
@@ -451,7 +451,7 @@ def test_get_H2_scaled():
     from pyscf import ao2mo
     from libdmet.routine.slater import get_H2_scaled
     from libdmet.utils import max_abs
-    
+
     norb = 7
     imp_idx = np.random.permutation(norb)[:4]
     H2 = np.random.random((norb, norb, norb, norb))
@@ -472,7 +472,7 @@ def test_rho_glob():
     """
     import os
     import copy
-    import numpy as np 
+    import numpy as np
     import scipy.linalg as la
     from pyscf import lib, fci, ao2mo
     from pyscf.pbc.lib import chkfile
@@ -488,7 +488,7 @@ def test_rho_glob():
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=False)
-    
+
     cell = gto.Cell()
     cell.a = ''' 10.0    0.0     0.0
                  0.0     10.0    0.0
@@ -593,7 +593,7 @@ def test_rho_glob():
     for k in range(nkpts):
         Lat_col[k].set_val_virt_core(np.arange(nval*k, nval*(k+1)), 0, 0)
         Lat_col[k].set_Ham(kmf, gdf, C_ao_lo)
-        
+
 
     ### ************************************************************
     ### DMET procedure
@@ -609,18 +609,18 @@ def test_rho_glob():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
         rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
         #Lat.update_Ham(rho*2.0, rdm1_lo_k=res["rho_k"]*2.0)
-        
+
         log.section("\nconstructing impurity problem\n")
         basis_col = []
         ImpHam_col = []
         solver_args_col = []
-        
+
         for i, imp_idx in enumerate(np.arange(nkpts*nao).reshape(nkpts, nao)):
             ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, \
                     matching=False, int_bath=int_bath, orth=True,
@@ -633,15 +633,15 @@ def test_rho_glob():
                     "dm0": dmet.foldRho_k(res["rho_k"], basis_k)*2.0}
             basis_col.append(basis)
             ImpHam_col.append(ImpHam)
-            solver_args_col.append(solver_args)    
-        
+            solver_args_col.append(solver_args)
+
         log.section("\nsolving impurity problem\n")
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat_col, Filling * nkpts, ImpHam_col,
-                                          basis_col, solver, 
-                                          solver_args=solver_args_col, 
+                                          basis_col, solver,
+                                          solver_args=solver_args_col,
                                           thrnelec=nelec_tol, delta=delta,
-                                          step=step, 
+                                          step=step,
                                           dmu_idx=np.arange(len(imp_idx)))
 
         rho_col = []
@@ -649,7 +649,7 @@ def test_rho_glob():
             C = basis.reshape((nkpts*nao, nao*2))
             rho_col.append(mdot(C, rho[0], C.conj().T))
             print (rho_col[-1])
-        
+
         rdm1_glob = np.zeros((nkpts*nao, nkpts*nao))
         for I in range(nkpts):
             for J in range(nkpts):
@@ -658,9 +658,9 @@ def test_rho_glob():
                                rho_col[J][I*nao:(I+1)*nao, J*nao:(J+1)*nao])
         print (rdm1_glob)
         rho_glob_re = Lat.expand(slater.get_rho_glob_R(basis_col[0], Lat, rhoEmb[0]))
-        assert max_abs(rho_glob_re - rdm1_glob) < 1e-12    
-        
-        break 
+        assert max_abs(rho_glob_re - rdm1_glob) < 1e-12
+
+        break
 
 @pytest.mark.parametrize(
     "incore", [True, False]
@@ -671,7 +671,7 @@ def test_rho_glob_multi_frag(incore):
     """
     import os
     import copy
-    import numpy as np 
+    import numpy as np
     import scipy.linalg as la
     from pyscf import lib, fci, ao2mo
     from pyscf.pbc.lib import chkfile
@@ -687,14 +687,14 @@ def test_rho_glob_multi_frag(incore):
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     cell = gto.Cell()
     cell.a = ''' 4.0    0.0     0.0
                  0.0     4.0    0.0
                  0.0     0.0     6.0 '''
     cell.atom = ''' H1 5.0      5.0      0.75
                     H1 5.0      5.0      2.25
-                    H2 5.0      5.0      3.75 
+                    H2 5.0      5.0      3.75
                     H2 5.0      5.0      5.25'''
     cell.basis = {'H1': 'sto3g', 'H2': 'minao'}
     cell.verbose = 4
@@ -810,13 +810,13 @@ def test_rho_glob_multi_frag(incore):
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
         rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
         #Lat.update_Ham(rho*2.0, rdm1_lo_k=res["rho_k"]*2.0)
-        
+
         log.section("\nconstructing impurity problem\n")
         basis_col = []
         ImpHam_col = []
@@ -832,25 +832,25 @@ def test_rho_glob_multi_frag(incore):
                     "dm0": dmet.foldRho_k(res["rho_k"], basis_k)*2.0}
             basis_col.append(basis)
             ImpHam_col.append(ImpHam)
-            solver_args_col.append(solver_args)    
-        
+            solver_args_col.append(solver_args)
+
         log.section("\nsolving impurity problem\n")
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat_col, Filling, ImpHam_col, basis_col,
                     solver, solver_args=solver_args_col, thrnelec=nelec_tol, \
                             delta=delta, step=step)
-        
+
         rho_glob_re = slater.get_rho_glob_R(basis_col, Lat_col, rhoEmb)
         assert max_abs(rho_glob_re - rho) < 1e-8
-        
+
         rho_glob_full = slater.get_rho_glob_R(basis_col, Lat_col, rhoEmb, \
                 compact=False, sign=[1, 1])
         assert max_abs(Lat.expand(rho_glob_re) - rho_glob_full) < 1e-10
-        
+
         rho_glob_k = slater.get_rho_glob_k(basis_col, Lat_col, rhoEmb, \
                 sign=[1, 1])
         assert max_abs(rho_glob_k - res["rho_k"]) < 1e-8
-        
+
         break
 
 def test_get_emb_basis_other_cell():
@@ -888,7 +888,7 @@ def test_get_emb_basis_other_cell():
     # Hamiltonian
     nCu_tot = np.prod(LatSize) * 2 # 4 is number of Cu site per 2x2 cell
     nO_tot = np.prod(LatSize) * 4
-    nao_tot = nao * nkpts 
+    nao_tot = nao * nkpts
     nelec_half = np.prod(LatSize) * 10 # 20 electron per cell
     nelec_half_Cu = np.prod(LatSize) * 2
     nelec_half_O = np.prod(LatSize) * 8
@@ -946,7 +946,7 @@ def test_get_emb_basis_other_cell():
     log.result("m_AFM = %s", m_AFM)
 
     veff = Lat.kmf_lo.get_veff()
-    veff_R = Lat.k2R(veff) 
+    veff_R = Lat.k2R(veff)
 
     vcor_mat = np.zeros((2, nao, nao))
     frac = 1.0 / 3.0
@@ -958,7 +958,7 @@ def test_get_emb_basis_other_cell():
     Cu_mesh = np.ix_(Cu_idx, Cu_idx)
     O_mesh = np.ix_(O_idx, O_idx)
 
-    Mu = 0.0 
+    Mu = 0.0
     vcor.assign(vcor_mat)
     fvcor = "vcor.npy"
 
@@ -975,35 +975,35 @@ def test_get_emb_basis_other_cell():
     log.result("Vcor =\n%s", vcor.get())
     log.result("Mu (guess) : %20.12f", Mu)
     rho, Mu = dmet.HartreeFock(Lat, vcor, Filling, Mu, beta=beta)
-    
+
     res = get_3band_order(rho[:, 0], Lat)
     m_AFM = res["m_AFM"]
     print ("m_AFM (mean-field): ", m_AFM)
-    
+
     idx_col = np.arange(nkpts * nao).reshape(nkpts, nao)
     basis = []
     for i, idx in enumerate(idx_col):
         basis.append(slater.get_emb_basis(Lat, rho, imp_idx=idx, val_idx=idx))
-    
+
     def make_d(basis):
         basis = basis.reshape(-1, basis.shape[-1])[:, nao:]
         dm = np.dot(basis, basis.conj().T)
         return dm
-    
+
     def check_span(C1, C2):
         C1 = C1.reshape(-1, C1.shape[-1])[:, nao:]
         C2 = C2.reshape(-1, C2.shape[-1])[:, nao:]
         print ("u")
         print (make_basis.find_closest_mo(C1, C2, np.eye(C1.shape[0]), True)[-1])
         return check_span_same_space(C1, C2, np.eye(C1.shape[0]))
-    
+
     def check_diff(C1, C2):
         print ("C1")
         print (C1[:, :, nao:])
         print ("C2")
         print (C2[:, :, nao:])
         print (max_abs(C1 - C2))
-    
+
     for J in range(nkpts):
         print ("\nJ = %s" % J)
         basis_J = slater.get_emb_basis_other_cell(Lat, basis[0], J)
@@ -1031,7 +1031,7 @@ def test_get_emb_basis_other_cell():
 #
 #    from libdmet.utils import logger as log
 #    import libdmet.dmet.Hubbard as dmet
-#    
+#
 #    from libdmet.routine import slater
 #
 #    log.verbose = "DEBUG1"
@@ -1136,13 +1136,13 @@ def test_get_emb_basis_other_cell():
 #
 #    for iter in range(MaxIter):
 #        log.section("\nDMET Iteration %d\n", iter)
-#        
+#
 #        log.section("\nsolving mean-field problem\n")
 #        log.result("Vcor =\n%s", vcor.get())
 #        log.result("Mu (guess) = %20.12f", Mu)
 #        rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
 #        Lat.update_Ham(rho*2.0)
-#        
+#
 #        log.section("\nconstructing impurity problem\n")
 #        ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, \
 #                matching=True, int_bath=int_bath)
@@ -1169,26 +1169,26 @@ def test_get_emb_basis_other_cell():
 #        log.result("E(DMET) = %20.12f", EnergyImp)
 #        #solver.twopdm = None
 #        #print (solver.twopdm_mo)
-#        
-#        
+#
+#
 #        slater.get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True, \
 #                   sign=None)
 #
 #        mo = solver.scfsolver.mf.mo_coeff
-#        rdm2_eo = np.einsum('IJKL, iI, jJ, kK, lL -> ijkl', solver.twopdm_mo[0], 
+#        rdm2_eo = np.einsum('IJKL, iI, jJ, kK, lL -> ijkl', solver.twopdm_mo[0],
 #                            mo, mo, mo, mo, optimize=True)
 #
 #        rdm2_glob = slater.get_rdm2_glob_R(basis[0], None, Lat, rdm2_eo)
-#        
+#
 #        print (rdm2_glob.shape)
-#        
+#
 #
 #        exit()
 #
 #        dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, \
 #                C_ao_lo, rho, Lat.getFock(kspace=False)], dtype=object)
 #        np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-#        
+#
 #        log.section("\nfitting correlation potential\n")
 #        vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
 #                vcor, beta, Filling, MaxIter1=emb_fit_iter,
@@ -1202,19 +1202,19 @@ def test_get_emb_basis_other_cell():
 #
 #        dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
 #        dE = EnergyImp - E_old
-#        E_old = EnergyImp 
-#        
+#        E_old = EnergyImp
+#
 #        if iter >= diis_start:
 #            pvcor = adiis.update(vcor_new.param)
 #            dc.nDim = adiis.get_num_vec()
 #        else:
 #            pvcor = vcor_new.param
-#        
+#
 #        dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
 #        vcor.update(pvcor)
 #        log.result("trace of vcor: %s", \
 #                np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2), axis=1))
-#        
+#
 #        history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
 #        history.write_table()
 #

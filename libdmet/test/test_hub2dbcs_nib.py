@@ -23,7 +23,7 @@ def test_hub2dbcs_nib():
         nscsites = Lat.nscsites
 
         # Hamiltonian
-        U = 6.0 
+        U = 6.0
         Filling = 0.8 / 2.0
         ntotal = Filling * np.prod(LatSize)
         if ntotal - np.round(ntotal) > 1e-5:
@@ -94,10 +94,10 @@ def test_hub2dbcs_nib():
 
         GRho, Mu = dmet.HartreeFockBogoliubov(Lat, vcor, Filling, Mu, \
                 beta=beta, fix_mu=False, thrnelec=1e-10)
-        
+
         for iter in range(MaxIter):
             log.section("\nDMET Iteration %d\n", iter)
-            
+
             # ***********************************************************
             # Mean field
             # ***********************************************************
@@ -109,13 +109,13 @@ def test_hub2dbcs_nib():
                     beta=beta, fix_mu=fix_mu, thrnelec=1e-10, full_return=True)
             E_mf = res["E"] / nscsites
             log.result("Mean-field energy (per site): %s", E_mf)
-            
+
             # ***********************************************************
             # DMET bath and Hamiltonian
             # ***********************************************************
             log.section("\nconstructing impurity problem\n")
             ImpHam, H_energy, basis = dmet.ConstructImpHam(Lat, GRho, vcor, Mu,
-                    localize_bath=None, matching=True) 
+                    localize_bath=None, matching=True)
             ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
 
             # ***********************************************************
@@ -135,16 +135,16 @@ def test_hub2dbcs_nib():
             else:
                 solver.cisolver.optimized = False # not do restart among different dmet iters
                 solver_args = {}
-            
+
             GRhoEmb, EnergyEmb, ImpHam, dmu = \
                     dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
                     delta=0.01, step=0.2, thrnelec=1e-5, solver_args=solver_args)
             dmet.SolveImpHam_with_fitting.save("./frecord")
             last_dmu += dmu
             log.result("last_dmu : %20.12f", last_dmu)
-            
+
             # ***********************************************************
-            # Collect results and compute energy 
+            # Collect results and compute energy
             # ***********************************************************
             GRhoImp, EnergyImp, nelecImp = \
                     dmet.transformResults(GRhoEmb, EnergyEmb, Lat, basis, ImpHam, H_energy, \
@@ -161,7 +161,7 @@ def test_hub2dbcs_nib():
             vcor_new, err = dmet.FitVcor(GRhoEmb, Lat, basis, vcor, Mu, \
                     MaxIter1=max(len(vcor.param)*5, 1000), MaxIter2=0, \
                     CG_check=True, fix_mu=True, beta=beta)
-            
+
             # ***********************************************************
             # Fix trace
             # ***********************************************************
@@ -170,10 +170,10 @@ def test_hub2dbcs_nib():
                 ddiagV = np.average(np.diagonal(\
                         (vcor_new.get()-vcor.get())[:2], 0, 1, 2))
                 vcor_new = dmet.addDiag(vcor_new, -ddiagV)
-            
+
             dVcor_per_ele = max_abs(vcor_new.param - vcor.param) #/ (len(vcor.param))
             dE = EnergyImp - E_old
-            E_old = EnergyImp 
+            E_old = EnergyImp
 
             # ***********************************************************
             # DIIS and new HFB
@@ -186,13 +186,13 @@ def test_hub2dbcs_nib():
                 dc.nDim = adiis.get_num_vec()
             else:
                 pvcor = np.hstack((vcor_new.param, Mu_new))
-            
+
             dVcor_per_ele = max_abs(pvcor[:-1] - vcor.param)
             vcor.update(pvcor[:-1])
             Mu = pvcor[-1]
             log.info("trace of vcor: %s", \
                     np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-             
+
             history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
             history.write_table()
             if dVcor_per_ele < u_tol and abs(dE) < E_tol and iter > iter_tol :

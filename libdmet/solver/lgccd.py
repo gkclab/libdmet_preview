@@ -62,11 +62,11 @@ def update_amps(cc, t1, t2, eris):
     tmp = None
 
     t2new += np.asarray(eris.oovv).conj()
-    
+
     Woooo = np.asarray(eris.oooo)
     t2new += einsum('mnab,mnij->ijab', tau, Woooo * 0.5)
     Woooo = None
-    
+
     Wvvvv = np.asarray(eris.vvvv)
     t2new += 0.5*einsum('ijef,abef->ijab', tau, Wvvvv)
     Wvvvv = None
@@ -78,7 +78,7 @@ def update_amps(cc, t1, t2, eris):
     tmp = tmp - tmp.transpose(0,1,3,2)
     t2new += tmp
     tmp = None
-    
+
     eia = mo_e_o[:,None] - mo_e_v
     for i in range(nocc):
         t2new[i] /= lib.direct_sum('a, jb -> jab', eia[i], eia)
@@ -94,7 +94,7 @@ class LGCCD(gccsd.GCCSD):
         t1 = np.zeros((nocc, nvir))
         ccsd.CCSD.kernel(self, t1, t2, eris)
         return self.e_corr, self.t1, self.t2
-    
+
     def solve_lambda(self, t1=None, t2=None, l1=None, l2=None,
                      eris=None):
         from libdmet.solver import gccd_lambda
@@ -104,7 +104,7 @@ class LGCCD(gccsd.GCCSD):
         nocc = self.nocc
         nvir = self.nmo - nocc
         l1 = t1 = np.zeros((nocc, nvir))
-        
+
         self.converged_lambda, self.l1, self.l2 = \
                 gccd_lambda.kernel(self, eris, t1, t2, l1, l2,
                                    max_cycle=self.max_cycle,
@@ -159,17 +159,17 @@ if __name__ == '__main__':
     mf = scf.RHF(mol)
     mf.conv_tol = 1e-12
     mf.kernel()
-    
+
     mf = scf.addons.convert_to_ghf(mf)
     #gcc = gccsd.GCCSD(mf)
-    
+
     gcc = LGCCD(mf)
     gcc.conv_tol = 1e-11
     gcc.conv_tol_normt = 1e-8
     #method = 'lgmres'
     ecc, t1, t2 = gcc.kernel()
     print (gcc.e_tot)
-    
+
     rdm1 = gcc.make_rdm1()
     print (rdm1)
     print (np.trace(rdm1))

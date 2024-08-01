@@ -25,15 +25,15 @@ log.verbose = 'DEBUG2'
 def _test_ERI(cell, gdf, kpts, C_ao_lo):
     # Fast ERI
     # Give a very small memory to force small blksize (for test only)
-    eri_k2gamma = eri_transform.get_emb_eri(cell, gdf, C_ao_lo=C_ao_lo, 
+    eri_k2gamma = eri_transform.get_emb_eri(cell, gdf, C_ao_lo=C_ao_lo,
                                             max_memory=0.01, symmetry=4)
-    
+
     # outcore routine
     eri_transform.ERI_SLICE = 2
-    eri_outcore = eri_transform.get_emb_eri(cell, gdf, C_ao_lo=C_ao_lo, 
+    eri_outcore = eri_transform.get_emb_eri(cell, gdf, C_ao_lo=C_ao_lo,
                                             max_memory=0.02, t_reversal_symm=True,
                                             incore=False)
-    diff_outcore = max_abs(np.asarray(eri_outcore["ccdd"]) 
+    diff_outcore = max_abs(np.asarray(eri_outcore["ccdd"])
                            - eri_k2gamma[[0, 2, 1]])
     print ("outcore difference")
     print (diff_outcore)
@@ -58,7 +58,7 @@ def _test_ERI(cell, gdf, kpts, C_ao_lo):
         eri_full[0] = ao2mo.restore(1,ao2mo.full(eri_scell,Cgamma[0]),nao*nkpts)
         eri_full[1] = ao2mo.general(eri_scell, (Cgamma[0],Cgamma[0],Cgamma[1],Cgamma[1]), compact=False).reshape([nao*nkpts]*4)
         eri_full[2] = ao2mo.restore(1,ao2mo.full(eri_scell,Cgamma[1]),nao*nkpts)
-        
+
         eri_k2gamma_s1 = np.empty((3, nao*nkpts,nao*nkpts,nao*nkpts, nao*nkpts))
         eri_k2gamma_s1[0] = ao2mo.restore(1, eri_k2gamma[0], nao*nkpts)
         eri_k2gamma_s1[1] = ao2mo.restore(1, eri_k2gamma[1], nao*nkpts)
@@ -66,11 +66,11 @@ def _test_ERI(cell, gdf, kpts, C_ao_lo):
     diff_full = max_abs(eri_full - eri_k2gamma_s1)
     print ('Fast ERI compared to supcell', diff_full)
     assert diff_full < 1e-7
-    
+
     # Fast 1st unit cell ERI (for DMFT)
-    eri_k2gamma = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo, 
+    eri_k2gamma = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo,
                                              t_reversal_symm=True, symmetry=1)
-    eri_k2gamma_no_tr = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo, 
+    eri_k2gamma_no_tr = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo,
                                                    t_reversal_symm=False,
                                                    symmetry=1)
     print ('Fast 1st unit cell ERI compared to supcell', \

@@ -2,7 +2,7 @@
 
 """
 Helper functions for pyscf PBC module.
-Including KRHF, KUHF, KGHF, get_eri, get_jk, 
+Including KRHF, KUHF, KGHF, get_eri, get_jk,
 conversion between H and GH,
 kpoint-symmetry converter, vca potential.
 
@@ -29,7 +29,7 @@ from pyscf.pbc.lib.kpts_helper import (is_zero, gamma_point, member)
 
 from libdmet.solver import scf as scf_helper
 from libdmet.utils.misc import mdot, max_abs, add_spin_dim, Iterable
-from libdmet.settings import IMAG_DISCARD_TOL 
+from libdmet.settings import IMAG_DISCARD_TOL
 from libdmet.utils import logger as log
 from libdmet.routine.pdft_helper import *
 from libdmet.routine import kgks
@@ -49,7 +49,7 @@ def kmf_symm_(kmf_symm):
     kpts_symm = kmf_symm.kpts
     if isinstance(kpts_symm, np.ndarray):
         return kmf_symm
-    
+
     kmf = kmf_symm.to_khf()
 
     def get_hcore(cell=None, kpts=None):
@@ -57,7 +57,7 @@ def kmf_symm_(kmf_symm):
         hcore_ibz = kmf_symm.get_hcore(cell, kpts)
         hcore_bz = kpts_symm.transform_fock(hcore_ibz)
         return hcore_bz
-    
+
     def get_ovlp(cell=None, kpts=None):
         kpts = kpts_symm
         ovlp_ibz = kmf_symm.get_ovlp(cell, kpts)
@@ -74,8 +74,8 @@ def kmf_symm_(kmf_symm):
             dm_kpts = dm_kpts[:, kpts_symm.ibz2bz]
         kpts = kpts_symm
         vj_ibz, vk_ibz = kmf_symm.get_jk(cell=cell, dm_kpts=dm_kpts, hermi=hermi,
-                                         kpts=kpts, kpts_band=kpts_band, 
-                                         with_j=with_j, with_k=with_k, 
+                                         kpts=kpts, kpts_band=kpts_band,
+                                         with_j=with_j, with_k=with_k,
                                          omega=omega, **kwargs)
         vj_bz = kpts_symm.transform_fock(vj_ibz)
         if vk_ibz is None:
@@ -83,7 +83,7 @@ def kmf_symm_(kmf_symm):
         else:
             vk_bz = kpts_symm.transform_fock(vk_ibz)
         return vj_bz, vk_bz
-    
+
     def get_init_guess(cell=None, key='minao'):
         dm0 = kmf_symm.get_init_guess(cell, key)
         dm0 = kpts_symm.transform_fock(dm0)
@@ -105,7 +105,7 @@ def kmf_symm_(kmf_symm):
             else:
                 vhf_kpts = vhf_kpts[:, kpts_symm.ibz2bz]
         return kmf_symm.energy_elec(dm_kpts, h1e_kpts, vhf_kpts)
-    
+
     # save the symmetry version of functions
     kmf.get_hcore_symm = kmf_symm.get_hcore
     kmf.get_ovlp_symm  = kmf_symm.get_ovlp
@@ -118,7 +118,7 @@ def kmf_symm_(kmf_symm):
     kmf.get_jk    = get_jk
     kmf.get_init_guess = get_init_guess
     kmf.energy_elec = energy_elec
-    
+
     kmf.e_tot = kmf_symm.e_tot
     kmf.converged = kmf_symm.converged
     kmf.kpts = kmf.with_df.kpts = kpts_symm.kpts
@@ -132,12 +132,12 @@ def kmf_symm_(kmf_symm):
 def get_veff_vca(mydf, atom_idx, occ, kpts_symm=None):
     """
     Get effective potential from virtual crystal approximation (VCA).
-    
+
     Args:
         mydf: GDF object contains all atoms including the doped atoms.
         atom_idx: indices of doped atoms.
-        occ: the site occupancy of the doped atoms. 
-             Now only support a float, 
+        occ: the site occupancy of the doped atoms.
+             Now only support a float,
              i.e. all doped atom share the same occupancy.
         kpts_symm: a KPoints object, to allow kpoints symmetry.
 
@@ -162,7 +162,7 @@ def get_veff_vca(mydf, atom_idx, occ, kpts_symm=None):
     log.info("-" * 79)
     log.info("%27s %15.8g", "total (per cell)", np.sum(charge_doped))
     log.info("%27s %15.8g", "total  (lattice)", np.sum(charge_doped) * nkpts)
-    
+
     # ghost cell
     cell_ghost = pbcgto.Cell()
     a = np.array(cell.lattice_vectors(), copy=True)
@@ -172,14 +172,14 @@ def get_veff_vca(mydf, atom_idx, occ, kpts_symm=None):
         if not (i in atom_idx):
             # if atom is not the doped atom, use ghost atom instead
             atoms[i] = ('X-' + atm[0], atm[1])
-    
+
     pseudo = copy.deepcopy(cell._pseudo)
     pseudo_ghost = {}
     for key, val in pseudo.items():
         if key in atom_doped:
             # only keep the pseudo for non-ghost atoms
             pseudo_ghost[key] = val
-    
+
     basis = copy.deepcopy(cell._basis)
     basis_ghost = {}
     for key, val in basis.items():
@@ -188,7 +188,7 @@ def get_veff_vca(mydf, atom_idx, occ, kpts_symm=None):
             basis_ghost[key] = val
         else:
             basis_ghost['X-' + key] = val
-    
+
     cell_ghost.a = a
     cell_ghost.atom = atoms
     cell_ghost.basis = basis_ghost
@@ -198,26 +198,26 @@ def get_veff_vca(mydf, atom_idx, occ, kpts_symm=None):
     cell_ghost.precision = cell.precision
     cell_ghost.verbose = 0
     cell_ghost.build(unit='B', dump_input=False)
-    
+
     log.debug(0, "atom:\n%s", str(cell_ghost._atom))
     log.debug(0, "basis:\n%s", str(cell_ghost._basis.keys()))
     log.debug(0, "pseudo:\n%s", str(cell_ghost._pseudo.keys()))
-    
+
     mydf_ghost = mydf.__class__(cell_ghost, mydf.kpts)
     mydf_ghost._cderi = mydf._cderi
     mydf_ghost._cderi_to_save = mydf._cderi_to_save
-    
+
     if kpts_symm is not None:
         kpts = kpts_symm.kpts_ibz
     if cell_ghost.pseudo:
         vnuc = np.asarray(mydf_ghost.get_pp(kpts))
     else:
         vnuc = np.asarray(mydf_ghost.get_nuc(kpts))
-    
+
     if len(cell_ghost._ecpbas) > 0:
         raise NotImplementedError
         vnuc += lib.asarray(ecp.ecp_int(cell_ghost, kpts))
-    
+
     vnuc *= (occ - 1.0)
     return  vnuc
 
@@ -263,14 +263,14 @@ class KUHF(pbc.scf.kuhf.KUHF):
         if cell is None: cell = self.cell
         h1e = np.asarray(self.get_hcore(cell))
         s1e = self.get_ovlp(cell)
-        if h1e.ndim == 3: 
+        if h1e.ndim == 3:
             mo_energy, mo_coeff = self.eig((h1e, h1e), s1e)
         else:
             mo_energy, mo_coeff = self.eig(h1e, s1e)
         mo_occ = self.get_occ(mo_energy, mo_coeff)
         dma, dmb = self.make_rdm1(mo_coeff, mo_occ)
         return np.array((dma, dmb))
-    
+
     energy_elec = energy_elec
 
 def get_eri_7d(cell, xdf, kpts=None, compact=False):
@@ -279,7 +279,7 @@ def get_eri_7d(cell, xdf, kpts=None, compact=False):
     """
     nao = cell.nao_nr()
     if kpts is None:
-        kpts = xdf.kpts 
+        kpts = xdf.kpts
     nkpts = len(kpts)
     eri_7d = np.zeros((nkpts, nkpts, nkpts, nao, nao, nao, nao),
                       dtype=np.complex128)
@@ -289,8 +289,8 @@ def get_eri_7d(cell, xdf, kpts=None, compact=False):
             for k, kptk in enumerate(kpts):
                 l = kconserv[i, j, k]
                 kptl = kpts[l]
-                eri_7d[i, j, k] = xdf.get_eri((kpti, kptj, kptk, kptl), 
-                                              compact=compact).reshape((nao,)*4) 
+                eri_7d[i, j, k] = xdf.get_eri((kpti, kptj, kptk, kptl),
+                                              compact=compact).reshape((nao,)*4)
     return eri_7d
 
 def get_eri_8d(cell, xdf, kpts=None, compact=False):
@@ -299,7 +299,7 @@ def get_eri_8d(cell, xdf, kpts=None, compact=False):
     """
     nao = cell.nao_nr()
     if kpts is None:
-        kpts = xdf.kpts 
+        kpts = xdf.kpts
     nkpts = len(kpts)
     eri_8d = np.zeros((nkpts, nkpts, nkpts, nkpts, nao, nao, nao, nao),
                       dtype=np.complex128)
@@ -307,13 +307,13 @@ def get_eri_8d(cell, xdf, kpts=None, compact=False):
         for j, kptj in enumerate(kpts):
             for k, kptk in enumerate(kpts):
                 for l, kptl in enumerate(kpts):
-                    eri_8d[i, j, k, l] = xdf.get_eri((kpti, kptj, kptk, kptl), 
+                    eri_8d[i, j, k, l] = xdf.get_eri((kpti, kptj, kptk, kptl),
                                                      compact=compact).reshape((nao,)*4)
     return eri_8d
 
 def get_jk_from_eri_7d(eri, dm, with_j=True, with_k=True):
     """
-    Get J, K matrix in kpts. 
+    Get J, K matrix in kpts.
     Assume eri is spinless, 7d.
     """
     eri = np.asarray(eri)
@@ -322,12 +322,12 @@ def get_jk_from_eri_7d(eri, dm, with_j=True, with_k=True):
     if dm.ndim == 3:
         dm = dm[None]
     spin, nkpts, nao, _ = dm.shape
-    
+
     if with_j:
-        vj = np.zeros((spin, nkpts, nao, nao), 
+        vj = np.zeros((spin, nkpts, nao, nao),
                       dtype=np.result_type(dm.dtype, eri.dtype))
         if with_k: # J and K
-            vk = np.zeros((spin, nkpts, nao, nao), 
+            vk = np.zeros((spin, nkpts, nao, nao),
                           dtype=np.result_type(dm.dtype, eri.dtype))
             for s in range(spin):
                 for k in range(nkpts):
@@ -347,7 +347,7 @@ def get_jk_from_eri_7d(eri, dm, with_j=True, with_k=True):
     else:
         if with_k: # only K
             vj = None
-            vk = np.zeros((spin, nkpts, nao, nao), 
+            vk = np.zeros((spin, nkpts, nao, nao),
                           dtype=np.result_type(dm.dtype, eri.dtype))
             for s in range(spin):
                 for k in range(nkpts):
@@ -360,21 +360,21 @@ def get_jk_from_eri_7d(eri, dm, with_j=True, with_k=True):
 
 def get_j_from_eri_7d(eri, dm):
     """
-    Get J matrix in kpts. 
+    Get J matrix in kpts.
     Assume eri is spinless, 7d.
     """
     return get_jk_from_eri_7d(eri, dm, with_j=True, with_k=False)[0]
 
 def get_k_from_eri_7d(eri, dm):
     """
-    Get K matrix in kpts. 
+    Get K matrix in kpts.
     Assume eri is spinless, 7d.
     """
     return get_jk_from_eri_7d(eri, dm, with_j=False, with_k=True)[1]
 
 def get_jk_from_eri_local(eri, dm, eri_symm=4, with_j=True, with_k=True):
     """
-    Get J, K matrix in kpts. 
+    Get J, K matrix in kpts.
     Assume eri is local, spinless.
     """
     dm = np.asarray(dm)
@@ -384,38 +384,38 @@ def get_jk_from_eri_local(eri, dm, eri_symm=4, with_j=True, with_k=True):
     spin, nkpts, nao, _ = dm.shape
     if eri.size == nao**4:
         eri = ao2mo.restore(eri_symm, eri, nao)
-    
+
     dm_ave = dm.sum(axis=-3) / float(nkpts)
     if max_abs(dm_ave.imag) < IMAG_DISCARD_TOL:
         dm_ave = dm_ave.real
     else:
         log.warn("get_*_from_eri_local assume a real dm_ave, "
                  "now imag = %s", max_abs(dm_ave.imag))
-        
+
     if with_j:
-        vj = np.zeros((spin, nkpts, nao, nao), 
+        vj = np.zeros((spin, nkpts, nao, nao),
                       dtype=np.result_type(dm.dtype, eri.dtype))
         if with_k: # J and K
-            vk = np.zeros((spin, nkpts, nao, nao), 
+            vk = np.zeros((spin, nkpts, nao, nao),
                           dtype=np.result_type(dm.dtype, eri.dtype))
             for s in range(spin):
-                vj[s], vk[s] = scf.hf.dot_eri_dm(eri, dm_ave[s], hermi=1, 
+                vj[s], vk[s] = scf.hf.dot_eri_dm(eri, dm_ave[s], hermi=1,
                                                  with_j=with_j, with_k=with_k)
             vj = vj.reshape(old_shape)
             vk = vk.reshape(old_shape)
         else: # only J
             vk = None
             for s in range(spin):
-                vj[s], _ = scf.hf.dot_eri_dm(eri, dm_ave[s], hermi=1, 
+                vj[s], _ = scf.hf.dot_eri_dm(eri, dm_ave[s], hermi=1,
                                              with_j=with_j, with_k=with_k)
             vj = vj.reshape(old_shape)
     else:
         if with_k: # only K
             vj = None
-            vk = np.zeros((spin, nkpts, nao, nao), 
+            vk = np.zeros((spin, nkpts, nao, nao),
                           dtype=np.result_type(dm.dtype, eri.dtype))
             for s in range(spin):
-                _, vk[s] = scf.hf.dot_eri_dm(eri, dm_ave[s], hermi=1, 
+                _, vk[s] = scf.hf.dot_eri_dm(eri, dm_ave[s], hermi=1,
                                              with_j=with_j, with_k=with_k)
             vk = vk.reshape(old_shape)
         else: # no J no K
@@ -424,23 +424,23 @@ def get_jk_from_eri_local(eri, dm, eri_symm=4, with_j=True, with_k=True):
 
 def get_j_from_eri_local(eri, dm, eri_symm=4):
     """
-    Get J matrix in kpts. 
+    Get J matrix in kpts.
     Assume eri is local, spinless.
     """
-    return get_jk_from_eri_local(eri, dm, eri_symm=eri_symm, 
+    return get_jk_from_eri_local(eri, dm, eri_symm=eri_symm,
                                  with_j=True, with_k=False)[0]
 
 def get_k_from_eri_local(eri, dm, eri_symm=4):
     """
-    Get K matrix in kpts. 
+    Get K matrix in kpts.
     Assume eri is local, spinless.
     """
-    return get_jk_from_eri_local(eri, dm, eri_symm=eri_symm, 
+    return get_jk_from_eri_local(eri, dm, eri_symm=eri_symm,
                                  with_j=False, with_k=True)[1]
 
 def get_jk_from_eri_nearest(eri, dm, lattice, with_j=True, with_k=True):
     """
-    Get J, K matrix in kpts. 
+    Get J, K matrix in kpts.
     Assume eri is nearest, spinless, in real space representation,
     shape (nR, nao, nao, nao, nao)
     dm is in kspace.
@@ -450,7 +450,7 @@ def get_jk_from_eri_nearest(eri, dm, lattice, with_j=True, with_k=True):
     if dm.ndim == 3:
         dm = dm[None]
     spin, nkpts, nao, _ = dm.shape
-    
+
     dm_R = lattice.k2R(dm)
     if max_abs(dm_R.imag) < IMAG_DISCARD_TOL:
         dm_R = dm_R.real
@@ -491,20 +491,20 @@ def get_jk_from_eri_nearest(eri, dm, lattice, with_j=True, with_k=True):
 
 def get_j_from_eri_nearest(eri, dm, lattice):
     """
-    Get J matrix in kpts. 
+    Get J matrix in kpts.
     Assume eri is nearest, spinless.
     """
-    return get_jk_from_eri_nearest(eri, dm, lattice, with_j=True, 
+    return get_jk_from_eri_nearest(eri, dm, lattice, with_j=True,
                                    with_k=False)[0]
 
 def get_k_from_eri_nearest(eri, dm, lattice):
     """
-    Get K matrix in kpts. 
+    Get K matrix in kpts.
     Assume eri is nearest, spinless.
     """
-    return get_jk_from_eri_nearest(eri, dm, lattice, with_j=False, 
+    return get_jk_from_eri_nearest(eri, dm, lattice, with_j=False,
                                    with_k=True)[1]
-    
+
 def eri_to_gdf(eri, kpts, fname="local_eri.h5", **kwargs):
     """
     Convert a local ERI to GDF form.
@@ -513,12 +513,12 @@ def eri_to_gdf(eri, kpts, fname="local_eri.h5", **kwargs):
         eri: local eri, (nao, nao, nao, nao)
         kpts: k-points
         fname: file to store gdf file
-    
+
     Kwargs:
         kwargs passing to cholesky.
-    
+
     Returns:
-        fname    
+        fname
     """
     from libdmet.utils import cholesky
     assert eri.ndim == 4
@@ -527,34 +527,34 @@ def eri_to_gdf(eri, kpts, fname="local_eri.h5", **kwargs):
     norb = eri.shape[-1]
     cderi = cholesky.cholesky(eri, **kwargs).kernel()
     naux = cderi.shape[0]
-    
+
     kptij_lst = [(ki, kpts[j]) for i, ki in enumerate(kpts) for j in range(i+1)]
     kptij_lst = np.asarray(kptij_lst)
-    
+
     dataname = 'j3c'
     nkptij = len(kptij_lst)
-    
+
     feri = h5py.File(fname, 'w')
     feri[dataname + '-kptij'] = kptij_lst
-    
+
     # ZHC NOTE only store the independent part
     feri["cderi"] = cderi.astype(complex)
     feri["cderi_s2"] = lib.pack_tril(cderi.reshape(-1, norb, norb)).astype(complex)
     feri["cderi_s4"] = lib.pack_tril(cderi.reshape(-1, norb, norb))
-    
+
     for k in range(nkptij):
         kpti, kptj = kptij_lst[k]
         is_real = gamma_point(kptij_lst[k])
         aosym_ks2 = gamma_point(kpti - kptj)
         i, j = member(kpti, kpts)[0], member(kptj, kpts)[0]
-        
+
         if is_real:
             feri['%s/%d/%d' % (dataname, k, 0)] = h5py.SoftLink('/cderi_s4')
         elif aosym_ks2:
             feri['%s/%d/%d' % (dataname, k, 0)] = h5py.SoftLink('/cderi_s2')
         else:
             feri['%s/%d/%d' % (dataname, k, 0)] = h5py.SoftLink('/cderi')
-    
+
     feri.close()
     return fname
 
@@ -564,14 +564,14 @@ def eri_to_gdf(eri, kpts, fname="local_eri.h5", **kwargs):
 
 def get_jk_from_eri_local_ghf(eri, dm):
     """
-    Get J, K matrix in kpts. 
+    Get J, K matrix in kpts.
     Assume eri is local, has spin dimension 3.
     dm has shape (nso, nso)
 
     Args:
         eri: (3,) + nao*4 or nao_pair*2, aa, bb, ab
         dm: (nkpts, nso, nso)
-    
+
     Returns:
         vj: (nkpts, nso, nso)
         vk: (nkpts, nso, nso)
@@ -596,19 +596,19 @@ def get_jk_from_eri_local_ghf(eri, dm):
 def energy_elec_ghf(mf, dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
     '''
     Calculate electronic energy for GHF.
-    
+
     Args:
         dm_kpts:  (nkpts, nso, nso)
         h1e_kpts: (nkpts, nso, nso)
         vhf_kpts: (nkpts, nso, nso)
-    
+
     Note:
         No Mu contribution.
     '''
     if dm_kpts  is None: dm_kpts = mf.make_rdm1()
     if h1e_kpts is None: h1e_kpts = mf.get_hcore()
     if vhf_kpts is None: vhf_kpts = mf.get_veff(mf.cell, dm_kpts)
-    
+
     ovlp = mf.get_ovlp()
     h1e_kpts = np.array(h1e_kpts, copy=True) # copy for subrtact Mu
     nkpts, nso, _ = h1e_kpts.shape
@@ -634,7 +634,7 @@ class KGHF(pbc.scf.kghf.KGHF):
     """
     energy_elec = energy_elec_ghf
 
-def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12, 
+def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
               fit_spin=False, fix_mu=False):
     """
     Fermi-Dirac or Gaussian smearing.
@@ -669,7 +669,7 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
         Sz = mf.cell.spin
     else:
         Sz = mf.mol.spin
-    
+
     def partition_occ(mo_occ, mo_energy_kpts):
         mo_occ_kpts = []
         p1 = 0
@@ -697,7 +697,7 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
                 nkpts = len(mf.kpts)
         else:
             nkpts = 1
-        
+
         # find nelec_target
         if isinstance(mf.mol, pbcgto.Cell):
             nelectron = mf.mol.tot_electrons(nkpts)
@@ -712,12 +712,12 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
             nelec_target = nelectron
         else:
             nelec_target = nelectron * 0.5
-        
+
         if mf.smearing_method.lower() == 'fermi': # Fermi-Dirac smearing
             f_occ = ftsystem.fermi_smearing_occ
         else: # Gaussian smearing
             f_occ = ftsystem.gaussian_smearing_occ
-        
+
         # check whether the mo_energy shapes are matched
         matched = True
         if is_khf:
@@ -743,12 +743,12 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
                                       np.hstack(mo_energy_kpts[1]))
             else:
                 mo_energy = np.hstack(mo_energy_kpts)
-    
+
         # ZHC NOTE tol should not be too small.
         fit_tol = max(min(mf.conv_tol * 0.1, tol), 1e-15)
-        
-        mo_occ, mf.mu, nerr = mfd.assignocc(mo_energy, nelec_target, 1.0/mf.sigma, 
-                                            mf.mu, fit_tol=fit_tol, f_occ=f_occ, 
+
+        mo_occ, mf.mu, nerr = mfd.assignocc(mo_energy, nelec_target, 1.0/mf.sigma,
+                                            mf.mu, fit_tol=fit_tol, f_occ=f_occ,
                                             fix_mu=fix_mu)
         mo_occ = mo_occ.reshape(mo_energy.shape)
 
@@ -768,16 +768,16 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
         if is_rhf:
             mo_occ *= 2
             mf.entropy *= 2
-        
+
         nelec_now = mo_occ.sum()
         logger.debug(mf, '    Fermi level %s  Sum mo_occ_kpts = %s  should equal nelec = %s',
                      mf.mu, nelec_now, nelectron)
         if (not fix_mu) and abs(nelec_now - nelectron) > fit_tol * 100:
-            logger.warn(mf, "Occupancy (nelec_now %s) is not equal to cell.nelectron (%s).", 
+            logger.warn(mf, "Occupancy (nelec_now %s) is not equal to cell.nelectron (%s).",
                         nelec_now, nelectron)
         logger.info(mf, '    sigma = %g  Optimized mu = %s  entropy = %.12g',
                     mf.sigma, mf.mu, mf.entropy)
-        
+
         # ZHC NOTE different k points may have different mo_coeff shapes
         if not matched:
             if is_uhf:
@@ -789,7 +789,7 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
 
         if hasattr(mf, 'kpts') and getattr(mf.kpts, 'kpts_ibz', None) is not None:
             if is_uhf:
-                mo_occ = (mf.kpts.check_mo_occ_symmetry(mo_occ[0]), 
+                mo_occ = (mf.kpts.check_mo_occ_symmetry(mo_occ[0]),
                           mf.kpts.check_mo_occ_symmetry(mo_occ[1]))
             else:
                 mo_occ = mf.kpts.check_mo_occ_symmetry(mo_occ)
@@ -820,7 +820,7 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
             return np.hstack((ga,gb))
         else: # rhf and ghf
             return get_grad_tril(mo_coeff_kpts, mo_occ_kpts, fock)
-    
+
     if is_khf:
         def energy_tot(dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
             e_tot = mf.energy_elec(dm_kpts, h1e_kpts, vhf_kpts)[0] + mf.energy_nuc()
@@ -866,15 +866,15 @@ def smearing_(mf, sigma=None, method='fermi', mu0=None, tol=1e-12,
 def H2ABD(H, bare_dim):
     """
     Extract H to HA, HB and HD.
-    
+
     Args:
         H: ndarray to extract
-        bare_dim: int, the dimension of H, 
+        bare_dim: int, the dimension of H,
                   if no dimension of spin.
-    
+
     Returns:
         HA, HB, HD
-    
+
     Note:
         H is copied.
     """
@@ -902,7 +902,7 @@ def combine_H1(H):
 
     Args:
         H: (3, nao, nao), aa, bb, ab order
-    
+
     Returns:
         GH: (nso, nso)
     """
@@ -927,7 +927,7 @@ def combine_H2(H2):
 
     Args:
         H2: (3, nao, nao, nao, nao) or 4-fold, aa, bb, ab order
-    
+
     Returns:
         GH2: (nso, nso, nso, nso) or (nso_pair, nso_pair)
     """
@@ -963,7 +963,7 @@ def combine_H2(H2):
 def combine_mo_coeff(C):
     """
     Combine C to get GC.
-    
+
     Args:
         C: ((spin,), nao, nmo)
 
@@ -978,7 +978,7 @@ def combine_mo_coeff(C):
 def combine_mo_coeff_k(C, factor_b=1):
     """
     Combine C to get GC.
-    
+
     Args:
         C: ((spin,), nkpts, nao, nmo)
 
@@ -1022,7 +1022,7 @@ def combine_H1_k(H_k):
 
     Args:
         H_k:  (3, nkpts, nao, nao), aa, bb, ab order
-    
+
     Returns:
         GH_k: (nkpts, nso, nso)
     """
@@ -1046,7 +1046,7 @@ def separate_H1_k(GH_k):
 
     Args:
         GH_k: (nkpts, nso, nso)
-    
+
     Returns:
         H_k:  (3, nkpts, nao, nao), aa, bb, ab order
     """
@@ -1065,11 +1065,11 @@ GH_k2H_k = separate_H_k = separate_H1_k
 def add_H1_loc_to_k(H1_loc, H1_k):
     """
     Add a local H1 to k-space H1.
-    
+
     Args:
         H1_loc: ((spin,), nao, nao)
         H1_k: ((spin,), nkpts, nao, nao)
-    
+
     Returns:
         H1_new: ((spin,), nkpts, nao, nao)
     """
@@ -1086,7 +1086,7 @@ def add_H1_loc_to_k(H1_loc, H1_k):
 def transform_H1_local(H1, ovlp=None, C_ao_lo=None, compact=True):
     """
     Transform a local H1 to spinless form.
-    
+
     Args:
         H1: real ndarray, shape (nao, nao) or (2 or 3, nao, nao)
         ovlp: overlap matrix, (nao, nao).
@@ -1113,7 +1113,7 @@ def transform_H1_local(H1, ovlp=None, C_ao_lo=None, compact=True):
         dm = la.inv(ovlp)
 
     GH0 = np.dot(H1_B, dm).trace()
-    
+
     if C_ao_lo is not None:
         nlo = C_ao_lo.shape[-1]
         GH1_lo = np.empty((3, nlo, nlo), dtype=GH1.dtype)
@@ -1130,7 +1130,7 @@ def transform_H2_local(H2, ovlp=None, C_ao_lo=None, compact=True, hyb=1.0,
                        hyb_j=1.0, ao_repr=False):
     """
     Transform a local H2 to spinless form.
-    
+
     Args:
         H2: real ndarray, shape (nao, nao, nao, nao) or (nao_pair, nao_pair)
         ovlp: overlap matrix, real, (nao, nao).
@@ -1138,12 +1138,12 @@ def transform_H2_local(H2, ovlp=None, C_ao_lo=None, compact=True, hyb=1.0,
 
     Returns:
         GV2: (3, *old_shape), new local H2, aa, bb, ab
-        GV1: (3, nao, nao), new local H1 
+        GV1: (3, nao, nao), new local H1
         GV0: constant energy shift per cell
     """
     log.debug(2, "P-H transform H2 local")
     assert not np.iscomplexobj(H2)
-            
+
     if H2.ndim == 4:
         nao = H2.shape[-1]
         GV2 = np.zeros((3, nao, nao, nao, nao))
@@ -1153,7 +1153,7 @@ def transform_H2_local(H2, ovlp=None, C_ao_lo=None, compact=True, hyb=1.0,
         GV2 = np.zeros((3, nao_pair, nao_pair))
     else:
         raise ValueError
-    
+
     if C_ao_lo is not None:
         C_ao_lo = add_spin_dim(C_ao_lo, 2, non_spin_dim=2)
         C_a, C_b = C_ao_lo
@@ -1164,11 +1164,11 @@ def transform_H2_local(H2, ovlp=None, C_ao_lo=None, compact=True, hyb=1.0,
             dm = np.dot(C_b, C_b.conj().T)
     else:
         dm = la.inv(ovlp)
-    
+
     #: vj = np.einsum('ijkk -> ij', H2, optimize=True)
     #: vk = np.einsum('ikkj -> ij', H2, optimize=True)
     vj, vk = scf.hf.dot_eri_dm(H2, dm, hermi=1)
-    
+
     if hyb != 1.0:
         vk *= hyb
     if hyb_j != 1.0:
@@ -1182,22 +1182,22 @@ def transform_H2_local(H2, ovlp=None, C_ao_lo=None, compact=True, hyb=1.0,
     # H1
     log.debug(2, "vj:\n%s", vj)
     log.debug(2, "vk:\n%s", vk)
-    GV1 = np.zeros((3, nao, nao)) 
-    
+    GV1 = np.zeros((3, nao, nao))
+
     # from bb
     GV1[1]  = vk
     GV1[1] -= vj
 
     # from ab and ba
     GV1[0]  = vj
-     
+
     # H0 from bb
     GV0_J =  0.5 * (np.dot(vj, dm).trace())
     GV0_K =  0.5 * (np.dot(vk, dm).trace())
     log.debug(2, "GV0_J: %s", GV0_J)
     log.debug(2, "GV0_K: %s", GV0_K)
     GV0 = GV0_J - GV0_K
-    
+
     if C_ao_lo is not None and (not ao_repr): # ao2lo
         nlo = C_ao_lo.shape[-1]
         if GV2.ndim == 5:
@@ -1209,7 +1209,7 @@ def transform_H2_local(H2, ovlp=None, C_ao_lo=None, compact=True, hyb=1.0,
         GV2_lo[1] = ao2mo.kernel(GV2[1], (C_b, C_b, C_b, C_b))
         GV2_lo[2] = ao2mo.kernel(GV2[2], (C_a, C_a, C_b, C_b))
         GV2 = GV2_lo
-        
+
         GV1_lo = np.zeros((3, nlo, nlo), dtype=GV1.dtype)
         GV1_lo[0] = mdot(C_a.conj().T, GV1[0], C_a)
         GV1_lo[1] = mdot(C_b.conj().T, GV1[1], C_b)
@@ -1239,12 +1239,12 @@ def transform_rdm1_local(rdm1, ovlp=None, compact=True):
 def transform_H1_k(H1, ovlp=None, C_ao_lo=None, compact=True):
     """
     Transform a k-space H1 to spinless form.
-    
+
     Args:
         H1: complex ndarray, shape ((spin,) nkpts, nao, nao)
               if has spin, can be HA, HB or HA, HB, HD
         ovlp: overlap matrix.
-    
+
     Returns:
         GH1: (3, nkpts, nao, nao)
         GH0: real constant energy shift per cell
@@ -1252,7 +1252,7 @@ def transform_H1_k(H1, ovlp=None, C_ao_lo=None, compact=True):
     nkpts = H1.shape[-3]
     nao = H1.shape[-1]
     HA, HB, HD = H2ABD(H1, bare_dim=3)
-    
+
     if C_ao_lo is not None:
         C_ao_lo = add_spin_dim(C_ao_lo, 2, non_spin_dim=3)
         C_a, C_b = C_ao_lo
@@ -1267,13 +1267,13 @@ def transform_H1_k(H1, ovlp=None, C_ao_lo=None, compact=True):
     else:
         for k in range(nkpts):
             dm[k] = la.inv(ovlp[k])
-    
+
     GH1 = np.zeros((3, nkpts, nao, nao), dtype=H1.dtype)
     GH1[0] =  HA
     #GH1[1] = -HB.transpose(0, 2, 1).conj()
     GH1[1] = -HB
     GH1[2] =  HD
-    
+
     #GH0 = np.einsum('kii ->', HB, optimize=True)
     GH0 = 0.0
     for k in range(nkpts):
@@ -1281,7 +1281,7 @@ def transform_H1_k(H1, ovlp=None, C_ao_lo=None, compact=True):
     if abs(GH0.imag) > IMAG_DISCARD_TOL:
         log.warn("transform_H1_k: GH0 has imaginary part: %s", GH0.imag)
     GH0 = GH0.real / float(nkpts)
-    
+
     if C_ao_lo is not None:
         nlo = C_b.shape
         GH1_lo = np.empty((3, nkpts, nlo, nlo), dtype=GH1.dtype)
@@ -1298,12 +1298,12 @@ def transform_H1_k(H1, ovlp=None, C_ao_lo=None, compact=True):
 def transform_rdm1_k(rdm1_k, ovlp=None, compact=False):
     """
     Transform a k-space rdm1 to spinless form.
-    
+
     Args:
         rdm1_k: complex ndarray, shape ((spin,) nkpts, nao, nao)
                 if has spin, can be rdm1_A, rdm1_B (and kappa_AB).
         ovlp_k: overlap matrix. (nkpts, nao, nao)
-    
+
     Returns:
         GRdm1: if compact, (3, nkpts, nao, nao), same convention as input.
                else, (nkpts, nso, nso)
@@ -1314,7 +1314,7 @@ def transform_rdm1_k(rdm1_k, ovlp=None, compact=False):
     nkpts = rdm1_k.shape[-3]
     nao = rdm1_k.shape[-1]
     rdm1_A_k, rdm1_B_k, rdm1_AB_k = H2ABD(rdm1_k, bare_dim=3)
-    
+
     if compact:
         GRdm1 = np.zeros((3, nkpts, nao, nao), dtype=rdm1_k.dtype)
         GRdm1[0]  =  rdm1_A_k
@@ -1345,9 +1345,9 @@ def get_GV1_GV0_from_df(mydf, ovlp=None, C_ao_lo=None, compact=True,
                         return_jk=False, return_hf=False, hyb=1.0,
                         hyb_j=1.0, ao_repr=False):
     """
-    Generate particle-hole transformed H1 and H0 
+    Generate particle-hole transformed H1 and H0
     from density fitting integrals.
-    
+
     Args:
         mydf: df object.
         ovlp: (nkpts, nao, nao), AO overlap matrix.
@@ -1355,7 +1355,7 @@ def get_GV1_GV0_from_df(mydf, ovlp=None, C_ao_lo=None, compact=True,
         hyb: hybridization factor for vk.
 
     Returns:
-        res_H1: (3, nkpts, nlo, nlo), new H1_k in LO basis. 
+        res_H1: (3, nkpts, nlo, nlo), new H1_k in LO basis.
         res_H0: constant energy shift per cell.
         vj: if return_jk == True
         vk: if return_jk == True
@@ -1365,7 +1365,7 @@ def get_GV1_GV0_from_df(mydf, ovlp=None, C_ao_lo=None, compact=True,
 
     nkpts = len(mydf.kpts)
     nao = mydf.cell.nao_nr()
-    
+
     if C_ao_lo is not None:
         C_ao_lo = add_spin_dim(C_ao_lo, 2, non_spin_dim=3)
         C_a, C_b = C_ao_lo
@@ -1403,7 +1403,7 @@ def get_GV1_GV0_from_df(mydf, ovlp=None, C_ao_lo=None, compact=True,
     GV0_J = GV0_J.real / (nkpts * 2.0)
     GV0_K = GV0_K.real / (nkpts * 2.0)
     GV0 = GV0_J - GV0_K * hyb
-    
+
     if return_hf:
         GV1_ao_hf = np.zeros((3, nkpts, nao, nao), dtype=np.complex128)
         GV1_ao_hf[0]  = vj_ao[0]
@@ -1414,14 +1414,14 @@ def get_GV1_GV0_from_df(mydf, ovlp=None, C_ao_lo=None, compact=True,
 
     # ao2lo
     if C_ao_lo is not None and (not ao_repr):
-        nlo = C_ao_lo.shape[-1] 
+        nlo = C_ao_lo.shape[-1]
         vj_lo = np.zeros((2, nkpts, nlo, nlo), dtype=np.complex128)
         vk_lo = np.zeros((nkpts, nlo, nlo), dtype=np.complex128)
         for k in range(nkpts):
             vj_lo[0, k] = mdot(C_a[k].conj().T, vj_ao[0, k], C_a[k])
             vj_lo[1, k] = mdot(C_b[k].conj().T, vj_ao[1, k], C_b[k])
             vk_lo[k] = mdot(C_b[k].conj().T, vk_ao[k], C_b[k])
-        
+
         GV1_lo = np.zeros((3, nkpts, nlo, nlo), dtype=np.complex128)
         GV1_lo[0]  = vj_lo[0]
         GV1_lo[1]  = vk_lo * hyb
@@ -1445,12 +1445,12 @@ def get_GV1_GV0_from_df(mydf, ovlp=None, C_ao_lo=None, compact=True,
     # H1 and H0
     log.debug(2, "vj          :\n%s", vj)
     log.debug(2, "vk (scaled) :\n%s", vk * hyb)
-     
+
     log.debug(2, "GV0_J          : %s", GV0_J)
     log.debug(2, "GV0_K (scaled) : %s", GV0_K * hyb)
     if not compact:
         GV1 = combine_H1_k(GV1)
-    
+
     if return_hf: # return the non-scaled GV1 and GV0 for HF.
         if not compact:
             GV1_hf = combine_H1_k(GV1_hf)
@@ -1513,13 +1513,13 @@ def get_jk_ph(mf, cell=None, dm_kpts=None, hermi=0, kpts=None, kpts_band=None,
         vk = _format_jks(vk, dm_kpts, kpts_band, kpts)
 
     return vj, vk
-    
+
 class KGHFPH(pbc.scf.kghf.KGHF):
     """
     KGHF with P-H transform.
     """
     get_jk = get_jk_ph
-    
+
     energy_elec = energy_elec_ghf
 
 class KGKSPH(kgks.KGKS):
@@ -1527,7 +1527,7 @@ class KGKSPH(kgks.KGKS):
     KGHF with P-H transform.
     """
     get_jk = get_jk_ph
-    
+
     get_veff = kgks.get_veff_ph
 
     energy_elec = kgks.energy_elec
@@ -1554,14 +1554,14 @@ def frac_mu_(mf, nelec, mu0=None, tol=None):
     if tol is None:
         tol = mf.conv_tol * 0.1
     assert is_ghf
-    
+
     if is_khf:
         raise NotImplementedError
     else:
         def eig(h, s):
             nso = s.shape[-1]
             nao = nso // 2
-            
+
             def nelec_cost_fn_brentq(mu):
                 h1 = np.array(h, copy=True)
                 h1[:nao, :nao] -= s[:nao, :nao] * mu
@@ -1572,7 +1572,7 @@ def frac_mu_(mf, nelec, mu0=None, tol=None):
                 rho = np.einsum('pq, qp -> p', dm, s)
                 nelec_calc = rho[:nao].sum() + nao - (rho[nao:].sum())
                 return nelec_calc
-            
+
             mu_elec = mono_fit_2(nelec_cost_fn_brentq, nelec, mf.mu_elec, tol,
                                  increase=True)
             h1 = np.array(h, copy=True)
@@ -1581,7 +1581,7 @@ def frac_mu_(mf, nelec, mu0=None, tol=None):
             e, c = la.eigh(h1, s)
             mf.mu_elec = mu_elec
             return e, c
-     
+
     if mu0 is None:
         mf.mu_elec = 0.0
     else:

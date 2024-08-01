@@ -8,10 +8,10 @@ def test_hub1d_ib():
 
     from libdmet.utils import logger as log
     import libdmet.dmet.Hubbard as dmet
-    
+
     log.verbose = "DEBUG2"
-    
-    U = 4.0 
+
+    U = 4.0
     LatSize = 18
     ImpSize = 2
     Filling = 1.0 / 2
@@ -52,14 +52,14 @@ def test_hub1d_ib():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
 
         rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, ires=True)
         Lat.update_Ham(rho*2.0)
-        
+
         E_mf = res["E"] / nscsites
 
         log.result("Mean-field energy (per site): %s", E_mf)
@@ -68,22 +68,22 @@ def test_hub1d_ib():
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=False, int_bath=int_bath)
         ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k(basis)
-        
+
         log.section("\nsolving impurity problem\n")
         solver_args = {"nelec": (Lat.ncore+Lat.nval)*2, \
                 "dm0": dmet.foldRho_k(res["rho_k"], basis_k)*2.0}
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
                 dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
                 solver_args)
         dmet.SolveImpHam_with_fitting.save("./frecord")
-        
+
         last_dmu += dmu
         rhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
                 lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
                 solver=solver, solver_args=solver_args)
-        
+
         log.result("E (DMET) : %s", EnergyImp)
 
         log.section("\nfitting correlation potential\n")
@@ -97,31 +97,31 @@ def test_hub1d_ib():
             ddiagV = np.average(np.diagonal(\
                     (vcor_new.get()-vcor.get())[:2], 0, 1, 2))
             vcor_new = dmet.addDiag(vcor_new, -ddiagV)
-        
+
         # DIIS
         if iter >= DiisStart:
             pvcor = adiis.update(np.hstack((vcor_new.param)))
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = np.hstack((vcor_new.param))
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
-        
+
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         log.info("trace of vcor: %s", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp], dtype = object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter)
-        
+
         if dVcor_per_ele < 1.0e-5 and abs(dE) < 1.0e-5 and iter > 3 :
             conv = True
             break
-    
+
     assert abs(EnergyImp - -0.572957334871) < 1e-4
 
     if conv:

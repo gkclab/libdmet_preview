@@ -10,7 +10,7 @@ def test_rhf_solver():
     from pyscf import ao2mo
     from libdmet.system.integral import Integral
     from libdmet.utils.misc import mdot, max_abs
-    from libdmet.solver import impurity_solver 
+    from libdmet.solver import impurity_solver
 
     np.set_printoptions(3, linewidth=1000, suppress=True)
 
@@ -49,7 +49,7 @@ def test_rhf_solver():
 def test_uhf_solver():
     import os
     import numpy as np
-    
+
     from pyscf import lib
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, gto, df, cc, tools
@@ -107,7 +107,7 @@ def test_uhf_solver():
     chkfname = '%s.chk'%name
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -153,7 +153,7 @@ def test_uhf_solver():
     emb_fit_iter = 200 # embedding fitting
     full_fit_iter = 0
     ytol = 1e-9
-    gtol = 1e-5 
+    gtol = 1e-5
     CG_check = False
 
     # vcor initialization
@@ -227,7 +227,7 @@ def test_uhf_solver():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %s", Mu)
@@ -251,14 +251,14 @@ def test_uhf_solver():
             restart = False
         solver_args = {"restart": restart, "basis": basis, "nelec": min((Lat.ncore+Lat.nval)*2, nkpts*cell.nelectron), \
                 "dm0": dmet.foldRho_k(Lat.rdm1_lo_k, basis_k)}
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
             solver_args=solver_args, thrnelec=1e+5, \
             delta=delta, step=step)
         dmet.SolveImpHam_with_fitting.save("./frecord")
         last_dmu += dmu
-        
+
         rhoEmb = dmet.foldRho_k(Lat.rdm1_lo_k, basis_k)
         solver.onepdm = rhoEmb
 
@@ -266,11 +266,11 @@ def test_uhf_solver():
             dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
             lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
             solver=solver, solver_args=solver_args)
-        
+
         E_DMET_per_cell = EnergyImp*nscsites / ncell_sc
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", E_DMET_per_cell)
-        
+
         assert abs(E_DMET_per_cell - (kmf.e_tot - kmf.energy_nuc())/ncell_sc) < 1e-8
         assert abs(E_DMET_per_cell - res["E"]) < 1e-8
         break
@@ -281,37 +281,37 @@ def test_oomp2_solver():
     from libdmet_solid.system import integral
     from libdmet_solid.solver import scf_solver
     from libdmet_solid.utils.misc import tile_eri
-    from libdmet.utils import logger as log 
+    from libdmet.utils import logger as log
     np.set_printoptions(3, linewidth=1000)
     log.verbose = "DEBUG2"
-    
+
     mol = gto.M(atom = 'H 0 0 0; F 0 0 1.2',
                 basis = 'ccpvdz',
                 verbose = 4)
     mf = scf.RHF(mol).run()
-    
+
     mf = scf.addons.convert_to_ghf(mf)
     dm0 = mf.make_rdm1()
     mf.kernel(dm0=dm0)
-    
+
     ovlp = mf.get_ovlp()
     H0 = mf.energy_nuc()
     H1 = mf.get_hcore()
     H2 = mf._eri
     H2 = ao2mo.restore(4, H2, mol.nao_nr())
-    
+
     H2 = tile_eri(H2, H2, H2)
     dm0 = mf.make_rdm1()
-    
+
     Ham = integral.Integral(H1.shape[-1], True, False, H0, {"cd": H1[None]},
                             {"ccdd": H2[None]}, ovlp=ovlp)
-    
+
     solver = scf_solver.SCFSolver(ghf=True, tol=1e-10, max_cycle=200,
                                   oomp2=True, tol_normt=1e-6, ci_conv_tol=1e-8,
                                   level_shift=0.1, restart=True, mc_conv_tol=1e-6)
-    
+
     rdm1, E = solver.run(Ham, nelec=mol.nelectron)
-    
+
     print ("diff to ROOMP2", abs(E - -100.176641888785))
     assert abs(E - -100.176641888785) < 1e-7
 
@@ -321,35 +321,35 @@ def test_uooccd_solver():
     from libdmet_solid.system import integral
     from libdmet_solid.solver import scf_solver
     from libdmet_solid.utils.misc import tile_eri
-    from libdmet.utils import logger as log 
+    from libdmet.utils import logger as log
     np.set_printoptions(3, linewidth=1000)
     log.verbose = "DEBUG2"
-    
+
     mol = gto.M(atom = 'H 0 0 0; F 0 0 1.2',
                 basis = 'ccpvdz',
                 verbose = 4)
     mf = scf.RHF(mol).run()
-    
+
     mf = scf.addons.convert_to_uhf(mf)
     dm0 = mf.make_rdm1()
     mf.kernel(dm0=dm0)
-    
+
     ovlp = mf.get_ovlp()
     H0 = mf.energy_nuc()
     H1 = mf.get_hcore()
     H2 = mf._eri
     H2 = ao2mo.restore(4, H2, mol.nao_nr())
-    
+
     dm0 = mf.make_rdm1()
-    
+
     Ham = integral.Integral(H1.shape[-1], False, False, H0, {"cd": H1[None]},
                             {"ccdd": H2[None]}, ovlp=ovlp)
-    
+
     solver = scf_solver.SCFSolver(restricted=False, ghf=False, tol=1e-13, max_cycle=200,
                                   ooccd=True, ci_conv_tol=1e-9, tol_normt=1e-7,
                                   level_shift=0.05, mc_conv_tol=1e-6, ci_diis_space=10,
                                   restart=True, approx_l=False, fix_fcivec=False, scf_newton=False)
-    
+
     rdm1, E = solver.run(Ham, nelec=mol.nelectron, scf_max_cycle=0, dm0=dm0)
     E_ref = -100.180073031997
     print ("diff to ref", abs(E - E_ref))
@@ -361,36 +361,36 @@ def test_gooccd_solver():
     from libdmet_solid.system import integral
     from libdmet_solid.solver import scf_solver
     from libdmet_solid.utils.misc import tile_eri
-    from libdmet.utils import logger as log 
+    from libdmet.utils import logger as log
     np.set_printoptions(3, linewidth=1000)
     log.verbose = "DEBUG2"
-    
+
     mol = gto.M(atom = 'H 0 0 0; F 0 0 1.2',
                 basis = 'ccpvdz',
                 verbose = 4)
     mf = scf.RHF(mol).run()
-    
+
     mf = scf.addons.convert_to_ghf(mf)
     dm0 = mf.make_rdm1()
     mf.kernel(dm0=dm0)
-    
+
     ovlp = mf.get_ovlp()
     H0 = mf.energy_nuc()
     H1 = mf.get_hcore()
     H2 = mf._eri
     H2 = ao2mo.restore(4, H2, mol.nao_nr())
-    
+
     H2 = tile_eri(H2, H2, H2)
     dm0 = mf.make_rdm1()
-    
+
     Ham = integral.Integral(H1.shape[-1], True, False, H0, {"cd": H1[None]},
                             {"ccdd": H2[None]}, ovlp=ovlp)
-    
+
     solver = scf_solver.SCFSolver(ghf=True, tol=1e-13, max_cycle=200,
                                   ooccd=True, ci_conv_tol=1e-9, tol_normt=1e-7,
                                   level_shift=0.05, mc_conv_tol=1e-6, ci_diis_space=10,
                                   restart=True, approx_l=False, fix_fcivec=False, scf_newton=False)
-    
+
     rdm1, E = solver.run(Ham, nelec=mol.nelectron, scf_max_cycle=0, dm0=dm0)
     E_ref = -100.180073031997
     print ("diff to ref", abs(E - E_ref))
@@ -403,10 +403,10 @@ def test_hf_scaled_beta():
     from libdmet_solid.system import integral
     from libdmet_solid.solver import scf_solver
     from libdmet_solid.utils.misc import tile_eri
-    from libdmet.utils import logger as log 
+    from libdmet.utils import logger as log
     np.set_printoptions(3, linewidth=1000)
     log.verbose = "DEBUG2"
-    
+
     mol = gto.M(atom = 'H 0 0 0; F 0 0 1.2',
                 basis = 'ccpvdz',
                 verbose = 4)
@@ -418,24 +418,24 @@ def test_hf_scaled_beta():
     mf = pbc_hp.smearing_(mf, sigma=1.0/beta)
     mf.conv_tol = 1e-11
     E_ref = mf.kernel()
-    
+
     nao = mol.nao_nr()
     hcore = mf.get_hcore()
     ovlp = mf.get_ovlp()
     eri = ao2mo.restore(4, mf._eri, nao)
     H0 = mf.energy_nuc()
     rdm1 = mf.make_rdm1()
-    
+
     # UHF
     Ham = integral.Integral(hcore.shape[-1], True, False, H0, {"cd": hcore[None]},
                             {"ccdd": eri[None]}, ovlp=ovlp)
-    
+
     solver = scf_solver.SCFSolver(ghf=False, restricted=False, tol=1e-7, max_cycle=200,
                                   scf_newton=False, alpha=0.25, beta=beta)
-    
+
     _, E = solver.run(Ham, nelec=mol.nelectron, scf_max_cycle=200,
                          dm0=np.array((rdm1, rdm1))* 0.5)
-    
+
     print ("diff to ref", abs(E - E_ref))
     assert abs(E - E_ref) < 1e-7
 
@@ -444,15 +444,15 @@ def test_hf_scaled_beta():
     ovlp = la.block_diag(ovlp, ovlp)
     H2 = tile_eri(eri, eri, eri)
     rdm1 = la.block_diag(rdm1, rdm1) * 0.5
-    
+
     Ham = integral.Integral(H1.shape[-1], True, False, H0, {"cd": H1[None]},
                             {"ccdd": H2[None]}, ovlp=ovlp)
-    
+
     solver = scf_solver.SCFSolver(ghf=True, tol=1e-8, max_cycle=200,
                                   scf_newton=False, alpha=0.25, beta=beta)
-    
+
     rdm1, E = solver.run(Ham, nelec=mol.nelectron, scf_max_cycle=200, dm0=rdm1)
-    
+
     print ("diff to ref", abs(E - E_ref))
     assert abs(E - E_ref) < 1e-7
 
@@ -463,10 +463,10 @@ def test_rhf_beta():
     from libdmet_solid.system import integral
     from libdmet_solid.solver import scf_solver
     from libdmet_solid.utils.misc import tile_eri
-    from libdmet.utils import logger as log 
+    from libdmet.utils import logger as log
     np.set_printoptions(3, linewidth=1000)
     log.verbose = "DEBUG2"
-    
+
     mol = gto.M(atom = 'H 0 0 0; F 0 0 1.2',
                 basis = 'ccpvdz',
                 verbose = 4)
@@ -478,24 +478,24 @@ def test_rhf_beta():
     mf = pbc_hp.smearing_(mf, sigma=1.0/beta)
     mf.conv_tol = 1e-11
     E_ref = mf.kernel()
-    
+
     nao = mol.nao_nr()
     hcore = mf.get_hcore()
     ovlp = mf.get_ovlp()
     eri = ao2mo.restore(4, mf._eri, nao)
     H0 = mf.energy_nuc()
     rdm1 = mf.make_rdm1()
-    
+
     # RHF
     Ham = integral.Integral(hcore.shape[-1], True, False, H0, {"cd": hcore[None]},
                             {"ccdd": eri[None]}, ovlp=ovlp)
-    
+
     solver = scf_solver.SCFSolver(ghf=False, restricted=True, tol=1e-7, max_cycle=200,
                                   scf_newton=False, alpha=0.5, beta=beta)
-    
+
     _, E = solver.run(Ham, nelec=mol.nelectron, scf_max_cycle=200,
                       dm0=rdm1)
-    
+
     print ("diff to ref", abs(E - E_ref))
     assert abs(E - E_ref) < 1e-7
 

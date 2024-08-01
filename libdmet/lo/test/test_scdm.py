@@ -7,7 +7,7 @@ def test_scdm_mol():
     from libdmet.lo import scdm
     from libdmet.utils import logger as log
 
-    np.set_printoptions(3, linewidth=1000) 
+    np.set_printoptions(3, linewidth=1000)
     log.verbose = "DEBUG2"
     atom_coords = np.array([[3.17500000, 3.17500000, 3.17500000],
                             [2.54626556, 2.54626556, 2.54626556],
@@ -17,11 +17,11 @@ def test_scdm_mol():
                  - np.array([3.17500000, 3.17500000, 3.17500000])
     mol = gto.Mole()
     mol.build(
-        atom = [['C', atom_coords[0]], 
-                ['H', atom_coords[1]], 
+        atom = [['C', atom_coords[0]],
+                ['H', atom_coords[1]],
                 ['H', atom_coords[2]],
-                ['H', atom_coords[3]], 
-                ['H', atom_coords[4]]], 
+                ['H', atom_coords[3]],
+                ['H', atom_coords[4]]],
         basis = 'ccpvdz')
 
     mf = scf.RHF(mol)
@@ -42,7 +42,7 @@ def test_scdm_mol():
     log.info("Dipole cf values:")
     log.info("cf (MO): %s", loc.cost_function())
     log.info("cf (SCDM): %s", loc.cost_function(u=C_mo_lo))
-    
+
     loc_orb = loc.kernel()
     log.info("cf (Boys): %s", loc.cost_function())
     molden.from_mo(mol, 'CH4_Boys.molden', loc_orb)
@@ -63,7 +63,7 @@ def test_scdm_k():
 
     log.verbose = "DEBUG2"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     cell = gto.Cell()
     cell.a = ''' 10.0    0.0     0.0
                  0.0     10.0    0.0
@@ -119,12 +119,12 @@ def test_scdm_k():
     # SCDM-k
     C_ao_lo, C_mo_lo = scdm.scdm_k(cell, mo, kpts, grid='U', level=5, \
             use_gamma_perm=True, return_C_mo_lo=True)
-    
+
     C_ao_lo, C_mo_lo = scdm.scdm_k(cell, mo, kpts, grid='U', level=5, \
             use_gamma_perm=True, return_C_mo_lo=True, order='F', mesh=[30, 30, 30])
 
     plot_orb_k_all(cell, 'scdm-H-chain', C_ao_lo[0], kpts, nx=100, ny=100, nz=100, margin=5.0)
-    
+
     # SCDM-k entangled
     nlo = 2
     mo_energy_sorted = np.sort(mo_energy, axis=None, kind='mergesort')
@@ -135,7 +135,7 @@ def test_scdm_k():
     print (smear_func)
     C_ao_lo, C_mo_lo = scdm.scdm_k(cell, mo_coeff, kpts, grid='B', level=5, \
             use_gamma_perm=True, return_C_mo_lo=True, nlo=nlo, smear_func=smear_func)
-    
+
     for method in ["erfc", "erf", "gaussian", "fermi"]:
         smear_func = scdm.smear_func(mo_energy, mu, sigma, method=method)
 

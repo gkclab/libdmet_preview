@@ -42,18 +42,18 @@ def test_pywannier90_CH4_1():
 
     kmesh = [1, 1, 1]
     abs_kpts = cell.make_kpts(kmesh)
-    
+
     chkfname = 'CH4_1.chk'
     #if os.path.isfile(chkfname):
     if False:
-        kmf = pywannier90.load_kmf(chkfname) 
+        kmf = pywannier90.load_kmf(chkfname)
     else:
         kmf = pscf.KRHF(cell, abs_kpts)
         kmf = kmf.density_fit()
         kmf.conv_tol = 1e-13
         ekpt = kmf.run()
         pywannier90.save_kmf(kmf, chkfname)  # Save the wave function
-            
+
     num_wann = 9
     keywords = \
     '''
@@ -104,18 +104,18 @@ def test_pywannier90_CH4_2():
 
     kmesh = [1, 1, 1]
     abs_kpts = cell.make_kpts(kmesh)
-    
+
     chkfname = 'CH4_2.chk'
     #if os.path.isfile(chkfname):
     if False:
-        kmf = pywannier90.load_kmf(chkfname) 
+        kmf = pywannier90.load_kmf(chkfname)
     else:
         kmf = pscf.KRHF(cell, abs_kpts)
         kmf = kmf.density_fit()
         kmf.conv_tol = 1e-13
         ekpt = kmf.run()
         pywannier90.save_kmf(kmf, chkfname)  # Save the wave function
-            
+
     num_wann = 4
     keywords = \
     '''
@@ -166,18 +166,18 @@ def test_pywannier90_CH4_3():
 
     kmesh = [1, 1, 1]
     abs_kpts = cell.make_kpts(kmesh)
-    
+
     chkfname = 'CH4_3.chk'
     #if os.path.isfile(chkfname):
     if False:
-        kmf = pywannier90.load_kmf(chkfname) 
+        kmf = pywannier90.load_kmf(chkfname)
     else:
         kmf = pscf.KRHF(cell, abs_kpts)
         kmf = kmf.density_fit()
         kmf.conv_tol = 1e-13
         ekpt = kmf.run()
         pywannier90.save_kmf(kmf, chkfname)  # Save the wave function
-            
+
     num_wann = 4
     keywords = \
     '''
@@ -229,18 +229,18 @@ def test_pywannier90_CH4_4():
 
     kmesh = [1, 1, 1]
     abs_kpts = cell.make_kpts(kmesh)
-    
+
     chkfname = 'CH4_4.chk'
     #if os.path.isfile(chkfname):
     if False:
-        kmf = pywannier90.load_kmf(chkfname) 
+        kmf = pywannier90.load_kmf(chkfname)
     else:
         kmf = pscf.KRHF(cell, abs_kpts)
         kmf = kmf.density_fit()
         kmf.conv_tol = 1e-13
         ekpt = kmf.run()
         pywannier90.save_kmf(kmf, chkfname)  # Save the wave function
-            
+
     num_wann = 8
     keywords = \
     '''
@@ -267,13 +267,13 @@ def test_pywannier90_CH4_4():
 
     """
     1- H s
-    2- H s 
-    3- H s  
-    4- H s 
-    5- C sp3 
-    6- C sp3 
-    7- C sp3 
-    8- C sp3 
+    2- H s
+    3- H s
+    4- H s
+    5- C sp3
+    6- C sp3
+    7- C sp3
+    8- C sp3
     """
 
 def test_pywannier90_CH4_5():
@@ -300,22 +300,22 @@ def test_pywannier90_CH4_5():
     cell.precision = 1e-13
     cell.verbose = 5
     cell.build()
-    
+
 
     kmesh = [1, 1, 1]
     abs_kpts = cell.make_kpts(kmesh)
-    
+
     chkfname = 'CH4_5.chk'
     if os.path.isfile(chkfname):
     #if False:
-        kmf = pywannier90.load_kmf(chkfname) 
+        kmf = pywannier90.load_kmf(chkfname)
     else:
         kmf = pscf.KRHF(cell, abs_kpts)
         kmf = kmf.density_fit()
         kmf.conv_tol = 1e-13
         ekpt = kmf.run()
         pywannier90.save_kmf(kmf, chkfname)  # Save the wave function
-            
+
     num_wann = cell.nao_nr() - 8
     keywords = \
     '''
@@ -378,18 +378,18 @@ def test_pywannier90_CH4_6():
 
     kmesh = [1, 1, 1]
     abs_kpts = cell.make_kpts(kmesh)
-    
+
     chkfname = 'CH4_6.chk'
     #if os.path.isfile(chkfname):
     if False:
-        kmf = pywannier90.load_kmf(chkfname) 
+        kmf = pywannier90.load_kmf(chkfname)
     else:
         kmf = pscf.KRHF(cell, abs_kpts)
         kmf = kmf.density_fit()
         kmf.conv_tol = 1e-13
         ekpt = kmf.run()
         pywannier90.save_kmf(kmf, chkfname)  # Save the wave function
-            
+
     num_wann = 8
     keywords = \
     '''
@@ -443,19 +443,19 @@ def test_pywannier90_hchain_1():
     cell.verbose = 4
     cell.precision = 1e-10
     cell.build(unit='Angstrom')
-    
+
     # lattice class
-    kmesh = [1, 1, 1]  
+    kmesh = [1, 1, 1]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts_abs = Lat.kpts_abs
     #kpts_abs = cell.make_kpts(kmesh)
-   
+
     kmf = pscf.KRHF(cell, kpts_abs)
     kmf = kmf.density_fit()
     kmf.conv_tol = 1e-10
     kmf.kernel()
-    
+
     num_wann = 2
     keywords = \
     '''
@@ -500,14 +500,14 @@ def test_pywannier90_hchain_2():
     cell.verbose = 4
     cell.precision = 1e-15
     cell.build(unit='Angstrom')
-    
+
     # Latice class
-    kmesh = [1, 1, 5]  
+    kmesh = [1, 1, 5]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts_abs = Lat.kpts_abs
     #kpts_abs = cell.make_kpts(kmesh)
-   
+
     chkfname = 'hchain_2.chk'
     kmf = pscf.KRHF(cell, kpts_abs)
     kmf = kmf.density_fit()
@@ -529,7 +529,7 @@ def test_pywannier90_hchain_2():
     #w90.use_bloch_phases = True
     #w90.guiding_centres = False
     w90.kernel()
-    
+
     C_ao_mo = np.asarray(w90.mo_coeff)[:, :, w90.band_included_list]
     C_mo_lo = make_basis.tile_u_matrix(np.array(w90.U_matrix.transpose(2, 0, 1), \
         order='C'), u_virt=None, u_core=None)
@@ -565,9 +565,9 @@ def test_lowdin_k():
     cell.verbose = 4
     cell.precision = 1e-15
     cell.build(unit='Angstrom')
-   
+
     # lattice class
-    kmesh = [1, 1, 3]  
+    kmesh = [1, 1, 3]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts_abs = Lat.kpts_abs
@@ -576,12 +576,12 @@ def test_lowdin_k():
     mf = mf.density_fit()
     mf.conv_tol = 1e-15
     mf.kernel()
-    
+
     C_ao_lo = lowdin.lowdin_k(mf, method='meta_lowdin')
     dm_lo_k = make_basis.transform_rdm1_to_lo(mf.make_rdm1(), C_ao_lo, mf.get_ovlp())
     dm_lo_R = Lat.k2R(dm_lo_k)
     dm_lo_R_full = Lat.expand(dm_lo_R, dense=True)
-    
+
     # supercell calculation
     scell = Lat.bigcell
     mf = pscf.KRHF(scell)
@@ -610,9 +610,9 @@ def test_iao():
     cell.verbose = 4
     cell.precision = 1e-15
     cell.build(unit='Angstrom')
-   
+
     # lattice class
-    kmesh = [1, 1, 3]  
+    kmesh = [1, 1, 3]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts_abs = Lat.kpts_abs
@@ -632,10 +632,10 @@ def test_iao():
         kmf.conv_tol = 1e-15
         kmf.chkfile = chkfname
         kmf.kernel()
-    
+
     S = kmf.get_ovlp()
     mo_coeff_occ = [kmf.mo_coeff[k][:, kmf.mo_occ[k]>0] for k in range(nkpts)]
-    
+
     # IAO
     C_ao_lo_val = iao.iao(cell, mo_coeff_occ, kpts=kpts_abs)
     C_ao_lo_val = iao.vec_lowdin_k(C_ao_lo_val, S)
@@ -651,20 +651,20 @@ def test_iao():
     #plot_orb_k_all(cell, 'iao_virt', C_ao_lo_virt, kpts_abs, nx=100, ny=100, nz=100, resolution=None, margin=5.0)
 
     # check orthonormal
-    assert(iao.check_orthonormal(C_ao_lo_val, S)) 
-    assert(iao.check_orthonormal(C_ao_lo_virt, S)) 
-    
+    assert(iao.check_orthonormal(C_ao_lo_val, S))
+    assert(iao.check_orthonormal(C_ao_lo_virt, S))
+
     # check orthogonal
-    assert(iao.check_orthogonal_two_sets(C_ao_lo_virt, C_ao_lo_val, S)) 
-    
+    assert(iao.check_orthogonal_two_sets(C_ao_lo_virt, C_ao_lo_val, S))
+
     # check density matrix
     C_ao_lo = make_basis.tile_C_ao_iao(C_ao_lo_val, C_ao_lo_virt)
-    assert(iao.check_orthonormal(C_ao_lo, S)) 
-    
+    assert(iao.check_orthonormal(C_ao_lo, S))
+
     dm_ao_ao = kmf.make_rdm1()
     dm_lo_lo = make_basis.transform_rdm1_to_lo(dm_ao_ao, C_ao_lo, S)
     dm_R = Lat.k2R(dm_lo_lo)
-    
+
     # check the trace
     assert(np.abs(np.trace(dm_R[0]) - cell.nelectron) < 1e-13)
     assert(np.abs(np.trace(dm_R[0][:nval, :nval]) - cell.nelectron) < 1e-13)
@@ -683,9 +683,9 @@ def test_iao_supercell():
     cell.verbose = 4
     cell.precision = 1e-15
     cell.build(unit='Angstrom')
-   
+
     # lattice class
-    kmesh = [1, 1, 3]  
+    kmesh = [1, 1, 3]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts_abs = Lat.kpts_abs
@@ -711,7 +711,7 @@ def test_iao_supercell():
     # Orthogonalize IAO
     from pyscf import lo
     a = lo.vec_lowdin(a, kmf.get_ovlp()[0])
-    
+
     S1 = kmf.get_ovlp()
     C = a
     CCdS = mdot(C, C.conj().T, S1[0])
@@ -731,9 +731,9 @@ def test_iao_supercell():
 
     Q_virt = Q[:, virt_idx]
     Q_orth = lo.vec_lowdin(Q_virt, kmf.get_ovlp()[0])
-    
+
     C = np.hstack((a, Q_orth))
-    
+
     C_inv = C.conj().T.dot(S1[0])
     dm_LO = mdot(C_inv, kmf.make_rdm1()[0], C_inv.conj().T)
     print (dm_LO)
@@ -752,9 +752,9 @@ def test_plot_orb_k():
     cell.verbose = 4
     cell.precision = 1e-15
     cell.build(unit='Angstrom')
-   
+
     # lattice class
-    kmesh = [1, 1, 3]  
+    kmesh = [1, 1, 3]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts_abs = Lat.kpts_abs
@@ -774,7 +774,7 @@ def test_plot_orb_k():
         kmf.conv_tol = 1e-15
         kmf.chkfile = chkfname
         kmf.kernel()
-    
+
     num_wann = 2
     keywords = \
     '''
@@ -793,10 +793,10 @@ def test_plot_orb_k():
     w90.export_unk()
     w90.export_AME()
 
-    C_ao_mo = np.asarray(w90.mo_coeff_kpts)[:, :, w90.band_included_list] 
+    C_ao_mo = np.asarray(w90.mo_coeff_kpts)[:, :, w90.band_included_list]
     C_lo_mo = make_basis.tile_u_matrix(w90.U_matrix)
     C_ao_lo = make_basis.get_C_ao_lo(C_ao_mo, C_lo_mo)
-    
+
     # plot
     from libdmet.utils.plot import plot_orb_k_all
     plot_orb_k_all(cell, 'wann_virt', C_ao_lo, kpts_abs, nx=100, ny=100, nz=100, resolution=None, margin=5.0)
@@ -806,7 +806,7 @@ def test_plot_orb_k():
     #keywords_plot = keywords + 'wannier_plot = True\n wannier_plot_supercell = 1\n'
     #w90 = pywannier90.W90(kmf, kmesh, num_wann, other_keywords = keywords_plot)
     #w90.kernel()
-    
+
 
 if __name__ == '__main__':
     #test_pywannier90_CH4_5()

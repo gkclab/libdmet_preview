@@ -109,7 +109,7 @@ def load_h5(fname, arr_name=None):
     Args:
         fname: file name.
         arr_name: name for data set.
-    
+
     Returns:
         arr: array like object.
     """
@@ -158,14 +158,14 @@ def search_idx1d(a, b):
     e.g.,
     a = [1, 5, 2, 3, 6, 7]
     b = [9, 2, 3, 5, 1, 4, 7, 8, 0, 1, 1, 2, 6]
-    would return 
+    would return
         [4, 3, 1, 2, 12, 6]
     if not exists, would return length of b.
 
     Args:
         a: int array
         b: int array
-    
+
     Returns:
         idx: same length of a, its index in b.
     """
@@ -210,7 +210,7 @@ tril_arr2mat = unpack_tril
 def tril_diag_indices(n):
     """
     Get diagonal indices (of the unpacked matrix) in a compact tril arr.
-    
+
     Args:
         n: length of matrix.
 
@@ -223,7 +223,7 @@ def tril_idx(i, j):
     """
     For a pair / list of tril matrix indices i, j,
     find the corresponding compound indices ij in the tril array.
-    
+
     Args:
         i, j
 
@@ -238,7 +238,7 @@ def tril_idx(i, j):
 
 def tril_take_idx(idx_list1, idx_list2=None, compact=False):
     """
-    Take a submatrix from tril array, 
+    Take a submatrix from tril array,
 
     If one list is provide:
     return the corresponding compound indices in the tril array.
@@ -253,18 +253,18 @@ def tril_take_idx(idx_list1, idx_list2=None, compact=False):
         X 1   2  *  *
           3   4  5  *
         X 6   7  8  9
-        will return 2, 7, 9 (if compact), else 2, 7, 7, 9. 
+        will return 2, 7, 9 (if compact), else 2, 7, 7, 9.
         i.e. the indices of [(1, 1), (3, 1), (3, 3)].
 
     If two lists are provide:
     will return a set of indices for generating a 2D matrix.
         e.g. idx_list1 = [1, 3], idx_list2 = [1, 2]
-              X  X   
+              X  X
           00 01 02 03
         X 10 11 12 13
           20 21 22 23
         X 30 31 32 33
-              X  X   
+              X  X
           0   *  *  *
         X 1   2  *  *
           3   4  5  *
@@ -312,11 +312,11 @@ def s4_idx(i, j, k, l, nao=None):
     """
     Find the compound indices pair (ij, kl)
     for 4-fold symmetrized ERI with indices (i, j, k, l).
-    
+
     Args:
         i, j, k, l: can be integer or a list of integers
         nao: if provide, i, j, k, l can be negative.
-    
+
     Returns:
         (ij, kl)
     """
@@ -340,11 +340,11 @@ def s8_idx(i, j, k, l, nao=None):
     """
     Find the compound indices ijkl
     for 8-fold symmetrized ERI with indices (i, j, k, l).
-    
+
     Args:
         i, j, k, l: can be integer or a list of integers
         nao: if provide, i, j, k, l can be negative.
-    
+
     Returns:
         ijkl
     """
@@ -367,11 +367,11 @@ def s8_idx(i, j, k, l, nao=None):
 def take_eri(eri, list1, list2, list3, list4, compact=False):
     """
     Take sub block of ERI.
-    
+
     Args:
         eri: 1-fold symmetrized ERI, (nao, nao, nao, nao)
           or 4-fold symmetrized ERI, (nao_pair, nao_pair)
-          or 8-fold symmetrized ERI, (nao_pair_pair,) 
+          or 8-fold symmetrized ERI, (nao_pair_pair,)
         list1, list2, list3, list4: list of indices, can be negative.
         compact: only return the compact form of eri, only valid when lists
                  obey the permutation symmetry (only list1, list3 are used)
@@ -392,7 +392,7 @@ def take_eri(eri, list1, list2, list3, list4, compact=False):
         if compact:
             res = eri[np.ix_(idx1, idx2)]
         else:
-            res = eri[np.ix_(idx1, idx2)].reshape(len(list1), len(list2), 
+            res = eri[np.ix_(idx1, idx2)].reshape(len(list1), len(list2),
                                                   len(list3), len(list4))
     elif eri.ndim == 1: # 8-fold
         nao = int(np.sqrt(int(np.sqrt(eri.shape[-1] * 2)) * 2))
@@ -405,7 +405,7 @@ def take_eri(eri, list1, list2, list3, list4, compact=False):
         if compact:
             res = eri[tril_take_idx(idx1, idx2, compact=compact)]
         else:
-            res = eri[tril_take_idx(idx1, idx2)].reshape(len(list1), len(list2), 
+            res = eri[tril_take_idx(idx1, idx2)].reshape(len(list1), len(list2),
                                                          len(list3), len(list4))
     else: # 1-fold
         res = eri[np.ix_(list1, list2, list3, list4)]
@@ -442,7 +442,7 @@ def untile_eri(eri):
         from pyscf import ao2mo
         nao = int(np.sqrt(int(np.sqrt(eri.shape[-1] * 2)) * 2))
         eri = ao2mo.restore(4, eri, nao)
-    
+
     if eri.ndim == 2:
         nso_pair = eri.shape[-1]
         nso = int(np.sqrt(nso_pair * 2))
@@ -464,11 +464,11 @@ def untile_eri(eri):
 
 def cart2sph(x, y, z):
     """
-    Conversion from cartisian to spherical coordinates. 
+    Conversion from cartisian to spherical coordinates.
 
     sph coord convention:
         theta: measured from z axis
-        phi: measured from x axis 
+        phi: measured from x axis
     """
     hxy = np.hypot(x, y)
     r = np.hypot(hxy, z)
@@ -509,7 +509,7 @@ def get_cart_prod_idx(cart_prod, mesh, order='C'):
                    or a list of cartesian products.
         mesh: a tuple of max value along each axis.
         order: 'C' or 'F'
-    
+
     Returns:
         res: a / a list of indices.
     """
@@ -570,15 +570,15 @@ def format_idx(idx_list):
 if __name__ == '__main__':
     a = [1, 2, 3, 6, 7, 9, 5]
     print (format_idx(a))
-    
-    a = [np.arange(6).reshape(2,3), np.arange(3), np.arange(12).reshape(3, 4)] 
+
+    a = [np.arange(6).reshape(2,3), np.arange(3), np.arange(12).reshape(3, 4)]
     arr, shape_lst = flatten_list_of_array(a)
     print (arr)
     print (shape_lst)
     a_re = reshape_list_of_array(arr, shape_lst)
     print (a_re)
-    
-    b = [-np.arange(6).reshape(2,3), -np.arange(3), -np.arange(12).reshape(4, 3)] 
+
+    b = [-np.arange(6).reshape(2,3), -np.arange(3), -np.arange(12).reshape(4, 3)]
     c = [a, b]
     lst2, lst1_shape, lst2_shape = flatten_list_list_array(c)
     print ("c")

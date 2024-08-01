@@ -26,7 +26,7 @@ from libdmet.utils.iotools  import *
 
 # ***********************************************************************************
 # Lattice class
-# *********************************************************************************** 
+# ***********************************************************************************
 
 class Lattice(object):
     def __init__(self, cell, kmesh):
@@ -36,20 +36,20 @@ class Lattice(object):
         self.nscsites = self.nao = self.supercell.nsites = int(self.cell.nao_nr())
         names, coords = zip(*cell._atom)
         self.names, self.coords = np.asarray(names), np.asarray(coords)
-         
-        self.dim = cell.dimension # dim          
+
+        self.dim = cell.dimension # dim
         self.csize = np.asarray(kmesh) # cellsize, kmesh
         self.ncells = np.prod(self.csize) # num of cells
         # cells' coordinates
         self.cells = lib.cartesian_prod((np.arange(self.kmesh[0]),
                                          np.arange(self.kmesh[1]),
-                                         np.arange(self.kmesh[2]))) 
+                                         np.arange(self.kmesh[2])))
         # map: cell coord -> cell idx
-        self.celldict = dict(zip(map(tuple, self.cells), range(self.ncells))) 
+        self.celldict = dict(zip(map(tuple, self.cells), range(self.ncells)))
         self.kpts_scaled = self.make_kpts_scaled()
         self.kpts = self.kpts_abs = self.make_kpts_abs()
         self.nkpts = len(self.kpts)
-        
+
         # phase
         self.bigcell, self.phase = get_phase(self.cell, self.kpts, self.kmesh) # +iRk / sqrt(N)
         self.phase_k2R = self.phase.copy().T / np.sqrt(self.nkpts) # +ikR / N
@@ -59,8 +59,8 @@ class Lattice(object):
         # basis related:
         self.val_idx  = []
         self.virt_idx = []
-        self.core_idx = [] 
-        
+        self.core_idx = []
+
         # Hamiltonian related:
         self.kmf = None
         self.kmf_lo = None
@@ -100,29 +100,29 @@ class Lattice(object):
     @property
     def ncore(self):
         return len(self.core_idx)
-    
+
     @property
     def nval(self):
         return len(self.val_idx)
-    
+
     @property
     def nvirt(self):
         return len(self.virt_idx)
-    
+
     @property
     def nimp(self):
         return self.nval + self.nvirt
-    
+
     limp = nimp
-    
+
     @property
     def imp_idx(self):
         return list(self.val_idx) + list(self.virt_idx)
-    
+
     @property
     def imp_idx_so(self):
         return list(self.imp_idx) + [idx + self.nao for idx in self.imp_idx]
-    
+
     @property
     def has_orb_info(self):
         return (self.nimp != 0)
@@ -130,7 +130,7 @@ class Lattice(object):
     def set_val_virt_core(self, val, virt, core):
         """
         Set valence, virtual and core indices.
-        
+
         Args:
             val : valence indices, list or number
             virt: virtual indices, list or number
@@ -140,28 +140,28 @@ class Lattice(object):
             self.core_idx = list(core)
         else:
             self.core_idx = list(range(0, core))
-        
+
         if isinstance(val, Iterable):
             self.val_idx = list(val)
         else:
             self.val_idx  = list(range(self.ncore, self.ncore + val))
-        
+
         if isinstance(virt, Iterable):
             self.virt_idx = list(virt)
         else:
-            self.virt_idx = list(range(self.ncore + self.nval, 
+            self.virt_idx = list(range(self.ncore + self.nval,
                                        self.ncore + self.nval + virt))
 
         if self.ncore + self.nval + self.nvirt != self.nao:
-            log.warn("ncore (%s) + nval (%s) + nvirt (%s) != nao (%s), \n" 
-                     "set_val_virt_core may be incorrect.", 
+            log.warn("ncore (%s) + nval (%s) + nvirt (%s) != nao (%s), \n"
+                     "set_val_virt_core may be incorrect.",
                      self.ncore, self.nval, self.nvirt, self.nao)
-        log.info("ncore: %s, nval: %s, nvirt: %s", 
+        log.info("ncore: %s, nval: %s, nvirt: %s",
                  self.ncore, self.nval, self.nvirt)
         log.debug(0, "core_idx : %s", format_idx(self.core_idx))
         log.debug(0, "val_idx  : %s", format_idx(self.val_idx))
         log.debug(0, "virt_idx : %s", format_idx(self.virt_idx))
-    
+
     """
     cell functions:
     """
@@ -202,34 +202,34 @@ class Lattice(object):
 
     def subtract(self, i, j):
         return self.cell_pos2idx(self.cell_idx2pos(i) - self.cell_idx2pos(j))
-    
+
     """
     Functions on matrices in the system:
     """
     def FFTtoK(self, A):
         return FFTtoK(A, self.kmesh)
-    
+
     def FFTtoT(self, B, tol=IMAG_DISCARD_TOL):
         return FFTtoT(B, self.kmesh, tol=tol)
 
     def k2R(self, A, tol=IMAG_DISCARD_TOL):
         return k2R(A, self.kmesh, tol=tol)
-    
+
     def R2k(self, B):
         return R2k(B, self.kmesh)
-    
+
     def k2R_H2(self, H2_k, tol=IMAG_DISCARD_TOL):
         return k2R_H2(H2_k, self.phase_k2R, tol=tol)
-    
+
     def R2k_H2(self, H2_R):
         return R2k_H2(H2_R, self.phase_R2k)
-    
+
     def k2R_H2_8d(self, H2_k, tol=IMAG_DISCARD_TOL):
         return k2R_H2_8d(H2_k, self.phase_k2R, tol=tol)
-    
+
     def R2k_H2_8d(self, H2_R):
         return R2k_H2_8d(H2_R, self.phase_R2k)
-    
+
     get_ws_supercell = get_ws_supercell
 
     def get_phase_ws(self, kpts, R_vec_rel):
@@ -308,7 +308,7 @@ class Lattice(object):
         """
         assert A.shape[-3] == self.ncells
         nscsites = A.shape[-1]
-        nsites = A.shape[-1] * A.shape[-3] 
+        nsites = A.shape[-1] * A.shape[-3]
         if A.ndim == 3:
             bigA = np.zeros((nsites, nsites), dtype=A.dtype)
             if dense:
@@ -335,7 +335,7 @@ class Lattice(object):
         else:
             raise ValueError("unknown shape of A, %s" % A.shape)
         return bigA
-    
+
     def extract_stripe(self, A):
         """
         Full to stripe, inverse function of expand.
@@ -349,7 +349,7 @@ class Lattice(object):
             return A.reshape((spin, ncells, nscsites, ncells, nscsites))[:, :, :, 0]
         else:
             raise ValueError("unknown shape of A, %s"%A.shape)
-    
+
     def expand_orb(self, C):
         """
         Expand ncells * nao * nmo translational invariant wannier function C^{T, 0}_{pm}
@@ -375,7 +375,7 @@ class Lattice(object):
         else:
             raise ValueError("unknown shape of C, %s"%C.shape)
         return bigC
-    
+
     def transpose(self, A):
         """
         return the transpose of ncells * nscsites * nscsites translational invariant matrix
@@ -390,7 +390,7 @@ class Lattice(object):
                     AT[s, n] = A[s, self.cell_pos2idx(-self.cell_idx2pos(n))].T
         else:
             raise ValueError("unknown shape of A, %s"%A.shape)
-            
+
         return AT
 
     """
@@ -402,24 +402,24 @@ class Lattice(object):
         1/Nk factor for k to R.
         """
         return self.k2R(basis_k)
-    
+
     def R2k_basis(self, basis_R):
         """
         Transform R-basis to k-basis
         No factor for R to k.
         """
         return self.R2k(basis_R)
-    
+
     """
     Hamiltonian functions:
     """
     def set_Ham(self, kmf, df, C_ao_lo, eri_symmetry=4, ovlp=None, hcore=None,
-                rdm1=None, fock=None, veff=None, vhf=None, vj=None, vk=None, 
+                rdm1=None, fock=None, veff=None, vhf=None, vj=None, vk=None,
                 vxc=None, use_hcore_as_emb_ham=False, H0=0.0,
                 hcore_hf_add=None):
         """
-        Set Hamiltonian: 
-        hcore, fock, ovlp, rdm1, (vhf), (vxc) in kAO, kLO, RLO, 
+        Set Hamiltonian:
+        hcore, fock, ovlp, rdm1, (vhf), (vxc) in kAO, kLO, RLO,
         and eri_symmetry.
         """
         from libdmet.routine import pbc_helper as pbc_hp
@@ -429,7 +429,7 @@ class Lattice(object):
         self.kmf = kmf
         self.df  = df
         self.C_ao_lo = np.asarray(C_ao_lo)
-        
+
         # get: mo_coeff, ovlp, hcore, rdm1, fock
         log.info("set_Ham: set hcore, ovlp, rdm1")
         if ovlp is None:
@@ -441,13 +441,13 @@ class Lattice(object):
         ovlp = np.asarray(ovlp)
         hcore = np.asarray(hcore)
         rdm1 = np.asarray(rdm1)
-        
+
         # vj, vk
         log.info("set_Ham: set vj, vk")
         if vj is None or vk is None:
             vj, vk = self.kmf.get_jk(dm_kpts=rdm1)
         vj, vk = np.asarray(vj), np.asarray(vk)
-        
+
         # veff, vhf
         log.info("set_Ham: set veff, vhf")
         if isinstance(self.kmf, pdft.rks.KohnShamDFT): # DFT
@@ -490,7 +490,7 @@ class Lattice(object):
         self.vhf_ao_k  = np.asarray(vhf)
         if vxc is not None:
             self.vxc_ao_k = np.asarray(vxc)
-        
+
         # set spin and restricted
         if self.C_ao_lo.ndim == 3:
             self.spin = 1
@@ -498,7 +498,7 @@ class Lattice(object):
         else:
             self.spin = C_ao_lo.shape[0]
             self.restricted = (self.spin == 1)
-         
+
         # set eri symmetry
         self.eri_symmetry = eri_symmetry
         assert self.eri_symmetry in [1, 4, 8]
@@ -513,8 +513,8 @@ class Lattice(object):
         if self.use_hcore_as_emb_ham:
             log.warn("You are using hcore to construct embedding Hamiltonian...")
         log.info("-" * 79 + "\n")
-    
-    def set_Ham_model(self, Ham, rdm1=None, fock=None, ovlp=None, eri_symmetry=4, 
+
+    def set_Ham_model(self, Ham, rdm1=None, fock=None, ovlp=None, eri_symmetry=4,
                       vj=None, vk=None, vxc=None, use_hcore_as_emb_ham=True):
         # TODO DFT with model.
         self.Ham = Ham
@@ -527,16 +527,16 @@ class Lattice(object):
         else:
             self.ovlp_lo_R = ovlp
         if self.hcore_lo_R.ndim == 4 and self.hcore_lo_R.shape[0] == 3: # GHF
-            self.ovlp_lo_R = np.asarray((self.ovlp_lo_R, self.ovlp_lo_R, 
+            self.ovlp_lo_R = np.asarray((self.ovlp_lo_R, self.ovlp_lo_R,
                                          np.zeros_like(self.ovlp_lo_R)))
         self.ovlp_lo_k = self.R2k(self.ovlp_lo_R)
-        
+
         if fock is None:
             self.fock_lo_R = self.Ham.getFock()
         else:
             self.fock_lo_R = fock
         self.fock_lo_k = self.R2k(self.fock_lo_R)
-        
+
         self.rdm1_lo_R = rdm1
         if self.rdm1_lo_R is not None:
             self.rdm1_lo_k = self.R2k(self.rdm1_lo_R)
@@ -554,12 +554,12 @@ class Lattice(object):
 
         # check the format of H2
         self.H2_format = self.Ham.H2_format
-        log.info("Lattice H2 format: %s, H2 shape: %s", 
+        log.info("Lattice H2 format: %s, H2 shape: %s",
                  self.H2_format, self.Ham.H2.shape)
         self.H0 = self.Ham.getH0()
-    
+
     setHam = set_Ham
-    
+
     setHam_model = set_Ham_model
 
     def update_Ham(self, rdm1_lo_R, veff=None, vhf=None, **kwargs):
@@ -567,7 +567,7 @@ class Lattice(object):
         Update fock matrix based on the new rdm from DMET,
         essentially follow Knizia JCTC 2013
         """
-        from libdmet.basis_transform import make_basis 
+        from libdmet.basis_transform import make_basis
         log.info("Update DMET mean-field Hamiltonian.")
         self.rdm1_lo_R = rdm1_lo_R
         self.rdm1_lo_k = self.R2k(self.rdm1_lo_R)
@@ -579,21 +579,21 @@ class Lattice(object):
             # no need to update vj and vk
             vj = self.vj_ao_k
             vk = self.vk_ao_k
-        
+
         # vj, vk, vxc, fock will be re-evaluated by rdm1_ao_k.
-        self.set_Ham(self.kmf, self.df, self.C_ao_lo, self.eri_symmetry, 
-                     ovlp=self.ovlp_ao_k, hcore=self.hcore_ao_k, 
+        self.set_Ham(self.kmf, self.df, self.C_ao_lo, self.eri_symmetry,
+                     ovlp=self.ovlp_ao_k, hcore=self.hcore_ao_k,
                      rdm1=self.rdm1_ao_k, fock=None, veff=veff, vhf=vhf, vj=vj,
                      vk=vk, vxc=None, H0=self.H0,
                      use_hcore_as_emb_ham=self.use_hcore_as_emb_ham,
                      hcore_hf_add=self.hcore_hf_add)
-    
+
     def transform_obj_to_lo(self):
         """
         Transform objects (hcore, fock, rdm1) to klo and RLO basis.
         """
-        from libdmet.basis_transform import make_basis 
-        
+        from libdmet.basis_transform import make_basis
+
         if self.C_ao_lo.shape[-2] == self.hcore_ao_k.shape[-1]:
             C_ao_lo = self.C_ao_lo
             ghf = False
@@ -606,20 +606,20 @@ class Lattice(object):
                              "invalid C_ao_lo shape: %s"%(str(self.C_ao_lo)))
 
         # transform to LO basis
-        self.hcore_lo_k = make_basis.transform_h1_to_lo(self.hcore_ao_k, 
+        self.hcore_lo_k = make_basis.transform_h1_to_lo(self.hcore_ao_k,
                                                         C_ao_lo)
-        self.ovlp_lo_k = make_basis.transform_h1_to_lo(self.ovlp_ao_k, 
+        self.ovlp_lo_k = make_basis.transform_h1_to_lo(self.ovlp_ao_k,
                                                        C_ao_lo)
-        self.fock_lo_k = make_basis.transform_h1_to_lo(self.fock_ao_k, 
+        self.fock_lo_k = make_basis.transform_h1_to_lo(self.fock_ao_k,
                                                        C_ao_lo)
-        self.fock_hf_lo_k = make_basis.transform_h1_to_lo(self.fock_hf_ao_k, 
+        self.fock_hf_lo_k = make_basis.transform_h1_to_lo(self.fock_hf_ao_k,
                                                           C_ao_lo)
-        self.veff_lo_k = make_basis.transform_h1_to_lo(self.veff_ao_k, 
+        self.veff_lo_k = make_basis.transform_h1_to_lo(self.veff_ao_k,
                                                        C_ao_lo)
-        self.vhf_lo_k = make_basis.transform_h1_to_lo(self.vhf_ao_k, 
+        self.vhf_lo_k = make_basis.transform_h1_to_lo(self.vhf_ao_k,
                                                       C_ao_lo)
-        self.rdm1_lo_k = make_basis.transform_rdm1_to_lo(self.rdm1_ao_k, 
-                                                         C_ao_lo, 
+        self.rdm1_lo_k = make_basis.transform_rdm1_to_lo(self.rdm1_ao_k,
+                                                         C_ao_lo,
                                                          self.ovlp_ao_k)
 
         # Add extra dimension for restricted case
@@ -629,7 +629,7 @@ class Lattice(object):
         self.veff_lo_k = add_spin_dim(self.veff_lo_k, self.spin)
         self.vhf_lo_k = add_spin_dim(self.vhf_lo_k, self.spin)
         self.rdm1_lo_k = add_spin_dim(self.rdm1_lo_k, self.spin)
-        
+
         # FFT to real basis (stripe)
         self.hcore_lo_R = self.k2R(self.hcore_lo_k)
         self.ovlp_lo_R = self.k2R(self.ovlp_lo_k)
@@ -638,18 +638,18 @@ class Lattice(object):
         self.veff_lo_R = self.k2R(self.veff_lo_k)
         self.vhf_lo_R = self.k2R(self.vhf_lo_k)
         self.rdm1_lo_R = self.k2R(self.rdm1_lo_k)
-        
+
         # DFT vxc
         if self.vxc_ao_k is not None:
             self.vxc_lo_k = make_basis.transform_h1_to_lo(self.vxc_ao_k, C_ao_lo)
             self.vxc_lo_k = add_spin_dim(self.vxc_lo_k, self.spin)
             self.vxc_lo_R = self.k2R(self.vxc_lo_k)
         self.check_imag()
-        
+
         if ghf:
             def extract(h1):
                 nao = h1.shape[-1] // 2
-                return np.asarray((h1[0][:, :nao, :nao], h1[0][:, nao:, nao:], 
+                return np.asarray((h1[0][:, :nao, :nao], h1[0][:, nao:, nao:],
                                    h1[0][:, :nao, nao:]))
 
             self.hcore_lo_k = extract(self.hcore_lo_k)
@@ -661,7 +661,7 @@ class Lattice(object):
             self.rdm1_lo_k = self.rdm1_lo_k[0]
             if self.vxc_lo_k is not None:
                 self.vxc_lo_k = extract(self.vxc_lo_k)
-            
+
             self.hcore_lo_R = extract(self.hcore_lo_R)
             self.ovlp_lo_R = extract(self.ovlp_lo_R[None])
             self.fock_lo_R = extract(self.fock_lo_R)
@@ -679,7 +679,7 @@ class Lattice(object):
                 self.hcore_lo_R = self.hcore_lo_R.real
         else:
             imag_hcore = 0.0
-        
+
         if self.fock_lo_R is not None:
             imag_fock = max_abs(self.fock_lo_R.imag)
             if imag_fock < IMAG_DISCARD_TOL:
@@ -693,7 +693,7 @@ class Lattice(object):
                 self.rdm1_lo_R = self.rdm1_lo_R.real
         else:
             imag_rdm1 = 0.0
-        
+
         if self.vxc_lo_R is not None:
             imag_vxc = max_abs(self.vxc_lo_R.imag)
             if imag_vxc < IMAG_DISCARD_TOL:
@@ -701,7 +701,7 @@ class Lattice(object):
         else:
             imag_vxc = 0.0
 
-        log.info("Imag of LO hcore: %s, fock: %s, rdm1: %s, vxc: %s", 
+        log.info("Imag of LO hcore: %s, fock: %s, rdm1: %s, vxc: %s",
                  imag_hcore, imag_fock, imag_rdm1, imag_vxc)
 
     def update_lo(self, C_ao_lo):
@@ -709,10 +709,10 @@ class Lattice(object):
         Update lo.
         """
         log.info("Update lo.")
-        
+
         self.C_ao_lo = np.asarray(C_ao_lo)
         self.transform_obj_to_lo()
-    
+
     def getH1(self, kspace=True):
         if kspace:
             return self.hcore_lo_k
@@ -724,7 +724,7 @@ class Lattice(object):
             return self.fock_lo_k
         else:
             return self.fock_lo_R
-    
+
     def get_ovlp(self, kspace=True):
         if kspace:
             return self.ovlp_lo_k
@@ -733,7 +733,7 @@ class Lattice(object):
 
     def get_JK_emb(self):
         return self.JK_emb
-    
+
     def get_JK_core(self):
         return self.JK_core
 
@@ -750,7 +750,7 @@ class Lattice(object):
                 return H2_k
             else:
                 return self.R2k_H2(H2_k)
-    
+
     def getImpJK(self):
         if self.JK_imp is not None:
             return self.JK_imp
@@ -758,32 +758,32 @@ class Lattice(object):
             return self.Ham.getImpJK()
         else:
             return None
-     
+
     def getH0(self):
         return self.H0
-    
+
     check_lo = check_lo
 
     symmetrize_lo = symmetrize_lo
-    
+
     symmetrize_kmf = symmetrize_kmf
 
     analyze = analyze
-    
+
     @staticmethod
     def analyze_kmo(kmf, **kwargs):
         return analyze_kmo(kmf, **kwargs)
-    
+
     mulliken_lo = mulliken_lo
 
     mulliken_lo_R0 = mulliken_lo_R0
 
-    def get_bond_pairs(self, mol=None, length_range=[0.0, 2.0], unit='A', 
-                       allow_pbc=True, nimgs=[1, 1, 1], bond_type=None, 
+    def get_bond_pairs(self, mol=None, length_range=[0.0, 2.0], unit='A',
+                       allow_pbc=True, nimgs=[1, 1, 1], bond_type=None,
                        triu=True):
         if mol is None:
             mol = self.mol
-        return get_bond_pairs(mol, length_range=length_range, unit=unit, 
+        return get_bond_pairs(mol, length_range=length_range, unit=unit,
                               allow_pbc=allow_pbc, nimgs=nimgs,
                               bond_type=bond_type, triu=triu)
 
@@ -791,7 +791,7 @@ class Lattice(object):
 
 # ***********************************************************************************
 # Lattice Models
-# *********************************************************************************** 
+# ***********************************************************************************
 
 class LatticeModel(Lattice):
     def __init__(self, sc, size):
@@ -803,23 +803,23 @@ class LatticeModel(Lattice):
         self.size = np.dot(np.diag(self.csize), sc.size)
         self.ncells = np.prod(self.csize)
 
-        # a fake cell for pyscf functions 
+        # a fake cell for pyscf functions
         if log.Level[log.verbose] > log.Level["DEBUG2"]:
             verbose = 5
         elif log.Level[log.verbose] > log.Level["RESULT"]:
             verbose = 4
         else:
             verbose = 3
-        
+
         a = np.eye(3)
         a[:sc.dim, :sc.dim] = sc.size
-        sites = np.zeros((sc.nsites, 3)) 
+        sites = np.zeros((sc.nsites, 3))
         sites[:, :sc.dim] = np.asarray(sc.sites)
         atom = list(zip(sc.names, sites))
         basis = {}
         for ele in sc.names:
             basis[ele] = [[0, [1.0, 1.0]]]
-        
+
         with lib.temporary_env(sys, stderr=open(os.devnull, "w")):
             self.mol = self.cell = pgto.M(
                  unit='A',
@@ -836,7 +836,7 @@ class LatticeModel(Lattice):
         self.kpts_scaled[:, :shape_tmp] = kpts_scaled
         self.kpts = self.kpts_abs = self.make_kpts_abs()
         self.nsites = sc.nsites * self.ncells
-        
+
         # phase
         self.bigcell, self.phase = get_phase(self.cell, self.kpts, self.kmesh) # +iRk / sqrt(N)
         self.phase_k2R = self.phase.copy().T / np.sqrt(self.nkpts) # +ikR / N
@@ -845,23 +845,23 @@ class LatticeModel(Lattice):
         self.cells, self.sites = translateSites(sc.sites, sc.size, size)
         #self.names = sc.names * self.ncells
         #self.coords = self.sites
-        
+
         names, coords = zip(*self.cell._atom)
         self.names, self.coords = np.asarray(names), np.asarray(coords)
 
         self.celldict = dict(zip(map(tuple, self.cells), range(self.ncells)))
         self.sitedict = dict(zip(map(tuple, self.sites), range(self.nsites)))
         self.neighborDist = []
-        
+
         self.nao = self.nscsites = self.supercell.nsites
         self.val_idx  = list(range(self.nao))
         self.virt_idx = []
         self.core_idx = []
-        
+
         self.kmf = None
         self.kmf_lo = None
         self.eri_symmetry = None
-        
+
         # model set_Ham only accept Ham object
         self.set_Ham = self.setHam = self.set_Ham_model
         self.JK_imp = None
@@ -879,9 +879,9 @@ class LatticeModel(Lattice):
     functions on translations
     """
     def kpoints(self):
-        return [np.fft.fftfreq(self.csize[d], 1.0/(2.0*np.pi)) 
+        return [np.fft.fftfreq(self.csize[d], 1.0/(2.0*np.pi))
                 for d in range(self.dim)]
-    
+
     def site_idx2pos(self, idx):
         return self.sites[idx]
 
@@ -891,7 +891,7 @@ class LatticeModel(Lattice):
     """
     get neighbor sites
     """
-    def neighbor(self, dis=1.0, max_range=1, sitesA=None, sitesB=None, 
+    def neighbor(self, dis=1.0, max_range=1, sitesA=None, sitesB=None,
                  search_range=1):
         # siteA, siteB are indices, not positions
         if sitesA is None:
@@ -900,30 +900,30 @@ class LatticeModel(Lattice):
             sitesB = range(self.nsites)
 
         nscsites = self.nscsites
-        cellshifts = [self.cell_pos2idx(np.asarray(s)) 
-                      for s in it.product(range(-max_range, max_range+1), 
+        cellshifts = [self.cell_pos2idx(np.asarray(s))
+                      for s in it.product(range(-max_range, max_range+1),
                                           repeat=self.dim)]
-        
-        shifts = [np.asarray(s) 
-                  for s in it.product(range(-search_range, search_range + 1), 
+
+        shifts = [np.asarray(s)
+                  for s in it.product(range(-search_range, search_range + 1),
                                       repeat=self.dim)]
 
         neighbors = []
         for siteA in sitesA:
             cellA = siteA // nscsites
             cellB = [self.add(cellA, x) for x in cellshifts]
-            psitesB = list(set(sitesB) & 
-                           set(it.chain.from_iterable(map(lambda c: 
+            psitesB = list(set(sitesB) &
+                           set(it.chain.from_iterable(map(lambda c:
                            range(c*nscsites, (c+1)*nscsites), cellB))))
 
             for siteB in psitesB:
                 for shift in shifts:
-                    if abs(la.norm(self.sites[siteA] - self.sites[siteB] 
+                    if abs(la.norm(self.sites[siteA] - self.sites[siteB]
                                    - np.dot(shift, self.size)) - dis) < 1e-5:
                         neighbors.append((siteA, siteB))
                         break
         return neighbors
-    
+
     def update_Ham(self, rdm1_lo_R, fock_lo_k=None, ghf=False, **kwargs):
         """
         Update fock matrix based on the new rdm from DMET,
@@ -935,9 +935,9 @@ class LatticeModel(Lattice):
         from libdmet.routine import pbc_helper as pbc_hp
         log.info("Update DMET mean-field Hamiltonian.")
         assert self.has_Ham
-        
+
         if ghf:
-            self.update_Ham_ghf(rdm1_lo_R, rdm1_lo_k=rdm1_lo_k, 
+            self.update_Ham_ghf(rdm1_lo_R, rdm1_lo_k=rdm1_lo_k,
                                 fock_lo_k=fock_lo_k)
             return
         # update rdm1
@@ -945,7 +945,7 @@ class LatticeModel(Lattice):
         if self.rdm1_lo_R.ndim == 3:
             self.rdm1_lo_R = self.rdm1_lo_R[np.newaxis]
         self.rdm1_lo_k = self.R2k(self.rdm1_lo_R)
-        
+
         # update fock
         if fock_lo_k is None:
             # based on the format of H2
@@ -960,10 +960,10 @@ class LatticeModel(Lattice):
                 vj, vk = pbc_hp.get_jk_from_eri_7d(eri, self.rdm1_lo_k)
             else:
                 raise ValueError
-            
+
             spin = self.rdm1_lo_R.shape[0]
             if spin == 1:
-                JK = vj - vk * 0.5 
+                JK = vj - vk * 0.5
             else:
                 JK = vj[0] + vj[1] - vk
             self.fock_lo_k = self.hcore_lo_k + JK
@@ -971,7 +971,7 @@ class LatticeModel(Lattice):
             self.fock_lo_k = fock_lo_k
         self.fock_lo_R = self.k2R(self.fock_lo_k)
         self.check_imag()
-    
+
     def update_Ham_ghf(self, rdm1_lo_R, fock_lo_k=None, **kwargs):
         """
         Update fock matrix based on the new rdm from DMET, for GHF.
@@ -983,7 +983,7 @@ class LatticeModel(Lattice):
         # update rdm1
         self.rdm1_lo_R = rdm1_lo_R
         self.rdm1_lo_k = self.R2k(self.rdm1_lo_R)
-        
+
         # update fock
         if fock_lo_k is None:
             # based on the format of H2
@@ -1002,7 +1002,7 @@ class LatticeModel(Lattice):
             self.fock_lo_k = fock_lo_k
         self.fock_lo_R = self.k2R(self.fock_lo_k)
         self.check_imag()
-    
+
     def getH2(self, compact=False, kspace=False, use_Ham=True):
         assert use_Ham
         if kspace:
@@ -1014,13 +1014,13 @@ class UnitCell(object):
     def __init__(self, size, sites):
         # unit cell shape
         self.size = np.array(size)
-        log.eassert(self.size.shape[0] == self.size.shape[1], 
+        log.eassert(self.size.shape[0] == self.size.shape[1],
                     "Invalid unitcell constants")
         self.dim = self.size.shape[0]
         self.sites = []
         self.names = []
         for s in sites:
-            log.eassert(s[0].shape == (self.dim,), 
+            log.eassert(s[0].shape == (self.dim,),
                         "Invalid position for the site")
             self.sites.append(np.asarray(s[0]))
             self.names.append(s[1])
@@ -1062,7 +1062,7 @@ class SuperCell(object):
 def translateSites(baseSites, usize, csize):
     # csize = [3,3], then cells = [0,0], [0,1], [0,2], [0,3], [1,0], ..., [3,3]
     cells = [np.asarray(x) for x in it.product(*tuple(map(range, csize)))]
-    sites = list(it.chain.from_iterable(map(lambda c: 
+    sites = list(it.chain.from_iterable(map(lambda c:
                  map(lambda s: np.dot(c, usize) + s, baseSites), cells)))
     return cells, sites
 
@@ -1074,19 +1074,19 @@ def BipartiteSquare(impsize):
             subA.append(idx)
         else:
             subB.append(idx)
-    log.eassert(len(subA) == len(subB), 
+    log.eassert(len(subA) == len(subB),
                 "The impurity cannot be divided into two sublattices")
     return subA, subB
 
 # ***********************************************************************************
 # Some systems.
-# *********************************************************************************** 
+# ***********************************************************************************
 
 def ChainLattice(length, scsites):
     """
     1D 1-band model.
     """
-    log.eassert(length % scsites == 0, 
+    log.eassert(length % scsites == 0,
                 "incompatible lattice and supercell sizes")
     uc = UnitCell(np.eye(1), [(np.array([0]), "X")])
     sc = SuperCell(uc, np.asarray([scsites]))
@@ -1098,7 +1098,7 @@ def SquareLattice(lx, ly, scx, scy):
     """
     2D 1-band model.
     """
-    log.eassert(lx % scx == 0 and ly % scy == 0, 
+    log.eassert(lx % scx == 0 and ly % scy == 0,
                 "incompatible lattice and supercell sizes")
     uc = UnitCell(np.eye(2), [(np.array([0, 0]), "X")])
     sc = SuperCell(uc, np.asarray([scx, scy]))
@@ -1116,9 +1116,9 @@ def SquareAFM(lx, ly, scx, scy):
         A - - - A
 
     """
-    log.eassert(lx % scx == 0 and ly % scy == 0, 
+    log.eassert(lx % scx == 0 and ly % scy == 0,
                 "incompatible latticeand supercell sizes")
-    uc = UnitCell(np.eye(2) * np.sqrt(2.0), 
+    uc = UnitCell(np.eye(2) * np.sqrt(2.0),
         [(np.zeros(2),                        "X1"),
          (np.ones (2) * (np.sqrt(2.0) * 0.5), "X2")])
     sc = SuperCell(uc, np.asarray([scx, scy]))
@@ -1136,9 +1136,9 @@ def Square3Band(lx, ly, scx, scy):
        0Cu -1O - Cu
         0    1    2
     """
-    log.eassert(lx % scx == 0 and ly % scy == 0, 
+    log.eassert(lx % scx == 0 and ly % scy == 0,
                 "incompatible latticeand supercell sizes")
-    uc = UnitCell(np.eye(2) * 2.0, 
+    uc = UnitCell(np.eye(2) * 2.0,
         [(np.array([0.0, 0.0]), "Cu"),
          (np.array([1.0, 0.0]),  "O"),
          (np.array([0.0, 1.0]),  "O")])
@@ -1156,11 +1156,11 @@ def Square3BandAFM(lx, ly, scx, scy, symm=True):
 
                +          +
               4O         5O
-               -          -     
                -          -
-         -O+ +0Cu+ -3O+ +1Cu+ -O+ 
                -          -
-               +          +   
+         -O+ +0Cu+ -3O+ +1Cu+ -O+
+               -          -
+               +          +
                O          O
                -          -
 
@@ -1172,11 +1172,11 @@ def Square3BandAFM(lx, ly, scx, scy, symm=True):
 
                +          +
               4O          O
-               -          -     
                -          -
-         -2O+ +0Cu+ -3O+ +1Cu+ -O+ 
                -          -
-               +          +   
+         -2O+ +0Cu+ -3O+ +1Cu+ -O+
+               -          -
+               +          +
               5O          O
                -          -
 
@@ -1184,20 +1184,20 @@ def Square3BandAFM(lx, ly, scx, scy, symm=True):
                         vec1
 
     """
-    log.eassert(lx % scx == 0 and ly % scy == 0, 
+    log.eassert(lx % scx == 0 and ly % scy == 0,
                 "incompatible latticeand supercell sizes")
     if symm:
-        uc = UnitCell(np.array([[2.0, -2.0], 
-                               [2.0,  2.0]]), 
+        uc = UnitCell(np.array([[2.0, -2.0],
+                               [2.0,  2.0]]),
             [(np.array([1.0,  0.0]), "Cu"),
              (np.array([3.0,  0.0]), "Cu"),
              (np.array([2.0, -2.0]), "O"),
              (np.array([2.0,  0.0]), "O"),
              (np.array([1.0,  1.0]), "O"),
              (np.array([3.0,  1.0]), "O")])
-    else: 
-        uc = UnitCell(np.array([[2.0, -2.0], 
-                                [2.0,  2.0]]), 
+    else:
+        uc = UnitCell(np.array([[2.0, -2.0],
+                                [2.0,  2.0]]),
             [(np.array([1.0,  0.0]), "Cu"),
              (np.array([3.0,  0.0]), "Cu"),
              (np.array([0.0,  0.0]), "O"),
@@ -1251,7 +1251,7 @@ def CubicLattice(lx, ly, lz, scx, scy, scz):
     """
     3D 1-band model.
     """
-    log.eassert(lx % scx == 0 and ly % scy == 0 and lz % scz == 0, 
+    log.eassert(lx % scx == 0 and ly % scy == 0 and lz % scz == 0,
                 "incompatible lattice and supercell size")
     uc = UnitCell(np.eye(3), [(np.array([0.0, 0.0, 0.0]), "X")])
     sc = SuperCell(uc, np.asarray([scx, scy, scz]))
@@ -1262,7 +1262,7 @@ def CubicLattice(lx, ly, lz, scx, scy, scz):
 def HChain(nH=2, R=1.5, vac=10.0, shift=np.zeros(3), unit='A'):
     """
     Creat a cell with hydrogen chain.
-    
+
     Args:
         nH: number of H.
         R: bond length.
@@ -1276,7 +1276,7 @@ def HChain(nH=2, R=1.5, vac=10.0, shift=np.zeros(3), unit='A'):
     length = nH * R
     cell = pgto.Cell()
     cell.a = np.diag([vac, vac, length])
-    cell.atom = [['H', np.array([shift[0], shift[1], i*R + shift[2]])] 
+    cell.atom = [['H', np.array([shift[0], shift[1], i*R + shift[2]])]
                  for i in range(nH)]
     cell.unit = unit
     return cell
@@ -1285,7 +1285,7 @@ def HPlane(nHx=2, nHy=2, Rx=2.0, Ry=2.0, vac=10.0, shift=np.zeros(3),
            unit='A'):
     """
     Creat a cell with hydrogen plane.
-    
+
     Args:
         nHx(y): number of H in x(y) direction.
         Rx(y): bond length in x(y) direction.
@@ -1328,9 +1328,9 @@ if __name__ == '__main__':
     cell.verbose = 4
     cell.precision = 1e-15
     cell.build(unit='Angstrom')
-   
+
     # Latice class
-    kmesh = [1, 1, 3]  
+    kmesh = [1, 1, 3]
     Lat = Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts_abs = Lat.kpts_abs
@@ -1343,7 +1343,7 @@ if __name__ == '__main__':
     dm_k = mf.make_rdm1()
     dm_R = Lat.k2R(dm_k)
     dm_R_full = Lat.expand(dm_R)
-    
+
     # supercell calculation
     scell = Lat.bigcell
     mf = pscf.KRHF(scell)
@@ -1353,5 +1353,5 @@ if __name__ == '__main__':
     dm_R_ref = mf.make_rdm1()
     print (np.max(np.abs(dm_R_ref - dm_R_full)))
 
-    
+
 

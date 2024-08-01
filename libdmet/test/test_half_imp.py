@@ -27,7 +27,7 @@ def test_half_imp():
     log.verbose = "DEBUG2"
     np.set_printoptions(3, linewidth=1000, suppress=True)
     int_bath = True
-    
+
     with pytest.warns(UserWarning):
         cell = gto.Cell()
         cell.a = ''' 10.0    0.0     0.0
@@ -40,7 +40,7 @@ def test_half_imp():
         cell.verbose = 5
         cell.precision = 1e-12
         cell.build(unit='Angstrom')
-        
+
 
         kmesh = [1, 1, 2]
         Lat = lattice.Lattice(cell, kmesh)
@@ -100,7 +100,7 @@ def test_half_imp():
 
         rhoT, mu, E = HF(Lat, vcor, occ, restricted, mu0 = 0., beta = np.inf, ires = False)
 
-        E_diff = np.abs(E - (kmf.e_tot - kmf.energy_nuc())) 
+        E_diff = np.abs(E - (kmf.e_tot - kmf.energy_nuc()))
         rdm_diff = np.max(np.abs(rhoT - Lat.rdm1_lo_R*0.5))
 
         print ("diff E between HF and pyscf")
@@ -135,7 +135,7 @@ def test_half_imp():
         diff_emb_rot = np.max(np.abs(rdm1_emb - rdm1_fold))
         print ("rdm1_emb")
         print (rdm1_emb)
-        print ("rdm1_fold") 
+        print ("rdm1_fold")
         print (rdm1_fold)
         print ("diff emb rdm between HF solver and rotated rdm")
         print (diff_emb_rot)
@@ -195,7 +195,7 @@ def test_half_imp():
         mycc.kernel()
         E_kcc = mycc.e_tot - cell.energy_nuc()
         print ("KRCCSD energy (per unit cell): %s" %E_kcc)
-        
+
         print ("diff: %s" %(E_from_dmet - E_kcc))
         assert abs(E_from_dmet - E_kcc) < 1e-6
 

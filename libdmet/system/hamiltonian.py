@@ -16,7 +16,7 @@ from libdmet.utils import misc
 from libdmet.utils import logger as log
 
 class HamNonInt(object):
-    def __init__(self, lattice, H1, H2, Fock=None, ImpJK=None, kspace_input=False, 
+    def __init__(self, lattice, H1, H2, Fock=None, ImpJK=None, kspace_input=False,
                  spin_dim_H2=None, H0=0.0):
         """
         Class of non-interacting Hamiltonian.
@@ -25,7 +25,7 @@ class HamNonInt(object):
         Args:
             lattice: lattice object.
             H1: hcore, shape ((spin,), ncells, nao, nao).
-            H2: shape ((spin_dim_H2,), (ncells,)) + eri shape. 
+            H2: shape ((spin_dim_H2,), (ncells,)) + eri shape.
             Fock: fock, if None will be taken as the same as hcore.
             ImpJK: JK_imp, shape ((spin,))
             kspace_input: H1 and Fock are in k space?
@@ -47,7 +47,7 @@ class HamNonInt(object):
             self.H1 = lattice.k2R(H1)
         else:
             self.H1 = H1
-        
+
         # 2. Fock
         if Fock is None:
             self.Fock = self.H1
@@ -58,7 +58,7 @@ class HamNonInt(object):
                 self.Fock = lattice.k2R(Fock)
             else:
                 self.Fock = Fock
-        
+
         # 3. H2
         if self.spin_dim_H2 is None:
             if H2.shape == (nao,)*4 or H2.shape == (nao_pair, nao_pair):
@@ -88,7 +88,7 @@ class HamNonInt(object):
                 raise ValueError
 
         self.H2 = H2
-        
+
         # 4. ImpJK
         if ImpJK is None:
             self.ImpJK = None
@@ -102,7 +102,7 @@ class HamNonInt(object):
 
     def getH0(self):
         return self.H0
-    
+
     def getH1(self):
         return self.H1
 
@@ -150,7 +150,7 @@ def HubbardHamiltonian(lattice, U, tlist=[1.0], obc=False, compact=False,
                                  search_range=search_range)
         for i, j in pairs:
             H1[j // nscsites, j % nscsites, i] = -t
-    
+
     if return_H1:
         return H1
     else:
@@ -231,14 +231,14 @@ def Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=0.0, Vpd=0.0,
     d_pp  = lattice.neighborDist[1]
     d_pp1 = lattice.neighborDist[2]
     log.warning("Searching neighbor within only one supercell")
-    
+
     def get_vec(s1, s2):
         # round vector to [-0.5, 0.5)
         vec_frac = Real2Frac(lattice.size, lattice.sites[s1] - lattice.sites[s2])
         vec_frac = round_to_FUC(vec_frac, tol=tol, wrap_around=True)
         vec = Frac2Real(lattice.size, vec_frac)
         return vec
-    
+
     # tpd and Vpd
     pd_pairs = lattice.neighbor(dis=d_pd, sitesA=range(nscsites))
     for i, j in pd_pairs:
@@ -248,7 +248,7 @@ def Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=0.0, Vpd=0.0,
             vec = get_vec(j, i)
         else:
             vec = get_vec(i, j)
-         
+
         if abs(vec[0] - 1.0) < tol or abs(vec[1] + 1.0) < tol:
             # vec = x [1, 0] or vec = -y [0, -1]
             sign = -1.0
@@ -260,7 +260,7 @@ def Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=0.0, Vpd=0.0,
             raise ValueError
 
         H1[j//nscsites, j%nscsites, i] = sign * tpd
-        
+
         if ignore_intercell:
             if j // nscsites == 0:
                 H2[j, j, i, i] = Vpd
@@ -279,9 +279,9 @@ def Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=0.0, Vpd=0.0,
             # vec = [1, -1] or [-1, 1]
             sign = 1.0
         H1[j//nscsites, j%nscsites, i] = sign * tpp
-    
+
     # tpp'
-    Osites = [idx for (idx, name) in 
+    Osites = [idx for (idx, name) in
               zip(range(nscsites), lattice.names[:nscsites]) if name == "O"]
     pp1_pairs = lattice.neighbor(dis=d_pp1, sitesA=Osites)
     for i, j in pp1_pairs:
@@ -310,11 +310,11 @@ def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False,
     """
     3-band Hubbard model in electron representation.
     Using parameters from reference.
-    
+
     Args:
         name: Currently supported model names:
             Hybertsen, Hybertsen89, PRB
-            Martin,    Martin96, PRB 
+            Martin,    Martin96, PRB
             Hanke,     Hanke10, EPJ
             Wagner,    Vitali18, PRB
         min_model: only keep Ud, Up, tpd and ed.
@@ -331,26 +331,26 @@ def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False,
             Ud   = 10.5
             tpd  = 1.3
             D_pd = 3.6
-            
+
             Up   = 4.0
             tpp  = 0.65
             tpp1 = 0.0
-            Vpd  = 1.2 
+            Vpd  = 1.2
             # electron rep
-            # ed = D_pd - Ud  - 4Vpd    + Up 
+            # ed = D_pd - Ud  - 4Vpd    + Up
             #    = 3.6  - 10.5 - 4 * 1.3 + 4.0 = -8.1
         elif name == "martin":
             # Martin (hole)
             Ud   = 16.5
             tpd  = 1.8
             D_pd = 5.4
-            
+
             Up   = 0.0
             tpp  = 0.6
             tpp1 = 0.0
-            Vpd  = 0.0 
+            Vpd  = 0.0
             # electron rep
-            # ed = D_pd - Ud  - 4Vpd    + Up 
+            # ed = D_pd - Ud  - 4Vpd    + Up
             #    = 5.4  - 16.5 - 4 * 0.0 + 0.0 = -11.1
 
         elif name == "hanke":
@@ -358,27 +358,27 @@ def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False,
             Ud   = 12.0
             tpd  = 1.5
             D_pd = 4.5
-            
+
             Up   = 5.25
             tpp  = 0.75
             tpp1 = 0.0
             Vpd  = 0.75
             # electron rep
-            # ed = D_pd - Ud - 4Vpd + Up = 
+            # ed = D_pd - Ud - 4Vpd + Up =
             #      4.5 - 12.0 - 4 * 0.75 + 5.25 = -5.25
             #
         elif name == "wagner":
             # Wagner (hole)
-            Ud   = 8.4 
-            tpd  = 1.2 
+            Ud   = 8.4
+            tpd  = 1.2
             D_pd = 4.4
-            
-            Up   = 2.0 
+
+            Up   = 2.0
             tpp  = 0.7
             tpp1 = 0.0
-            Vpd  = 0.0 
+            Vpd  = 0.0
             # electron rep
-            # ed = D_pd -  Ud  - 4Vpd    + Up 
+            # ed = D_pd -  Ud  - 4Vpd    + Up
             #    = 4.4  - 8.4  - 4 * 0.0 + 2.0 = -2.0
         else:
             raise ValueError("Unknown name of 3band model: %s" %name)
@@ -387,28 +387,28 @@ def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False,
         known_keys = set(["Ud", "tpd", "D_pd", "Up", "tpp", "tpp1", "Vpd"])
         log.eassert(set(name.keys()).issubset(known_keys),
                     "Unknown parameter names.")
-        
+
         Ud   = name["Ud"]
         tpd  = name["tpd"]
         D_pd = name["D_pd"]
-        
+
         Up   = name.get("Up", 0.0)
         tpp  = name.get("tpp", 0.0)
         tpp1 = name.get("tpp1", 0.0)
         Vpd  = name.get("Vpd", 0.0)
-        
+
 
     if min_model:
         tpp = tpp1 = Up = Vpd = 0.0
-    
-    if hole_rep: 
+
+    if hole_rep:
         ed = -D_pd
     else: # p-h transform to electron rep
         tpd  = -tpd
         tpp  = -tpp
         tpp1 = -tpp1
         ed = D_pd - Ud - 4 * Vpd + Up
-    
+
     if factor != 1.0:
         Ud   *= factor
         tpd  *= factor
@@ -420,4 +420,4 @@ def Hubbard3band_ref(lattice, name, min_model=False, hole_rep=False,
 
     return Hubbard3band(lattice, Ud, Up, ed, tpd, tpp, tpp1=tpp1, Vpd=Vpd,
                         ignore_intercell=ignore_intercell, tol=tol)
-    
+

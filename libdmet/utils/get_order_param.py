@@ -1,4 +1,4 @@
-#! /usr/bin/env python 
+#! /usr/bin/env python
 
 """
 Caculate the AFM and d-wave order parameter
@@ -40,7 +40,7 @@ def get_order_param(GRho, idx=[0, 1, 2, 3], return_abs=True):
     rdm1_a = rdm1_a[mesh]
     rdm1_b = rdm1_b[mesh]
     rdm1_d = rdm1_d[mesh]
-    
+
     # 0, 3 alpha, 1, 2 beta
     m0 = 0.5 * (rdm1_a[0, 0] - rdm1_b[0, 0])
     m3 = 0.5 * (rdm1_a[3, 3] - rdm1_b[3, 3])
@@ -54,7 +54,7 @@ def get_order_param(GRho, idx=[0, 1, 2, 3], return_abs=True):
     d02 = factor * (rdm1_d[0, 2] + rdm1_d[2, 0])
     d13 = factor * (rdm1_d[1, 3] + rdm1_d[3, 1])
     m_SC = 0.25 * (d01 + d23 - d02 - d13)
-    
+
     if return_abs:
         m_AF = abs(m_AF)
         m_SC = abs(m_SC)
@@ -77,10 +77,10 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
             m_AFM, m_SC,
             m_AFM_Cu, m_AFM_Cu_list, m_AFM_O, m_AFM_O_list, phase_AFM,
             charge_Cu, charge_O
-            m_Cu_Cu, m_Cu_Cu_dic, phase_Cu_Cu_dic, 
+            m_Cu_Cu, m_Cu_Cu_dic, phase_Cu_Cu_dic,
             m_nn_O_O, m_nn_O_O_dic, phase_nn_O_O_dic,
             m_Cu_O_dic, m_n_O_O_dic
-    """ 
+    """
     from libdmet.routine.spinless_helper import extractRdm
     from libdmet.system import lattice
     from libdmet.system.lattice import Frac2Real, Real2Frac, round_to_FUC
@@ -91,7 +91,7 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
         Lat = lattice.LatticeModel(Lat.supercell, np.array([1, 1]))
         Lat.neighborDist = dist
     nao = Lat.nao
-    
+
     GRho = np.asarray(GRho)
     if GRho.shape[-1] == nao:
         assert GRho.ndim == 3
@@ -104,27 +104,27 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
         rdm1_a, rdm1_b, rdm1_d = extractRdm(GRho)
     else:
         raise ValueError
-    
+
     if Cu_idx is None:
         Cu_idx = [idx for idx, name in zip(range(nao), Lat.names[:nao])
                   if name == "Cu" or name == "X"]
     if O_idx is None:
         O_idx = [idx for idx, name in zip(range(nao), Lat.names[:nao])
                  if name == "O"]
-    
+
     if len(O_idx) != 0: # 3band
         d_dd = Lat.neighborDist[2]
     else: # 1band
         d_dd = Lat.neighborDist[0]
 
     res = {} # result dict
-    
+
     # total charge and spin density
     charge = np.diag(rdm1_a) + np.diag(rdm1_b)
     spin_density = 0.5 * (np.diag(rdm1_a) - np.diag(rdm1_b))
     res["charge"] = charge
     res["spin_density"] = spin_density
-    
+
     # m_AFM_Cu
     Cu_coords = np.asarray(Lat.sites)[Cu_idx]
     Cu0_idx = np.argmin(la.norm(Cu_coords, axis=1))
@@ -153,7 +153,7 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
     log.result("magnet (Cu): %s",  m_AFM_Cu_list)
     log.result("Average m_AFM (Cu): %s",  m_AFM_Cu_abs)
     log.result("Average m_FM  (Cu): %s",  m_FM_Cu_abs)
-    
+
     # m_AFM_O
     if len(O_idx) != 0:
         charge_O = rdm1_a[O_idx, O_idx] + rdm1_b[O_idx, O_idx]
@@ -165,7 +165,7 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
         log.result("charge (O): %s",  charge_O)
         log.result("m_AFM  (O): %s",  m_AFM_O_list)
         log.result("Average m_AFM (O) : %s",  m_AFM_O)
-            
+
     # SC orders
     if rdm1_d is not None:
         def get_vec(s1, s2):
@@ -174,7 +174,7 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
             vec_frac = round_to_FUC(vec_frac, tol=1e-8, wrap_around=True)
             vec = Frac2Real(Lat.size, vec_frac)
             return vec
-        
+
         factor = 0.5 ** 0.5
 
         # 1. Cu-Cu order
@@ -194,7 +194,7 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
                     phase_Cu_Cu_dic[(i, j)] = -1
                 else:
                     raise ValueError
-        
+
         m_Cu_Cu = 0.0
         for (i, j), m in m_Cu_Cu_dic.items():
             m_Cu_Cu += m * phase_Cu_Cu_dic[(i, j)]
@@ -206,9 +206,9 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
         res["phase_Cu_Cu_dic"] = phase_Cu_Cu_dic
 
         log.result("m_SC (Cu-Cu): %s",  m_Cu_Cu_abs)
-        
+
         res["m_SC"] = abs(m_Cu_Cu)
-        
+
         if len(O_idx) != 0: # 3band
             d_pd  = Lat.neighborDist[0]
             d_pp  = Lat.neighborDist[1]
@@ -217,7 +217,7 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
             pd_pairs  = Lat.neighbor(dis=d_pd,  sitesA=range(nao))
             pp_pairs  = Lat.neighbor(dis=d_pp,  sitesA=range(nao))
             pp1_pairs = Lat.neighbor(dis=d_pp1, sitesA=O_idx)
-        
+
             # 2. next nearest O-O order
             m_nn_O_O_dic = {}
             phase_nn_O_O_dic = {}
@@ -234,30 +234,30 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
                         phase_nn_O_O_dic[(i, j)] = -1
                     else:
                         raise ValueError
-            
+
             m_nn_O_O = 0.0
             for (i, j), m in m_nn_O_O_dic.items():
                 m_nn_O_O += m * phase_nn_O_O_dic[(i, j)]
-            
+
             # ZHC NOTE whether to divide the number of Cu?
             #m_nn_O_O /= float(len(Cu_idx))
             m_nn_O_O_abs = abs(m_nn_O_O)
-            
+
             res["m_nn_O_O"] = m_nn_O_O
             res["m_nn_O_O_dic"] = m_nn_O_O_dic
             res["phase_nn_O_O_dic"] = phase_nn_O_O_dic
             res["m_SC"] += m_nn_O_O_abs
             log.result("m_SC (next nearest O-O): %s", m_nn_O_O_abs)
             log.result("m_SC (total): %s",  res["m_SC"])
-            
-            # 3. Cu-O order 
+
+            # 3. Cu-O order
             m_Cu_O_dic = {}
             for (i, j) in pd_pairs:
                 if (j, i) in m_Cu_O_dic:
                     m_Cu_O_dic[(j, i)] += rdm1_d[i, j] * factor
                 else:
                     m_Cu_O_dic[(i, j)]  = rdm1_d[i, j] * factor
-            
+
             # 4. nearest O-O order
             m_n_O_O_dic = {}
             for (i, j) in pp_pairs:
@@ -265,10 +265,10 @@ def get_checkerboard_order(GRho, Lat=None, Cu_idx=None, O_idx=None, tol=1e-8):
                     m_n_O_O_dic[(j, i)] += rdm1_d[i, j] * factor
                 else:
                     m_n_O_O_dic[(i, j)]  = rdm1_d[i, j] * factor
-            
+
             res["m_Cu_O_dic"] = m_Cu_O_dic
             res["m_n_O_O_dic"] = m_n_O_O_dic
-    
+
     return res
 
 get_1band_order = get_3band_order = get_checkerboard_order
@@ -305,18 +305,18 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
                             dis_O_O=dis_O_O, rdm1_d=rdm1_d, s_wave=True,
                             bond_type_Cu=bond_type_Cu, bond_type_O=bond_type_O,
                             tol=tol, norm=norm)
-    
+
     from libdmet.system.lattice import round_to_FUC
     from libdmet_solid.lo import iao, ibo
     from libdmet_solid.utils import max_abs
     log.info("\n" + "-" * 79)
     log.info("Pairing analysis")
     log.info("-" * 79)
-    
+
     nlo = len(labels)
     idx_re = iao.get_idx_to_ao_labels(Lat.cell, minao=None, labels=labels)
     labels = np.asarray(labels)[idx_re]
-    
+
     if rdm1_d is None:
         rdm1_d = np.array(rdm1_glob_k[:, :nlo, nlo:], copy=True)
         rdm1_d = np.array(rdm1_d[:, idx_re][:, :, idx_re], copy=True)
@@ -324,7 +324,7 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
     else:
         rdm1_d = rdm1_d[:nlo, nlo:]
         rdm1_d = rdm1_d[idx_re][:, idx_re]
-    
+
     norm_max = max_abs(rdm1_d)
     norm_tot = la.norm(rdm1_d)
     log.info("max   norm of anormalous part: %15.5f", norm_max)
@@ -344,15 +344,15 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
     # First compute Cu-Cu order
     log.info("Cu - Cu order:")
     log.info("-" * 79)
-    
+
     pairs, dis = Lat.get_bond_pairs(mol, length_range=dis_Cu_Cu, unit='A',
                                     allow_pbc=True, nimgs=[1, 1, 1],
                                     bond_type=bond_type_Cu,
                                     triu=True)
-    
+
     log.info("%5s %64s %12s %12s %15s"%("index", "pair", "length", "sign", "value"))
     idx = 0
-    
+
     pairs_new = []
     orders = []
     signs = []
@@ -385,7 +385,7 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
                     sign = -1
                 else:
                     raise ValueError
-        
+
         order = (rdm1_d[idx_0, idx_1] + rdm1_d[idx_1, idx_0].T) * factor
         m_Cu_Cu += order * sign
         log.info("%5d %4s %4s [ %5.3f %5.3f %5.3f ] --%4s %4s [ %5.3f %5.3f %5.3f ]   %10.3f  %10d %15.5f"
@@ -394,7 +394,7 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
         orders.append(order)
         signs.append(sign)
         idx += 1
-     
+
     m_Cu_Cu, m_Cu_Cu_tot = _norm(m_Cu_Cu, norm)
 
     lab_0 = labels[idx_0]
@@ -410,9 +410,9 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
         for j, labj in enumerate(lab_1):
             string += "%10.5f"%m_Cu_Cu[i, j]
         log.info(string)
-    
+
     log.info("\ntotal Cu - Cu order = %15.8g \n", m_Cu_Cu_tot)
-    
+
     dic["m_Cu_Cu"] = m_Cu_Cu_tot
     dic["m_Cu_Cu_sum"] = m_Cu_Cu
     dic["m_Cu_Cu_all"] = np.asarray(orders)
@@ -463,7 +463,7 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
                     sign = -1
                 else:
                     raise ValueError
-        
+
         order = (rdm1_d[idx_0, idx_1] + rdm1_d[idx_1, idx_0].T) * factor
         m_O_O += order * sign
         log.info("%5d %4s %4s [ %5.3f %5.3f %5.3f ] --%4s %4s [ %5.3f %5.3f %5.3f ]   %10.3f  %10d %15.5f"
@@ -472,9 +472,9 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
         orders.append(order)
         signs.append(sign)
         idx += 1
-    
+
     m_O_O, m_O_O_tot = _norm(m_O_O, norm)
-            
+
     lab_0 = labels[idx_0]
     lab_1 = labels[idx_1]
 
@@ -488,15 +488,15 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
         for j, labj in enumerate(lab_1):
             string += "%10.5f"%m_O_O[i, j]
         log.info(string)
-    
+
     log.info("\ntotal O - O order = %15.8g", m_O_O_tot)
-    
+
     dic["m_O_O"] = m_O_O_tot
     dic["m_O_O_sum"] = m_O_O
     dic["m_O_O_all"] = np.asarray(orders)
     dic["pairs_O_O"] = np.asarray(pairs_new)
     dic["signs_O_O"] = np.asarray(signs)
-    
+
     m_d_wave = m_Cu_Cu_tot + m_O_O_tot
     log.info("-" * 79)
     if s_wave:
@@ -505,7 +505,7 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
     else:
         dic["m_tot"] = dic["m_d_wave"] =m_d_wave
         log.info("\ntotal d-wave order = %15.8g", m_d_wave)
-    
+
     # finally compute Cu - O order
     if dis_Cu_O is not None and (not s_wave):
         log.info("-" * 79)
@@ -524,7 +524,7 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
         pairs_new = []
         orders = []
         signs = []
-        
+
         for i, (pair, d) in enumerate(zip(pairs, dis)):
             atom_0 = mol._atom[pair[0]][0]
             atom_1 = mol._atom[pair[1]][0]
@@ -543,9 +543,9 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
             orders.append(order)
             signs.append(sign)
             idx += 1
-        
+
         m_Cu_O, m_Cu_O_tot = _norm(m_Cu_O, norm)
-                
+
         lab_0 = labels[idx_0]
         lab_1 = labels[idx_1]
 
@@ -559,9 +559,9 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
             for j, labj in enumerate(lab_1):
                 string += "%10.5f"%m_Cu_O[i, j]
             log.info(string)
-        
+
         log.info("\nCu - O order = %15.8g", m_Cu_O_tot)
-        
+
         dic["m_Cu_O"] = m_Cu_O_tot
         dic["m_Cu_O_sum"] = m_Cu_O
         dic["m_Cu_O_all"] = np.asarray(orders)
@@ -570,7 +570,7 @@ def get_order_ab_initio(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
 
 
     log.info("-" * 79)
-    
+
     return dic
 
 def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
@@ -598,11 +598,11 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
     log.info("\n" + "-" * 79)
     log.info("Pairing analysis based on unit-cell")
     log.info("-" * 79)
-    
+
     nlo = len(labels)
     idx_re = iao.get_idx_to_ao_labels(Lat.cell, minao=None, labels=labels)
     labels = np.asarray(labels)[idx_re]
-    
+
     if rdm1_d is None:
         rdm1_d = np.array(rdm1_glob_k[:, :nlo, nlo:], copy=True)
         rdm1_d = np.array(rdm1_d[:, idx_re][:, :, idx_re], copy=True)
@@ -610,7 +610,7 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
     else:
         rdm1_d = rdm1_d[:nlo, nlo:]
         rdm1_d = rdm1_d[idx_re][:, idx_re]
-    
+
     norm_max = max_abs(rdm1_d)
     norm_tot = la.norm(rdm1_d)
     log.info("max   norm of anormalous part: %15.5f", norm_max)
@@ -628,16 +628,16 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
 
     bond_type_Cu_O = list(it.product(np.unique(bond_type_Cu), np.unique(bond_type_O)))
     bond_type_all = list(bond_type_Cu) + list(bond_type_O) + list(bond_type_Cu_O)
-    
+
     pairs, dis = Lat.get_bond_pairs(mol, length_range=[0.0, dis_Cu_Cu[1]], unit='A',
                                     allow_pbc=True, nimgs=[1, 1, 1],
                                     bond_type=bond_type_all,
                                     triu=True)
-    
+
     idx_dis = np.argsort(dis, kind='mergesort')
     dis = np.asarray(dis)[idx_dis]
     pairs = np.asarray(pairs)[idx_dis]
-    
+
     cell_dis = {(0, 1): 1, (0, 2): np.sqrt(2), (0, 3): 1,
                 (1, 0): -1, (1, 2): 1, (1, 3): np.sqrt(2),
                 (2, 0): np.sqrt(2), (2, 1): -1, (2, 3): -1,
@@ -650,12 +650,12 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
 
     for gp in range(ngroups):
         pairs_intra[gp] = []
-    
+
     for gp1 in range(ngroups):
         for gp2 in range(ngroups):
             if gp1 != gp2 and abs(cell_dis[(gp1, gp2)]) == 1:
                 pairs_inter[(gp1, gp2)] = []
-    
+
     idx2cell = {}
     for cell_id, idxs in cell_groups.items():
         for idx in idxs:
@@ -668,7 +668,7 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
         coord_1 = coords[pair[1]]
         vec_raw = coord_1 - coord_0
         vec = round_to_FBZ(vec_raw)
-        
+
         i, j = pair
         idxi = idx2cell[i]
         idxj = idx2cell[j]
@@ -699,8 +699,8 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
                             pairs_inter[(idxi, idxj)].append(pair)
                         else:
                             pairs_inter[(idxj, idxi)].append(pair)
-    
-    # intra cell s order 
+
+    # intra cell s order
     log.info("-" * 79)
     log.info("intra cell analysis")
     log.info("-" * 79)
@@ -734,7 +734,7 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
                 order_intra[key_rev] += m_Cu_Cu.T
             else:
                 order_intra[key] = m_Cu_Cu
-    
+
     assert len(order_intra) == 2 # only O-O and Cu-O are allowed
     dic["order_intra"] = order_intra
 
@@ -755,7 +755,7 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
     log.info("-" * 79)
     log.info("total intra-cell order (s-wave) : %15.5f", intra_tot)
     log.info("-" * 79)
-   
+
     # ZHC NOTE
     # inter cell s, p, d waves
     log.info("-" * 79)
@@ -818,7 +818,7 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
                     raise ValueError
                 order = (rdm1_d[idx_0, idx_1] + rdm1_d[idx_1, idx_0].T) * factor
                 m_Cu_Cu = order * sign
-                
+
                 log.info("%5d %4s %4s [ %5.3f %5.3f %5.3f ] --%4s %4s [ %5.3f %5.3f %5.3f ]   %10.3f  %10d %15.5f"
                          %(idx, pair[0], atom_0, *coord_0, pair[1], atom_1, *coord_1, d, sign, order.sum()))
                 idx += 1
@@ -830,10 +830,10 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
                     order_inter[key_rev] += m_Cu_Cu.T
                 else:
                     order_inter[key] = m_Cu_Cu
-        
+
         assert len(order_inter) == 3 # only Cu-Cu, O-O and Cu-O are allowed
         dic["order_inter_%s"%wave] = order_inter
-        
+
         inter_tot = 0.0
         if norm is None:
             for val in order_inter.values():
@@ -853,7 +853,7 @@ def get_order_ab_initio_cell(Lat, rdm1_glob_k, labels, dis_Cu_Cu=[3.0, 4.5],
         log.info("-" * 79)
 
     log.info("-" * 79)
-    
+
     return dic
 
 get_ab_initio_order = get_order_ab_initio

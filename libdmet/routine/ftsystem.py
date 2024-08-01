@@ -24,9 +24,9 @@ ZERO_TOL = 1e-10
 def fermi_smearing_occ(mu, mo_energy, beta, ncore=0, nvirt=0):
     """
     Fermi smearing function for mo_occ.
-    By using broadcast, mu can be a list of values 
+    By using broadcast, mu can be a list of values
     (i.e. each sector can have different mu)
-    
+
     Args:
         mu: chemical potential, can have shape (), (1,), (spin,).
         mo_energy: orbital energy, can be (nmo,) or (s, k, ..., nmo) array.
@@ -39,17 +39,17 @@ def fermi_smearing_occ(mu, mo_energy, beta, ncore=0, nvirt=0):
     """
     mo_energy = np.asarray(mo_energy)
     mu = np.asarray(mu).reshape(-1, *([1] * (mo_energy.ndim - 1)))
-    de = beta * (mo_energy - mu) 
+    de = beta * (mo_energy - mu)
     occ = np.zeros_like(mo_energy)
     idx = (de < 100)
     if ncore != 0:
         assert mo_energy.ndim == 1
-        idx[:ncore] = False 
+        idx[:ncore] = False
         occ[:ncore] = 1.0
     if nvirt != 0:
         assert mo_energy.ndim == 1
         idx[-nvirt:] = False
-    
+
     occ[idx] = 1.0 / (np.exp(de[idx]) + 1.0)
     return occ
 
@@ -69,19 +69,19 @@ def gaussian_smearing_occ(mu, mo_energy, beta, ncore=0, nvirt=0):
     mu = np.asarray(mu).reshape(-1, *([1] * (mo_energy.ndim - 1)))
     return 0.5 * scipy.special.erfc((mo_energy - mu) * beta)
 
-def find_mu(nelec, mo_energy, beta, mu0=None, f_occ=fermi_smearing_occ, 
+def find_mu(nelec, mo_energy, beta, mu0=None, f_occ=fermi_smearing_occ,
             tol=FIT_TOL, ncore=0, nvirt=0):
     """
     Find chemical potential mu for a target nelec.
     Assume mo_energy has no spin dimension.
-    
+
     Returns:
         mu: chemical potential.
     """
     def nelec_cost_fn_brentq(mu):
         mo_occ = f_occ(mu, mo_energy, beta, ncore=ncore, nvirt=nvirt)
         return mo_occ.sum() - nelec
-    
+
     nelec_int = int(np.round(nelec))
     if nelec_int >= len(mo_energy):
         lval = mo_energy[-1] - (1.0 / beta)
@@ -92,7 +92,7 @@ def find_mu(nelec, mo_energy, beta, mu0=None, f_occ=fermi_smearing_occ,
     else:
         lval = mo_energy[nelec_int - 1] - (1.0 / beta)
         rval = mo_energy[nelec_int]     + (1.0 / beta)
-    
+
     # for the corner case where all empty or all occupied
     if nelec_cost_fn_brentq(lval) * nelec_cost_fn_brentq(rval) > 0:
         lval -= max(100.0, 1.0 / beta)
@@ -104,7 +104,7 @@ def find_mu(nelec, mo_energy, beta, mu0=None, f_occ=fermi_smearing_occ,
     mu = res[0]
     return mu
 
-def find_mu_by_density(density, mo_energy, beta, mu0=None, 
+def find_mu_by_density(density, mo_energy, beta, mu0=None,
                        f_occ=fermi_smearing_occ, tol=FIT_TOL, ncore=0,
                        nvirt=0):
     norb = mo_energy.size
@@ -132,7 +132,7 @@ def get_h_random(norb, seed = None):
     return h
 
 def get_h_random_deg(norb, deg_orbs=[], deg_energy=[], seed=None):
-    if seed is not None: 
+    if seed is not None:
         np.random.seed(seed)
     h = np.random.random((norb, norb))
     h = h + h.T.conj()
@@ -150,7 +150,7 @@ def get_rho_grad(mo_energy, mo_coeff, mu, beta, fix_mu=True, compact=False):
     d rho_{ij} / d v_{kl} [where kl is tril part of the potential]
 
     Math:
-        d rho_ij / d v_kl = partial rho_ij / partial v_kl 
+        d rho_ij / d v_kl = partial rho_ij / partial v_kl
             + partial rho_ij / partial mu * partial mu / partial v_kl
 
     Args:
@@ -162,21 +162,21 @@ def get_rho_grad(mo_energy, mo_coeff, mu, beta, fix_mu=True, compact=False):
         compact
 
     Returns:
-        drho_dv: rho's reponse to v, 
+        drho_dv: rho's reponse to v,
                  shape (nao_pair, nao, nao) or (nao_pair, nao_pair) if compact
                  the first is the tril indices of v, the later is rho.
     """
     norb = mo_coeff.shape[-1]
     rho_elec = fermi_smearing_occ(mu, mo_energy, beta)
     rho_hole = 1.0 - rho_elec
-    
+
     # ep - eq matrix
     de_mat = mo_energy[:, None] - mo_energy
     zero_mask = np.abs(de_mat) < ZERO_TOL
     nonzero_mask = ~zero_mask
     de_mat_inv = np.zeros_like(de_mat)
     de_mat_inv[nonzero_mask] = 1.0 / de_mat[nonzero_mask]
-    
+
     # K_{pq}
     K = de_mat_inv * (rho_elec - rho_elec[:, None])
     K[zero_mask] = (rho_elec[:, None] * rho_hole)[zero_mask] * beta
@@ -197,41 +197,41 @@ def get_rho_grad(mo_energy, mo_coeff, mu, beta, fix_mu=True, compact=False):
 
     # contribution from mu change
     if not fix_mu:
-        f = rho_elec * rho_hole    
+        f = rho_elec * rho_hole
         f_sum = f.sum()
         if abs(f_sum) > ZERO_TOL: # not almost zero T
             # partial rho_ij / partial mu
             drho_dmu = np.dot(mo_coeff * f, mo_coeff.conj().T)
             drho_dmu *= beta
-            
+
             # partial mu / partial v_{kl}
             E_grad = np.einsum('ki, li -> kli', mo_coeff.conj(), mo_coeff)
             mu_grad = np.dot(E_grad, f) / (f.sum())
             mu_grad = mu_grad + mu_grad.T
             mu_grad[np.arange(norb), np.arange(norb)] *= 0.5
             mu_grad = mu_grad[np.tril_indices(norb)]
-            
+
             # partial rho_{ij} / partial mu * partial mu / partial v_{kl}
             rho_grad_mu_part = np.einsum('k, ij -> kij', mu_grad, drho_dmu)
             rho_grad += rho_grad_mu_part
-        
+
     if compact:
         rho_grad = rho_grad.transpose(1, 2, 0)[np.tril_indices(norb)].transpose(1, 0)
-    
+
     return rho_grad
 
 def get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=True, compact=False,
               fit_idx=None):
     """
     Full finite T gradient of dw over dv, i.e. dnorm_dv in 0 T code.
-    
+
     In a real dmet calculation, we should use:
     dw/dparam = dw/dv * dv/dparam
     This function is for dw/dv = dw/drho * drho/dv.
     Assume orthogonal basis
 
     Returns:
-        dw_dv: d w / d v_{kl} with shape (spin, norb, norb) or 
+        dw_dv: d w / d v_{kl} with shape (spin, norb, norb) or
                (spin, norb_pair) if compact=True
     """
     if mo_coeff.ndim == 2:
@@ -253,7 +253,7 @@ def get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=True, compact=False,
     nonzero_mask = ~zero_mask
     de_mat_inv = np.zeros_like(de_mat)
     de_mat_inv[nonzero_mask] = 1.0 / de_mat[nonzero_mask]
-    
+
     # K_{pq}
     dw_dv = np.zeros((spin, norb, norb), dtype=mo_coeff.dtype)
     for s in range(spin):
@@ -263,7 +263,7 @@ def get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=True, compact=False,
         tmp  = mdot(mo_coeff[s, fit_idx].T, 2.0*drho[s], mo_coeff[s, fit_idx].conj()) * K
         # tmp += mdot(mo_coeff[s, fit_idx].T.conj(), 2.0*drho[s], mo_coeff[s, fit_idx]) * K / 2.0
         dw_dv[s] = mdot(mo_coeff[s].conj(), tmp, mo_coeff[s].T) # ip, pq, qj -> ij
-    
+
     # contribution from mu change
     if not fix_mu:
         dw_dv_mu_part = np.zeros((spin, norb, norb), dtype=dw_dv.dtype)
@@ -279,15 +279,15 @@ def get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=True, compact=False,
                 # dw_dv = dw_dmu * dmu_dv (dmu_dv = drho_dmu / f_sum)
                 dw_dv_mu_part[s] = drho_dmu * (dw_dmu / f_sum) # ji
         dw_dv += dw_dv_mu_part
-    
+
     if compact:
         # symmetrize
         dw_dv = lib.pack_tril(dw_dv)
         dw_dv *= 2.0
         diag_idx = tril_diag_indices(norb)
         dw_dv[:, diag_idx] *= 0.5
-        
-    return dw_dv 
+
+    return dw_dv
 
 if __name__ == '__main__':
     np.set_printoptions(5, linewidth =1000)
@@ -309,7 +309,7 @@ if __name__ == '__main__':
     print ("mo_energy: \n%s" % mo_energy)
     print ("mo_occ: \n%s" %mo_occ)
     print ("mu: %s" % mu)
-    
+
     drho = make_rdm1(mo_coeff, mo_occ)
     f0 = (drho*drho).sum()
     mo_energy = mo_energy[None]
@@ -318,7 +318,7 @@ if __name__ == '__main__':
 
     fix_mu = False
     dw_dv = get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=fix_mu, compact=True)
-    
+
     h_arr_ref = tril_mat2arr(h)
     grad = np.zeros_like(h_arr_ref)
     dx = 1e-6
@@ -330,5 +330,5 @@ if __name__ == '__main__':
         rho = make_rdm1(mo_coeff, mo_occ)
         f = (rho*rho).sum()
         grad[i] = (f - f0) / dx
-    
+
     print ("diff of gradients: %s" %(la.norm(grad - dw_dv)))

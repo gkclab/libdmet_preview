@@ -63,7 +63,7 @@ class Cube(cubegen.Cube):
             else:
                 self.latt_vec = latt_vec
             self.latt_vec_norm = la.norm(self.latt_vec, axis=1)
-            
+
             if box is None:
                 self.box = self.latt_vec * ((margin*2.0 / self.latt_vec_norm) + 1.0)
             else:
@@ -73,10 +73,10 @@ class Cube(cubegen.Cube):
                 self.boxorig = -np.sum(margin_vec, axis=0)
             else:
                 self.boxorig = np.asarray(boxorig)
-            
+
             if resolution is not None:
                 nx, ny, nz = numpy.ceil(self.latt_vec_norm / resolution).astype(int)
-            
+
             self.nx = nx
             self.ny = ny
             self.nz = nz
@@ -122,12 +122,12 @@ class Cube(cubegen.Cube):
 
     def get_ngrids(self):
         return self.nx * self.ny * self.nz
-    
+
     def write(self, field, fname, comment=None, header_only=False):
         """  Result: .cube file with the field in the file fname.  """
         if comment is None:
             comment = 'Generic field? Supply the optional argument "comment" to define this line'
-        
+
         mol = self.mol
         coord = mol.atom_coords()
         with open(fname, 'w') as f:
@@ -151,7 +151,7 @@ class Cube(cubegen.Cube):
                 chg = charge(mol.atom_symbol(ia))
                 f.write('%5d%12.6f'% (chg, chg))
                 f.write('%12.6f%12.6f%12.6f\n' % tuple(coord[ia]))
-            
+
             if not header_only:
                 assert field.ndim == 3
                 assert field.shape == (self.nx, self.ny, self.nz)
@@ -164,7 +164,7 @@ class Cube(cubegen.Cube):
                             #numpy.savetxt(f, field[ix, iy, iz0:iz1], fmt='%13.6e')
                             fmt = '%13.5E' * (iz1-iz0) #+ '\n'
                             f.write(fmt % tuple(field[ix, iy, iz0:iz1]))
-    
+
     def write_field(self, field, fname):
         assert field.ndim == 1
         with open(fname, 'a') as f:

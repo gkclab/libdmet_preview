@@ -50,17 +50,17 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
         t1, t2 = mycc.get_init_guess(eris)
     elif t2 is None:
         t2 = mycc.get_init_guess(eris)[1]
-    
+
     cput1 = cput0 = (logger.process_clock(), logger.perf_counter())
     eold = 0
     eccsd = mycc.energy(t1, t2, eris)
     log.info('Init E_corr(CCSD) = %.15g', eccsd)
     log.info("LCCSD method = %s", method)
     log.info("LCCSD hermi = %s", hermi)
-    
+
     def aop(x):
         return mycc.hop(x, eris=eris, hermi=hermi)
-    
+
     if precond == 'finv':
         def mop(x):
             return mycc.precond_finv(x, eris)
@@ -95,7 +95,7 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
         log.info("LCCSD cycle = %s , res = %15.5g , normt = %15.5g, diff t = %10.5g",
                  niter[0], max_abs(res), max_abs(x), diff_x)
         niter[0] += 1
-    
+
     args = {}
     if method.lower() == 'lgmres':
         drv = spla.lgmres
@@ -104,7 +104,7 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
         drv = spla.gcrotmk
     else:
         raise ValueError("Unknown linear solver %s" % method)
-    
+
     tvec_new, info = drv(A, b, x0=x0, tol=tolnormt, atol=tolnormt,
                          callback=callback, M=M, maxiter=max_cycle,
                          **args)
@@ -114,7 +114,7 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
     A = x0 = b = tvec_new = None
     eccsd = mycc.energy(t1, t2, eris)
 
-    log.info('E_corr(LCCSD) = %.15g, conv = %s', eccsd, conv) 
+    log.info('E_corr(LCCSD) = %.15g, conv = %s', eccsd, conv)
     log.timer('LCCSD', *cput0)
     return conv, eccsd, t1, t2
 
@@ -140,15 +140,15 @@ def update_amps(cc, t1, t2, eris, hermi=True):
     t1new -= einsum('nf,naif->ia', t1, eris.ovov)
     t1new -= 0.5*einsum('imef,maef->ia', t2, eris.ovvv)
     t1new -= 0.5*einsum('mnae,mnie->ia', t2, eris.ooov)
-    
+
     # T2 equation
-    Ftmp = Fvv 
+    Ftmp = Fvv
     tmp = einsum('ijae,be->ijab', t2, Ftmp)
     t2new = tmp - tmp.transpose(0,1,3,2)
     Ftmp = Foo
     tmp = einsum('imab,mj->ijab', t2, Ftmp)
     t2new -= (tmp - tmp.transpose(1,0,2,3))
-    
+
     t2new += einsum('mnab,mnij->ijab', tau, Woooo * 0.5)
     t2new += 0.5 * einsum('ijef,abef->ijab', tau, Wvvvv)
     tmp = einsum('imae,mbej->ijab', t2, Wovvo)
@@ -160,7 +160,7 @@ def update_amps(cc, t1, t2, eris, hermi=True):
     t2new += (tmp - tmp.transpose(1,0,2,3))
     tmp = einsum('ma,ijmb->ijab', t1, np.asarray(eris.ooov))
     t2new -= (tmp - tmp.transpose(0,1,3,2))
-    
+
     return t1new, t2new
 
 def hop(cc, vec, eris, hermi=True):
@@ -178,11 +178,11 @@ def precond_finv(cc, vec, eris, tol=1e-8):
     nocc, nvir = t1.shape
     mo_e_o = eris.mo_energy[:nocc]
     mo_e_v = eris.mo_energy[nocc:] + cc.level_shift
-    
+
     eia = mo_e_o[:, None] - mo_e_v
     eia[eia > -tol] = -tol
     t1 /= eia
-    
+
     for i in range(nocc):
         t2[i] /= lib.direct_sum('a, jb -> jab', eia[i], eia)
     return cc.amplitudes_to_vector(t1, t2)
@@ -196,13 +196,13 @@ def precond_diag(cc, vec, eris):
     nocc, nvir = t1.shape
 
     fock = eris.fock
-    
+
     mo_e_o = eris.mo_energy[:nocc]
     mo_e_v = eris.mo_energy[nocc:] + cc.level_shift
     eia = mo_e_o[:, None] - mo_e_v
     eia -= np.einsum('iaai -> ia', eris.ovvo)
     t1 /= eia
-    
+
     eijab = lib.direct_sum('ia,jb->ijab', eia, eia)
     tmp = 0.5 * np.einsum('abab -> ab', eris.vvvv)
     for i in range(nocc):
@@ -231,7 +231,7 @@ def energy(cc, t1, t2, eris):
     return e.real
 
 class LGCCSD(gccsd.GCCSD):
-    
+
     hermi = True
     conv_tol = getattr(__config__, 'cc_gccsd_GCCSD_conv_tol', 1e-7)
     conv_tol_normt = getattr(__config__, 'cc_gccsd_GCCSD_conv_tol_normt', 1e-6)
@@ -239,13 +239,13 @@ class LGCCSD(gccsd.GCCSD):
     energy = energy
 
     update_amps = update_amps
-    
+
     hop = hop
-    
+
     make_b = make_b
-    
+
     precond_finv = precond_finv
-    
+
     precond_diag = precond_diag
 
     def solve_lambda(self, t1=None, t2=None, l1=None, l2=None,
@@ -293,8 +293,8 @@ class LGCCSD(gccsd.GCCSD):
         if l2 is None: l2 = self.l2
         if l1 is None: l1, l2 = self.solve_lambda(t1, t2)
         return gccsd_rdm.make_rdm2(self, t1, t2, l1, l2, ao_repr=ao_repr)
-    
-    def ccsd(self, t1=None, t2=None, eris=None, mbpt2=False, hermi=None, 
+
+    def ccsd(self, t1=None, t2=None, eris=None, mbpt2=False, hermi=None,
              method=LINEAR_SOLVER, precond='finv'):
         '''Ground-state linearized GCCSD.
 
@@ -317,7 +317,7 @@ class LGCCSD(gccsd.GCCSD):
             orbspin = scf.ghf.guess_orbspin(self.mo_coeff)
             if not np.any(orbspin == -1):
                 self.mo_coeff = lib.tag_array(self.mo_coeff, orbspin=orbspin)
-        
+
         # main kernel
         assert(self.mo_coeff is not None)
         assert(self.mo_occ is not None)
@@ -332,19 +332,19 @@ class LGCCSD(gccsd.GCCSD):
         self.e_hf = getattr(eris, 'e_hf', None)
         if self.e_hf is None:
             self.e_hf = self._scf.e_tot
-        
+
         self.converged, self.e_corr, self.t1, self.t2 = \
                 kernel(self, eris, t1, t2, max_cycle=self.max_cycle,
                        tol=self.conv_tol, tolnormt=self.conv_tol_normt,
                        verbose=self.verbose, hermi=hermi, method=method,
                        precond=precond)
         self._finalize()
-        
+
         if getattr(eris, 'orbspin', None) is not None:
             self.t1 = lib.tag_array(self.t1, orbspin=eris.orbspin)
             self.t2 = lib.tag_array(self.t2, orbspin=eris.orbspin)
         return self.e_corr, self.t1, self.t2
-    
+
     kernel = ccsd
 
 CCSD = LGCCSD
@@ -367,10 +367,10 @@ if __name__ == '__main__':
     mf = scf.RHF(mol)
     mf.conv_tol = 1e-12
     mf.kernel()
-    
+
     mf = scf.addons.convert_to_ghf(mf)
     #gcc = gccsd.GCCSD(mf)
-    
+
     gcc = LGCCSD(mf)
     gcc.conv_tol = 1e-5
     gcc.conv_tol_normt = 1e-4
@@ -378,7 +378,7 @@ if __name__ == '__main__':
     method = 'lgmres'
     ecc, t1, t2 = gcc.kernel(method=method, precond='finv')
     print (gcc.e_tot)
-    
+
     rdm1 = gcc.make_rdm1()
     print (rdm1)
     print (np.trace(rdm1))

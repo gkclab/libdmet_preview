@@ -100,7 +100,7 @@ def gen_g_hop_vo(casscf, mo, u, casdm1s, casdm2s, eris):
 
     v_diag_ov  = lib.einsum('iipq,pqaa->ia', casdm2s[:nocc_cas,:nocc_cas], eris.aapp[:,:,nocc_cas:,nocc_cas:])
     v_diag_ov += lib.einsum('piiq,paaq->ia', casdm2s[:,:nocc_cas,:nocc_cas], eris.appa[:,nocc_cas:,nocc_cas:])
-    v_diag_ov += lib.einsum('ipiq,paaq->ia', casdm2s[:nocc_cas,:,:nocc_cas], eris.appa[:,nocc_cas:,nocc_cas:]) 
+    v_diag_ov += lib.einsum('ipiq,paaq->ia', casdm2s[:nocc_cas,:,:nocc_cas], eris.appa[:,nocc_cas:,nocc_cas:])
 
     h_diag[nocc_cas:,:nocc_cas] += v_diag_vo + v_diag_ov.T
 
@@ -128,7 +128,7 @@ def gen_g_hop_vo(casscf, mo, u, casdm1s, casdm2s, eris):
         tmp  = lib.einsum('pabq,bj->pajq', eris.appa[:,nocc_cas:,nocc_cas:], x1a_vo)
         x2a += lib.einsum('pijq,pajq->ai', casdm2s[:,:nocc_cas,:nocc_cas], tmp)
         x2a += lib.einsum('ipjq,pajq->ai', casdm2s[:nocc_cas,:,:nocc_cas], tmp)
- 
+
         tmp  = lib.einsum('pajq,bj->pabq', eris.appa[:,nocc_cas:,:nocc_cas], x1a_vo)
         x2a -= lib.einsum('pibq,pabq->ai', casdm2s[:,:nocc_cas,nocc_cas:], tmp)
         x2a -= lib.einsum('ipbq,pabq->ai', casdm2s[:nocc_cas,:,nocc_cas:], tmp)
@@ -319,7 +319,7 @@ def gen_g_hop_big_cas(casscf, mo, u, casdm1s, casdm2s, eris):
     g = np.dot(h1e_mo, dm1)
 
     g[:, :ncore] += vhf_ca[:, :ncore]
-    
+
     # ZHC NOTE
     #g[:, ncore:nocc] += \
     #        einsum('vuuq->qv', hdm2[:,:,ncore:nocc]) + \
@@ -408,7 +408,7 @@ def gen_g_hop_big_cas(casscf, mo, u, casdm1s, casdm2s, eris):
 
     g_orb = casscf.pack_uniq_var(g-g.T)
     h_diag = casscf.pack_uniq_var(h_diag)
-    
+
     def h_op(x):
         x1a = casscf.unpack_uniq_var(x)
         xa_cu = x1a[:ncore,ncore:]
@@ -430,7 +430,7 @@ def gen_g_hop_big_cas(casscf, mo, u, casdm1s, casdm2s, eris):
         # part3
         x2a[ncore:nocc] += reduce(np.dot, (casdm1s, xa_av, vhf_c[nocc:])) + \
                            reduce(np.dot, (casdm1s, xa_ac, vhf_c[:ncore]))
-        
+
         # part1
         # ZHC NOTE
         #x2a[ncore:nocc] += einsum('upvr,vr->up', hdm2apap, x1a[ncore:nocc])
@@ -681,7 +681,7 @@ class GCASSCF(gcasci.GCASCI):
                     'fcisolver_conv_tol', 'natorb', 'canonicalization',
                     'sorting_mo_energy'))
         self._keys = set(self.__dict__.keys()).union(keys)
-    
+
     def dump_flags(self, verbose=None):
         log = logger.new_logger(self, verbose)
         log.info('')
@@ -782,7 +782,7 @@ To enable the solvent model for CASSCF, the following code needs to be called
         log = logger.new_logger(self, verbose)
 
         e_tot, e_cas, fcivec = gcasci.kernel(fcasci, mo_coeff, ci0, log)
-        
+
         if envs is not None and log.verbose >= logger.INFO:
             log.debug('CAS space CI energy = %.15g', e_cas)
 
@@ -802,7 +802,7 @@ To enable the solvent model for CASSCF, the following code needs to be called
             else:  # Initialization step
                 log.info('GCASCI E = %.15g', e_tot)
         return e_tot, e_cas, fcivec
-    
+
     def uniq_var_indices(self, nmo, ncore, ncas, frozen):
         nocc = ncore + ncas
         mask = np.zeros((nmo, nmo),dtype=bool)
@@ -847,13 +847,13 @@ To enable the solvent model for CASSCF, the following code needs to be called
     def ao2mo(self, mo_coeff=None):
         if mo_coeff is None: mo_coeff = self.mo_coeff
         return gmc_ao2mo._ERIS(self, mo_coeff)
-    
+
     def update_jk_in_ah(self, mo, r, casdm1s, eris):
         ncas = self.ncas
         ncore = self.ncore
         nocc = ncas + ncore
         ra = r
-        
+
         vhf3ca = lib.einsum('srqp, sr -> qp', eris.Icvcv, ra[:ncore*2, ncore*2:])
         vhf3aa = lib.einsum('kpsr, sr -> kp', eris.Iapcv, ra[:ncore*2, ncore*2:])
 
@@ -903,7 +903,7 @@ To enable the solvent model for CASSCF, the following code needs to be called
                  einsum('jp,pj->', jka[:ncore*2], rmat[:, :ncore*2])*2)
 
         return ecore, h1cas, aaaa
-    
+
     def solve_approx_ci(self, h1, h2, ci0, ecore, e_cas, envs={}):
         ''' Solve CI eigenvalue/response problem approximately
         '''
@@ -1089,7 +1089,7 @@ class GCASSCFVO(GCASSCF):
 if __name__ == '__main__':
     from pyscf import gto, scf, ao2mo
     from pyscf import mcscf
-    
+
     np.set_printoptions(4, linewidth=1000, suppress=True)
     np.random.seed(10086)
 
@@ -1104,12 +1104,12 @@ if __name__ == '__main__':
                  'O': '6-31g',}
     mol.incore_anyway = True
     mol.build()
-    
+
     # reference RCASSCF
     from pyscf.mcscf import CASSCF, UCASSCF
     mf = scf.RHF(mol)
     mf.kernel()
-    
+
     #mf = scf.addons.convert_to_uhf(mf)
     mc = CASSCF(mf, 4, 4)
     mc.internal_rotation = True
@@ -1120,7 +1120,7 @@ if __name__ == '__main__':
     mf = scf.addons.convert_to_ghf(mf)
     dm0 = mf.make_rdm1()
     mf.kernel(dm0=dm0)
-    
+
     ovlp = mf.get_ovlp()
     H0 = mf.energy_nuc()
     H1 = mf.get_hcore()
@@ -1139,7 +1139,7 @@ if __name__ == '__main__':
     scfsolver.set_system(mol.nelectron, 0, False, True, max_memory=mol.max_memory)
     scfsolver.set_integral(Ham)
     ehf, rhoHF = scfsolver.GGHF(tol=1e-12, InitGuess=dm0)
-    
+
     mf = scfsolver.mf
     mc = GCASSCF(mf, 4, (4, 0))
     mc.internal_rotation = True

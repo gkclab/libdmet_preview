@@ -2,7 +2,7 @@
 
 """
 Edmiston-Ruedenberg localization through Jacobi rotations
-following the algorithm by 
+following the algorithm by
 Raffenetti et al. Theor Chim Acta 86, 149 (1992)
 
 Pipek-Mezey localization of Hubbard model.
@@ -86,11 +86,11 @@ def localize_bath_pm(B, **kwargs):
         loc_orb = loc_obj.kernel()
         loc_obj = HubbardPM(mol, loc_orb)
         loc_orb = loc_obj.kernel()
-        
+
         cost_after = loc_obj.cost_function()
         loc_orb_collect.append((cost_after, loc_orb))
         log.debug(0, 'cost function of PM localization of bath orb (after): %12.5f', cost_after)
-        
+
     loc_orb_collect.sort(key = lambda tup: tup[0])
     bath_orbs = loc_orb_collect[-1][1]
     return bath_orbs.reshape(B_shape)
@@ -113,21 +113,21 @@ def visualize_bath(lattice, LatSize, GRho, localize_bath=False, spin=0, \
     # make impurity at the center of lattice
     lat_coords[0][lat_coords[0] > LatSize[0] // 2] -= LatSize[0]
     lat_coords[1][lat_coords[1] > LatSize[1] // 2] -= LatSize[1]
-    
+
     B = embBasis(lattice, GRho, localize_bath=localize_bath, return_bath=True)
-    z = np.zeros((nscsites, nscsites*2))     
-    if spin == 0:  
+    z = np.zeros((nscsites, nscsites*2))
+    if spin == 0:
         bath_orbs = B[0, :, :nscsites].reshape(-1, 2*nscsites) # alpha
     else:
         bath_orbs = B[1, :, nscsites:].reshape(-1, 2*nscsites) # beta
-    
+
     #bath_orbs = np.vstack((z, bath_orbs))
     if bath_index is None:
         ave_orb = np.abs(bath_orbs).sum(axis=1)
     else:
         ave_orb = np.abs(bath_orbs)[:, bath_index]
     ave_orb *= 500.0
-    
+
     plt.xlim(-LatSize[0] * 0.5 + 1.0, LatSize[0] * 0.5 + 1.0)
     plt.ylim(-LatSize[1] * 0.5 + 1.0, LatSize[1] * 0.5 + 1.0)
     plt.xticks(np.arange(-LatSize[0] * 0.5 , LatSize[0] * 0.5 + 1.0, 1.0))

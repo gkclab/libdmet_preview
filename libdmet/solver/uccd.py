@@ -58,7 +58,7 @@ class UCCD(uccsd.UCCSD):
                                    max_cycle=self.max_cycle,
                                    tol=self.conv_tol_normt,
                                    verbose=self.verbose,
-                                   fintermediates=uccsd_lambda.make_intermediates, 
+                                   fintermediates=uccsd_lambda.make_intermediates,
                                    fupdate=update_lambda)
         return self.l1, self.l2
 

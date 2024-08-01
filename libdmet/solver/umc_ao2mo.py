@@ -64,7 +64,7 @@ def trans_e1_incore(eri_ao, mo, ncore, ncas):
         jc_pp = np.zeros((ncore[0], nmo, nmo))
         kc_pp = np.zeros((ncore[0], nmo, nmo))
         Icvcv = np.zeros((ncore[0], nmo-ncore[0], ncore[0], nmo-ncore[0]))
-        
+
         erib = ao2mo.kernel(eri_ao[1], mo[1], compact=True)
         AAPP = ao2mo.restore(1, erib, nmo)
         erib = None
@@ -73,7 +73,7 @@ def trans_e1_incore(eri_ao, mo, ncore, ncas):
         jC_PP = np.zeros((ncore[1], nmo, nmo))
         kC_PP = np.zeros((ncore[1], nmo, nmo))
         ICVCV = np.zeros((ncore[1], nmo-ncore[1], ncore[1], nmo-ncore[1]))
-        
+
         # mixed terms:
         #jC_pp, jc_PP, aaPP, AApp, apPA, apCV, APcv, cvCV
         eriab = ao2mo.general(eri_ao[2], (mo[0], mo[0], mo[1], mo[1]), compact=True)
@@ -81,7 +81,7 @@ def trans_e1_incore(eri_ao, mo, ncore, ncas):
         eriab = None
         AApp = aaPP.transpose(3, 2, 1, 0)
         apPA = aaPP
-        
+
         jC_pp = np.zeros((nmo, nmo))
         jc_PP = np.zeros((nmo, nmo))
         apCV  = np.zeros((ncas, nmo, ncore[1], nmo-ncore[1]))
@@ -106,7 +106,7 @@ def trans_e1_incore(eri_ao, mo, ncore, ncas):
             jC_PP, jC_pp, kC_PP, ICVCV = \
                     _trans_cvcv_((mo[1],mo[0]), (ncore[1],ncore[0]), ncas, load_buf)[:4]
             eribb = None
-            
+
             eriaa = ao2mo.incore.half_e1(eri_ao[0], (mo[0][:,:nocc[0]],mo[0]),
                                         compact=False)
             eriab = ao2mo.incore.half_e1(eri_ao[2], (mo[0][:,:nocc[0]],mo[0]),
@@ -143,7 +143,7 @@ def trans_e1_incore(eri_ao, mo, ncore, ncas):
                     _trans_aapp_(mo, ncore, ncas, load_buf)
             jc_pp, jc_PP, kc_pp, Icvcv, cvCV = \
                     _trans_cvcv_(mo, ncore, ncas, load_buf)
-        
+
     jkcpp = jc_pp - kc_pp
     jkcPP = jC_PP - kC_PP
     return jkcpp, jkcPP, jC_pp, jc_PP, \
@@ -178,7 +178,7 @@ def trans_e1_outcore(mol, mo, ncore, ncas,
         if log.verbose >= logger.DEBUG1:
             time1[:] = log.timer('load_buf', *tuple(time1))
         return buf
-    
+
     load_bufa = [load_bufa, load_bufa]
 
     time0 = log.timer('halfe1-beta', *time0)
@@ -214,7 +214,7 @@ def trans_e1_outcore(mol, mo, ncore, ncas,
         if log.verbose >= logger.DEBUG1:
             time1[:] = log.timer('load_buf', *tuple(time1))
         return buf
-    
+
     load_bufb = [load_bufb, load_bufb]
 
     time0 = log.timer('halfe1-alpha', *time0)

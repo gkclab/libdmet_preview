@@ -63,7 +63,7 @@ class Integral(object):
         Integral class.
 
         Args:
-            H2: dict or h5 handle, 
+            H2: dict or h5 handle,
                 should have spin dimension, 1, 4, 8-fold symmetry.
         """
         self.norb = norb
@@ -78,10 +78,10 @@ class Integral(object):
 
         for key in H1:
             # H1 should has shape (spin, norb, norb)
-            log.eassert(H1[key] is None or 
-                        (H1[key].ndim == 3 and H1[key].shape[-1] == self.norb), 
+            log.eassert(H1[key] is None or
+                        (H1[key].ndim == 3 and H1[key].shape[-1] == self.norb),
                         "invalid shape %s, should have shape %s",
-                        str(H1[key].shape), 
+                        str(H1[key].shape),
                         "(spin, %s, %s)"%(self.norb, self.norb))
 
         self.H1 = H1
@@ -89,7 +89,7 @@ class Integral(object):
             if H2[key] is not None:
                 # H2 shape: (spin,) + (nao,)*4 or (pair,)*2 or (pair_pair,)*1
                 length = H2[key].ndim
-                log.eassert(length == 5 or length == 3 or length == 2, 
+                log.eassert(length == 5 or length == 3 or length == 2,
                             "invalid H2 shape: %s", str(H2[key].shape))
         self.H2 = H2
 
@@ -99,19 +99,19 @@ class Integral(object):
             self.ovlp = np.eye(self.norb)
         else:
             self.ovlp = ovlp
-    
+
     save = save
-    
+
     def load(self, fname="integral.h5"):
         """
         Load integrals from h5 file.
         """
         norb, restricted, bogoliubov, H0, H1, H2, ovlp = _load_integral(fname)
         self.__init__(norb, restricted, bogoliubov, H0, H1, H2, ovlp=ovlp)
-    
+
     def dump(self, filename="FCIDUMP", fmt="FCIDUMP", **kwargs):
         dump(filename, self, fmt, **kwargs)
-    
+
     @staticmethod
     def read(filename, norb, restricted, bogoliubov, fmt, **kwargs):
         return read(filename, norb, restricted, bogoliubov, fmt, **kwargs)
@@ -152,7 +152,7 @@ def dumpFCIDUMP(filename, integral, thr=1e-12, buffered_io=False, nelec=None, sp
     if not integral.restricted:
         header.append("  IUHF=1,")
     header.append(" &END")
-    
+
     # ZHC NOTE ccdd can have permutation symmetry
     eri_format = get_eri_format(integral.H2["ccdd"], norb)[0]
     if eri_format == 's1':
@@ -170,7 +170,7 @@ def dumpFCIDUMP(filename, integral, thr=1e-12, buffered_io=False, nelec=None, sp
             return tril_idx(ij, kl)
     else:
         raise ValueError
-        
+
     # ZHC TODO optimize the IO effciency using buffer
     if dump_as_complex:
         if buffered_io:
@@ -190,20 +190,20 @@ def dumpFCIDUMP(filename, integral, thr=1e-12, buffered_io=False, nelec=None, sp
             def writeInt(fout, val, i, j, k=-1, l=-1):
                 if abs(val) > thr:
                     fout.write("%20.16f%4d%4d%4d%4d\n" % (val, i+1, j+1, k+1, l+1))
-    
+
     def insert_ccdd(fout, matrix, t, symm_herm=True, symm_spin=True):
         if symm_herm:
             p = integral.pairSymm()
         else:
             p = integral.pairNoSymm()
-        
+
         if symm_spin:
             for (i, j), (k, l) in list(it.combinations_with_replacement(p[::-1], 2))[::-1]:
                 writeInt(fout, matrix[t][IDX(i, j, k, l)], i, j, k, l)
         else:
             for (i, j), (k, l) in it.product(p, repeat=2):
                 writeInt(fout, matrix[t][IDX(i, j, k, l)], i, j, k, l)
-    
+
     def insert_ccdd_new(fout, matrix, t):
         """
         modified from pyblock3.
@@ -266,7 +266,7 @@ def dumpFCIDUMP(filename, integral, thr=1e-12, buffered_io=False, nelec=None, sp
         else:
             for i, j in integral.pairNoSymm():
                 writeInt(fout, matrix[t, i, j], i, j)
-    
+
     if dump_as_complex:
         def insert_H0(fout, val=0):
             fout.write("(%20.16f, 0.0) %4d%4d%4d%4d\n" % (val, 0, 0, 0, 0)) # cannot be ignored even if smaller than thr
@@ -280,7 +280,7 @@ def dumpFCIDUMP(filename, integral, thr=1e-12, buffered_io=False, nelec=None, sp
         f = filename
 
     f.write("\n".join(header) + "\n")
-    
+
     if integral.restricted and not integral.bogoliubov:
         insert_ccdd(f, integral.H2["ccdd"], 0)
         insert_2dArray(f, integral.H1["cd"], 0)
@@ -361,18 +361,18 @@ def dumpFCIDUMP_no_perm(filename, integral, thr=1e-12):
         if symm_spin: # h + s, 4-fold
             return  ((j, i, l, k) not in ind_set) and \
                     ((l, k, j, i) not in ind_set)
-        else: # h 
+        else: # h
             return  ((j, i, l, k) not in ind_set)
 
     def writeInt(fout, val, i, j, k=-1, l=-1):
         if abs(val) > thr:
             fout.write("%20.16f%4d%4d%4d%4d\n" % (val, i+1, j+1, k+1, l+1))
-    
+
     def insert_ccdd(fout, matrix, t, symm_herm=True, symm_spin=True):
         # NO permutation symmetry
         p = integral.pairNoSymm()
         ind_set = set()
-        
+
         if symm_spin:
             for (i,j), (k,l) in reversed(list(it.combinations_with_replacement(reversed(p), 2))):
                 #if check_ind(ind_set, i, j, k, l, symm_spin=symm_spin):
@@ -383,7 +383,7 @@ def dumpFCIDUMP_no_perm(filename, integral, thr=1e-12):
                 #if check_ind(ind_set, i, j, k, l, symm_spin=symm_spin):
                     writeInt(fout, matrix[t, i, j, k, l], i, j, k, l)
                 #    ind_set.add((i, j, k, l))
-    
+
     def insert_cccd(fout, matrix, t):
         for (i,j), (k,l) in it.product(integral.pairAntiSymm(), integral.pairNoSymm()):
             writeInt(fout, matrix[t, i, j, k, l], i, j, k, l)
@@ -494,7 +494,7 @@ def dumpFCIDUMP_as_ghf(filename, integral, thr=1e-12, buffered_io=False, nelec=N
     header.append("  ORBSYM=" + "1," * nso)
     header.append("  ISYM=1,")
     header.append(" &END")
-    
+
     eri_format = get_eri_format(integral.H2["ccdd"], norb)[0]
     if eri_format == 's1':
         def IDX(i, j, k, l):
@@ -511,7 +511,7 @@ def dumpFCIDUMP_as_ghf(filename, integral, thr=1e-12, buffered_io=False, nelec=N
             return tril_idx(ij, kl)
     else:
         raise ValueError
-        
+
     # ZHC TODO optimize the IO effciency using buffer
     if dump_as_complex:
         if buffered_io:
@@ -531,13 +531,13 @@ def dumpFCIDUMP_as_ghf(filename, integral, thr=1e-12, buffered_io=False, nelec=N
             def writeInt(fout, val, i, j, k=-1, l=-1):
                 if abs(val) > thr:
                     fout.write("%20.16f%4d%4d%4d%4d\n" % (val, i+1, j+1, k+1, l+1))
-    
+
     def insert_ccdd(fout, matrix, t, symm_herm=True, symm_spin=True):
         if symm_herm:
             p = integral.pairSymm()
         else:
             p = integral.pairNoSymm()
-        
+
         if aabb:
             raise NotImplementedError
         else:
@@ -566,7 +566,7 @@ def dumpFCIDUMP_as_ghf(filename, integral, thr=1e-12, buffered_io=False, nelec=N
                         #writeInt(fout, matrix[t][IDX(i, j, k, l)], k*2+1, l*2+1, i*2, j*2)
             else:
                 raise ValueError
-    
+
     def insert_cccd(fout, matrix, t):
         for (i, j), (k, l) in it.product(integral.pairAntiSymm(), integral.pairNoSymm()):
             writeInt(fout, matrix[t, i, j, k, l], i, j, k, l)
@@ -599,7 +599,7 @@ def dumpFCIDUMP_as_ghf(filename, integral, thr=1e-12, buffered_io=False, nelec=N
                         writeInt(fout, matrix[t, i, j], i*2+1, j*2+1)
             else:
                 raise ValueError
-    
+
     if dump_as_complex:
         def insert_H0(fout, val=0):
             fout.write("(%20.16f, 0.0) %4d%4d%4d%4d\n" % (val, 0, 0, 0, 0)) # cannot be ignored even if smaller than thr
@@ -613,7 +613,7 @@ def dumpFCIDUMP_as_ghf(filename, integral, thr=1e-12, buffered_io=False, nelec=N
         f = filename
 
     f.write("\n".join(header) + "\n")
-    
+
     if integral.restricted and not integral.bogoliubov:
         insert_ccdd(f, integral.H2["ccdd"], 0)
         insert_2dArray(f, integral.H1["cd"], 0)
@@ -892,15 +892,15 @@ def get_eri_format(eri, nao):
     s1_size = nao ** 4
     s4_size = nao_pair * nao_pair
     s8_size = nao_pair_pair
-    
-    if eri.ndim == 5: 
+
+    if eri.ndim == 5:
         # s1 with spin = 1 or 3
         eri_format = 's1'
         spin_dim = eri.size // s1_size
-        log.eassert(spin_dim * s1_size == eri.size, 
+        log.eassert(spin_dim * s1_size == eri.size,
                     "s1: spin_dim (%s), nao (%s), eri.shape (%s) not consistent",
                     spin_dim, nao, str(eri.shape))
-    elif (eri.ndim == 4) and (eri.size == s1_size): 
+    elif (eri.ndim == 4) and (eri.size == s1_size):
         # s1 with spin = 0
         eri_format = 's1'
         spin_dim = 0
@@ -908,7 +908,7 @@ def get_eri_format(eri, nao):
         # s4 with spin = 1 or 3
         eri_format = 's4'
         spin_dim = eri.size // s4_size
-        log.eassert(spin_dim * s4_size == eri.size, 
+        log.eassert(spin_dim * s4_size == eri.size,
                     "s4: spin_dim (%s), nao (%s), eri.shape (%s) not consistent",
                     spin_dim, nao, str(eri.shape))
     elif eri.ndim == 2 and (eri.size == s4_size):
@@ -930,9 +930,9 @@ def get_eri_format(eri, nao):
 def check_perm_symm(eri, tol=1e-8):
     """
     Check the permutation symmetry of a plain eri in chemists' notation.
-    
+
     Conventions:
-    Sherrill's notes (4-fold symmetry): 
+    Sherrill's notes (4-fold symmetry):
     real: (ij|kl) = (ji|lk)
     spin (for aaaa and bbbb type integral): (ij|kl) = (kl|ij)
     Combining these two, we have: (ij|kl) = (lk|ji) [hermi]
@@ -941,10 +941,10 @@ def check_perm_symm(eri, tol=1e-8):
     permute over the first two: (ij|kl) = (ji|kl)
     permute over the last two: (ij|kl) = (ij|lk)
     Combining these two, we have: (ij|kl) = (ji|lk) [real]
-    Note that PySCF's 4-fold symmetrized ERI always 
+    Note that PySCF's 4-fold symmetrized ERI always
     has a shape of (nao_pair, nao_pair).
     If [spin] symmetry is further considered, it is 8-fold.
-    
+
     Args:
         eri: H2, shape (nao, nao, nao, nao), real
         tol: tolerance for symmetry
@@ -958,19 +958,19 @@ def check_perm_symm(eri, tol=1e-8):
         log.info("pyscf's symmetry")
         ij_perm = misc.max_abs(eri - eri.transpose(1, 0, 2, 3)) < tol
         log.info("ij symm:    (ij|kl) == (ji|kl)  ? %s", ij_perm)
-        
+
         kl_perm = misc.max_abs(eri - eri.transpose(0, 1, 3, 2)) < tol
         log.info("kl symm:    (ij|kl) == (ij|lk)  ? %s", kl_perm)
-        
+
         spin_perm = misc.max_abs(eri - eri.transpose(2, 3, 0, 1)) < tol
         log.info("spin symm:  (ij|kl) == (kl|ij)  ? %s", spin_perm)
-        
+
         # check Sherrill's symmetry
         log.info("\nSherill's symmetry")
         real_perm = misc.max_abs(eri - eri.transpose(1, 0, 3, 2)) < tol
         log.info("real symm:  (ij|kl) == (ji|lk)  ? %s", real_perm)
         log.info("spin symm:  (ij|kl) == (kl|ij)  ? %s", spin_perm)
-        
+
         hermi_perm = misc.max_abs(eri - eri.transpose(3, 2, 1, 0).conj()) < tol
         log.info("hermi symm: (ij|kl) == (lk|ji)* ? %s \n", hermi_perm)
     elif eri.ndim == 2:

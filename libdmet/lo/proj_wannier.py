@@ -60,7 +60,7 @@ def angle(v1, v2):
 
 def transform(x_vec, z_vec):
     """
-    Construct a transformation matrix to transform r_vec to 
+    Construct a transformation matrix to transform r_vec to
     the new coordinate system defined by x_vec and z_vec.
     """
     x_vec = np.asarray(x_vec)
@@ -71,7 +71,7 @@ def transform(x_vec, z_vec):
     y_vec = np.cross(z_vec, x_vec)
     new = np.asarray((x_vec, y_vec, z_vec))
     original = np.eye(3)
-    
+
     tran_matrix = np.empty((3, 3))
     for row in range(3):
         for col in range(3):
@@ -97,7 +97,7 @@ def R_r(r_norm, r=1, zona=1):
 
 def theta(func, cost, phi):
     r"""
-    Basic angular functions (s,p,d,f) used to compute 
+    Basic angular functions (s,p,d,f) used to compute
     \Theta_{l,m_r}(\theta,\phi)
     """
     sint = np.sqrt(1.0 - cost**2)
@@ -230,7 +230,7 @@ def theta_lmr(l, mr, cost, phi):
         elif mr == 4: # sp3-4
             theta_lmr = 0.5 * (theta('s', cost, phi) - theta('px', cost, phi) \
                     - theta('py', cost, phi) + theta('pz', cost, phi))
-    elif l == -4:         
+    elif l == -4:
         if   mr == 1: # sp3d-1
             theta_lmr = 1.0 / np.sqrt(3.0) * theta('s', cost, phi) \
                     - 1.0 / np.sqrt(6.0) * theta('px', cost, phi) \
@@ -292,10 +292,10 @@ def g_r(grids_coor, site, l, mr, r, zona, x_axis=np.array([1.0, 0.0, 0.0]), \
     ref: Chapter 3, wannier90 User Guide
     Args:
         grids_coor : a grids for the cell of interest
-        site       : absolute coordinate (in Borh/Angstrom) 
+        site       : absolute coordinate (in Borh/Angstrom)
                      of the g(r) in the cell
         l, mr      : l and mr value in the Table 3.1 and 3.2 of the ref
-    
+
     Returns:
         g_r        : an array (ngrid, value) of g(r)
     """
@@ -313,7 +313,7 @@ def g_r(grids_coor, site, l, mr, r, zona, x_axis=np.array([1.0, 0.0, 0.0]), \
 def get_proj_string(cell, idx_all, zaxis=[0, 0, 1], xaxis=[1, 0, 0]):
     """
     Get a list of projection string for wannier90.
-    
+
     Args:
         cell: cell.
         idx_all: a dic for all orbitals.

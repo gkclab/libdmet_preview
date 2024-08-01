@@ -16,7 +16,7 @@ def test_plot_smooth():
 
     x = [0.0, 0.5, 2.0, 4.0, 5.0, 7.0, 8.0]
     y = np.sin(x) + (np.random.random(len(x)) - 0.5) * 0.1
-    
+
     x_plot, y_plot1 = plot_smooth(x, y, smooth=0.1, do_plot=False)
     x_plot, y_plot2 = plot_smooth(x, y, smooth=1e-2, n0left=20, remove_neg=True)
     plt.savefig("plot_smooth.png")
@@ -30,11 +30,11 @@ def test_dos():
     import scipy.linalg as la
     from libdmet.utils.plot import get_dos, plot_dos
     from libdmet.utils.misc import max_abs
-    
+
     # not use Xwindow as backend
     import matplotlib
     matplotlib.use('Agg')
-    
+
     # fake MO and C_lo_mo
     mo_energy = np.asarray([[-2.0, -2.0, 0.0, 0.1, 0.5, 7.0], \
                             [-2.0, -0.1, 0.0, 0.1, 0.5, 6.5],
@@ -50,26 +50,26 @@ def test_dos():
     elist_spin, pdos_spin = get_dos(mo_energy[None], ndos=201, \
             mo_coeff=C_lo_mo[None], sigma=0.1)
     assert max_abs(elist - elist_spin) < 1e-10
-    assert pdos_spin.ndim == pdos.ndim + 1 
+    assert pdos_spin.ndim == pdos.ndim + 1
     assert max_abs(elist - elist_spin) < 1e-10
     plot_dos(elist, pdos.sum(axis=0), idx_dic=None, text='test_total', fig_name='test.pdf')
-    
+
     plot_dos(elist, pdos, idx_dic=idx_dic, text='test')
-    
+
     plot_dos(elist, np.asarray((pdos, pdos * 0.7)), \
             idx_dic=idx_dic, color_dic=color_dic, fig_name='pdos_uhf.pdf')
-    
+
     plot_dos(elist, np.asarray((pdos, pdos * 0.7)), \
             idx_dic=idx_dic, color_dic=None, \
             fig_name='pdos_uhf_no_color_dic.pdf')
-    
+
     plot_dos(elist, np.asarray((pdos, pdos * 0.7)), \
             idx_dic=idx_dic, color_dic=color_dic_select, \
             fig_name='pdos_uhf_select_color_dic.pdf')
-    
+
     elist_spin, pdos_spin = get_dos(mo_energy[None], ndos=201, \
             mo_coeff=C_lo_mo[None], sigma=0.1, e_fermi=0.0)
-    
+
     plot_dos(elist_spin, np.asarray((pdos_spin[0], pdos_spin[0])), \
             idx_dic=idx_dic, color_dic=color_dic_select, \
             fig_name='pdos_e_fermi.pdf')
@@ -78,7 +78,7 @@ def test_cube():
     import os
     import numpy as np
     import scipy.linalg as la
-    
+
     from pyscf import lib, fci, ao2mo
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, gto, df, dft, cc
@@ -119,7 +119,7 @@ def test_cube():
     exxdiv = None
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -228,7 +228,7 @@ def test_cube():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -242,16 +242,16 @@ def test_cube():
         latt_vec = cell.lattice_vectors()
         latt_vec[0,0] = 3.0
         latt_vec[1,1] = 3.0
-        plot_orb_k_all(cell, 'iao_val', C_ao_iao_val, kpts, nx=51, ny=51, 
-                       nz=51, resolution=None, margin=5.0, latt_vec=latt_vec, 
+        plot_orb_k_all(cell, 'iao_val', C_ao_iao_val, kpts, nx=51, ny=51,
+                       nz=51, resolution=None, margin=5.0, latt_vec=latt_vec,
                        boxorig=[5.0, 5.0, -3.0])
-        plot_orb_k_all(cell, 'iao_virt', C_ao_iao_virt[None], kpts, nx=51, ny=51, 
-                       nz=51, resolution=None, margin=5.0, latt_vec=latt_vec, 
+        plot_orb_k_all(cell, 'iao_virt', C_ao_iao_virt[None], kpts, nx=51, ny=51,
+                       nz=51, resolution=None, margin=5.0, latt_vec=latt_vec,
                        boxorig=[5.0, 5.0, -3.0])
         #plot_orb_k_all(cell, 'mo_val', C_ao_mo, kpts, nx=50, ny=50, nz=50, \
         #        resolution=None, margin=3.0,  latt_vec=latt_vec, \
         #        boxorig=[5.0, 5.0, -3.0])
-        
+
         # plot rdm1_lo_R0
         scell = Lat.bigcell
         scell.verbose = 4
@@ -260,16 +260,16 @@ def test_cube():
         C_ao_lo0 = Lat.k2R_basis(C_ao_lo)
         C_ao_lo0_full = C_ao_lo0.reshape((nkpts*nscsites, -1))
         rdm1_sc = mdot(C_ao_lo0_full, rdm1_lo_R0, C_ao_lo0_full.conj().T)
-        plot_density_k(scell, 'rdm1_sc.cube', rdm1_sc[None], kpts_abs=[[0.0, 0.0, 0.0]], 
+        plot_density_k(scell, 'rdm1_sc.cube', rdm1_sc[None], kpts_abs=[[0.0, 0.0, 0.0]],
                        nx=51, ny=51, nz=51, resolution=None, margin=3.0)
-        
+
         # plot bath orbital density
         C_ao_emb_k = make_basis.multiply_basis(C_ao_lo[None], basis_k)
         C_ao_emb_R = Lat.k2R_basis(C_ao_emb_k).reshape((1, nkpts*nscsites, -1))
         C_bath = C_ao_emb_R[:, :, -nval:]
         dm_bath = (C_bath[0].dot(C_bath[0].conj().T))[None]
-        
-        plot_density_k(scell, 'rho.cube', dm_bath, kpts_abs=[[0.0, 0.0, 0.0]], 
+
+        plot_density_k(scell, 'rho.cube', dm_bath, kpts_abs=[[0.0, 0.0, 0.0]],
                        nx=51, ny=51, nz=51, resolution=None, margin=0.0)
         break
 
@@ -296,11 +296,11 @@ def test_plot_bands():
     matplotlib.use('Agg')
     matplotlib.rcParams['mathtext.fontset'] = 'stix'
     matplotlib.rcParams['font.family'] = 'STIXGeneral'
-    
+
     log.verbose = "DEBUG0"
     np.set_printoptions(3, linewidth=1000, suppress=True)
 
-    doping = 0.0 
+    doping = 0.0
     Filling = (5.-doping) / 6
     Filling_Cu = (1.0 - doping) / 2.0
 
@@ -316,10 +316,10 @@ def test_plot_bands():
 
     # initial guess for HF
     nCu_tot = np.prod(LatSize) * 4 # 4 is number of Cu site per 2x2 cell
-    nO_tot = np.prod(LatSize) * 8 
-    nao_tot = nao * nkpts 
+    nO_tot = np.prod(LatSize) * 8
+    nao_tot = nao * nkpts
     nelec_half = np.prod(LatSize) * 20 # 20 electron per cell
-    nelec_half_Cu = np.prod(LatSize) * 4 
+    nelec_half_Cu = np.prod(LatSize) * 4
     nelec_half_O = np.prod(LatSize) * 16
 
     x_dop = 0.0
@@ -328,9 +328,9 @@ def test_plot_bands():
         diff_l = abs(nelec_dop - 1 - x_dop * nCu_tot)
         diff_r = abs(nelec_dop + 1 - x_dop * nCu_tot)
         if diff_l < diff_r:
-            nelec_dop = nelec_dop - 1 
+            nelec_dop = nelec_dop - 1
         else:
-            nelec_dop = nelec_dop + 1 
+            nelec_dop = nelec_dop + 1
     x_dop = nelec_dop / float(nCu_tot)
 
     Filling = (nelec_half - nelec_dop) / (nao_tot * 2.0)
@@ -399,7 +399,7 @@ def test_plot_bands():
 
     kpath_idx = np.hstack((GX_idx, XS_idx, SG_idx))
     kpts_bands = kpts[kpath_idx]
-    
+
     kpts_sp = np.array([[0.0, 0.0, 0.0],
                         [0.5, 0.0, 0.0],
                         [0.5, 0.5, 0.0],
@@ -500,7 +500,7 @@ def test_plot_bands():
     plt.xlim(0.0, 7.5)
     plt.ylim(emin, emax)
     plt.yticks(np.arange(-8, 6, 2))
-    
+
     #try:
     #    cmap = matplotlib.cm.get_cmap('coolwarm')
     #except AttributeError:
@@ -530,14 +530,14 @@ def test_plot_elf_mol():
     from pyscf import gto
     from libdmet.utils import cubegen, plot_elf
     np.set_printoptions(3, linewidth=1000, suppress=True)
-    
+
     mol = gto.M(atom='O 0 0 0; H 0.9584 0 0; H -0.2391543829355199 0.9280817534693432 0',
                 basis='ccpvdz', verbose=4)
     myhf = mol.RKS()
     myhf.xc = 'b3lyp'
     myhf.grids.level = 5
     myhf.kernel()
-    
+
     nx = 51
     ny = 51
     nz = 51
@@ -545,14 +545,14 @@ def test_plot_elf_mol():
     cc = cubegen.Cube(mol, nx, ny, nz)
     plot_elf(mol, cc, dm, max_memory=100)
 
-    dm = np.asarray((dm, dm)) * 0.5 
+    dm = np.asarray((dm, dm)) * 0.5
     plot_elf(mol, cc, dm, max_memory=100, spin_average=False)
-    
+
 def test_plot_elf_pbc():
     import numpy as np
     from pyscf.pbc import gto, scf
     from libdmet.utils import cubegen, plot_elf
-    
+
     import h5py
     import matplotlib
     matplotlib.use('Agg')
@@ -562,17 +562,17 @@ def test_plot_elf_pbc():
 
     np.set_printoptions(3, linewidth=1000, suppress=True)
 
-    cell = gto.Cell(a=np.eye(3) * 15.0, 
+    cell = gto.Cell(a=np.eye(3) * 15.0,
                     atom='O 0 0 0; H 0.9584 0 0; H -0.2391543829355199 0.9280817534693432 0',
                     basis='sto6g', verbose=4)
     myhf = scf.RHF(cell).density_fit()
     myhf.kernel()
-    
+
     nx = 51
     ny = 51
     nz = 1
     dm = myhf.make_rdm1()
-    
+
     cc = cubegen.Cube(cell, nx, ny, nz, latt_vec=np.eye(3) * 2.0)
     cc.boxorig = np.asarray((-4, -4, -4.0))
     cc.box = np.eye(3)
@@ -580,10 +580,10 @@ def test_plot_elf_pbc():
 
     coords = cc.get_coords()
     coords[:, 2] = 0.0
-    
+
     dm = np.asarray((dm, dm)) * 0.5
     plot_elf(cell, cc, dm, max_memory=100)
-    
+
     with h5py.File("ELF.h5", 'r') as f:
         coords = np.asarray(f["coords"])
         elf = np.asarray(f["elf_0"])
@@ -591,7 +591,7 @@ def test_plot_elf_pbc():
         coords_x = coords[:, 0].reshape((nx, ny))
         coords_y = coords[:, 1].reshape((nx, ny))
         elf = elf.reshape((nx, ny))
-        
+
         fig, ax = plt.subplots(figsize=(6, 6))
         CS = ax.contourf(coords_x, coords_y, elf, cmap='Blues')
         plt.scatter([0.0], [0.0], marker='o', linewidths=2, linestyle='--',
@@ -609,10 +609,10 @@ def test_plot_elf_pbc():
         plt.plot([0.0, 1.811114], [0.0, 0.0], marker=None, color='black',
                 linewidth=4, linestyle='-', alpha=0.2)
         plt.savefig("elf.png", dpi=300)
-    
+
         rho = np.asarray(f["rho_0"])
         rho = rho.reshape((nx, ny))
-        
+
         fig, ax = plt.subplots(figsize=(6, 6))
         CS = ax.contourf(coords_x, coords_y, rho, cmap='Blues',
                          locator=ticker.LogLocator(base=1.001))
@@ -635,7 +635,7 @@ def test_plot_elf_pbc():
     # restricted
     dm = dm[0] * 2.0
     plot_elf(cell, cc, dm, max_memory=100)
-    
+
     # k-point sampling
     cell = gto.Cell()
     cell.a = ''' 10.0    0.0     0.0
@@ -646,16 +646,16 @@ def test_plot_elf_pbc():
     cell.basis = '321g'
     cell.verbose = 5
     cell.build(unit='Angstrom')
-    
+
     kpts = cell.make_kpts([1, 1, 3])
     myhf = scf.KRHF(cell, kpts).density_fit()
     myhf.kernel()
-    
+
     nx = 51
     ny = 51
     nz = 51
     dm = myhf.make_rdm1()
-    
+
     dm = np.asarray((dm, dm)) * 0.5
     cc = cubegen.Cube(cell, nx, ny, nz, latt_vec=np.eye(3) * 2.0)
     plot_elf(cell, cc, dm, max_memory=100, kpts=kpts, spin_average=False)
@@ -678,7 +678,7 @@ def test_spin_corr_func():
         Axy_iijj = 0.5 * (rdm1_tmp - rdm2_ab.transpose(0, 3, 1, 2) - rdm2_ab.transpose(1, 2, 0, 3))
         cf = np.einsum('iijj->', Az_iijj[mesh] + Axy_iijj[mesh])
         return cf
-    
+
     norb = 6
     rdm1 = np.random.random((2, norb, norb))
     rdm2 = np.random.random((3, norb, norb, norb, norb))
@@ -693,7 +693,7 @@ def test_plot_density_matrix():
     import os
     import numpy as np
     import scipy.linalg as la
-    
+
     from pyscf import lib, fci, ao2mo
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, gto, df, dft, cc
@@ -703,7 +703,7 @@ def test_plot_density_matrix():
 
     from libdmet.utils import logger as log
     import libdmet.dmet.Hubbard as dmet
-    
+
     from libdmet.routine import spinless
     from libdmet.utils import plot
 
@@ -713,13 +713,13 @@ def test_plot_density_matrix():
     ### ************************************************************
     ### System settings
     ### ************************************************************
-    
+
     cell = lattice.HPlane(shift=[1.0, 1.0, 5.0])
     cell.basis = 'STO6G'
     cell.verbose = 4
     cell.precision = 1e-12
     cell.build(unit='Angstrom')
-    
+
     kmesh = [2, 2, 1]
     Lat = lattice.Lattice(cell, kmesh)
     kpts = Lat.kpts
@@ -729,7 +729,7 @@ def test_plot_density_matrix():
     exxdiv = None
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -830,7 +830,7 @@ def test_plot_density_matrix():
     Lat.set_val_virt_core(nval, nvirt, ncore)
     C_ao_lo = C_ao_iao
     Lat.set_Ham(kmf, gdf, C_ao_lo)
-    
+
     ovlp = np.asarray(kmf.get_ovlp())
     rdm1 = np.asarray(kmf.make_rdm1())
     Grdm1 = spinless.transform_rdm1_k(rdm1, ovlp, compact=False)
@@ -845,14 +845,14 @@ def test_plot_density_matrix():
                          [  0.1248,  0.    ,  0.    , -0.1248],
                          [ -0.1248, -0.    , -0.    ,  0.1248],
                          [  0.    , -0.0074,  0.0074, -0.    ]])
-    
-    
+
+
     rdm1_emb[:4, 4:] = rdm1_D
     rdm1_emb[4:, :4] = rdm1_D.conj().T
 
     basis = Lat.k2R_basis(C_sao_slo)
     basis_a, basis_b = spinless.separate_basis(basis)
-    
+
     neo = rdm1_emb.shape[-1]
     nso = nao * 2
     rdm1_full = basis_a.reshape(nkpts*nao, neo) @ rdm1_emb @ basis_b.reshape(nkpts*nao, neo).T
@@ -878,19 +878,19 @@ def test_get_fermi_surface():
     nao = nscsites = Lat.nscsites
     nkpts = Lat.nkpts
     natm = np.prod(ImpSize)
-    
+
     ImpSize_uc = [1, 1]
     Lat_uc = dmet.SquareLattice(*(LatSize+ImpSize_uc))
 
     # Hamiltonian
-    U = 0.0 
+    U = 0.0
     Filling = 0.6 / 2.0
     ntotal = Filling * np.prod(LatSize)
     if ntotal - np.round(ntotal) > 1e-5:
         ntotal = int(np.round(ntotal))
         log.warning("rounded total number of electrons to integer %d", ntotal)
         Filling=float(ntotal) / np.prod(LatSize)
-        
+
     Ham = dmet.Ham(Lat, U)
     restricted = False
     bogoliubov = False
@@ -905,14 +905,14 @@ def test_get_fermi_surface():
 
     rho, mu, ires = dmet.HartreeFock(Lat, vcor, Filling, mu0=None, beta=1000.0, \
             ires=True, scf=True, dm0=None, conv_tol=1e-9)
-    
+
     mo_coeff = ires["coef"]
     mo_energy = ires['e']
-    
+
     from libdmet.utils import plot
     kpts_scaled, fs = plot.get_fermi_surface(mo_coeff[0], mo_energy[0], Lat, mu=mu, sigma=0.1,
                                              latt_uc=Lat_uc, fname="fs.txt")
-    
+
     plot.plot_fs(fname="fs.txt")
 
 if __name__ == "__main__":

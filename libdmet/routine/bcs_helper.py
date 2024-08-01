@@ -9,7 +9,7 @@ from scipy.optimize import brentq
 
 from libdmet.utils import logger as log
 from libdmet.utils.misc import mdot
-from libdmet.settings import IMAG_DISCARD_TOL 
+from libdmet.settings import IMAG_DISCARD_TOL
 
 def extractRdm(GRho):
     """
@@ -81,7 +81,7 @@ def mono_fit(fn, y0, x0, thr, increase=True, dx=1.0, verbose=True):
             log.debug(1, "Iter %2d, x = %20.12f, f(x) = %20.12f", \
                     evaluate.count-1, xx, yy)
         return yy
-    
+
     if verbose:
         log.debug(0, "target f(x) = %20.12f", y0)
     # first section search
@@ -125,13 +125,13 @@ def mono_fit(fn, y0, x0, thr, increase=True, dx=1.0, verbose=True):
         else:
             sec_x = [x1, sec_x[1]]
             sec_y = [y1, sec_y[1]]
-    
+
     return 0.5 * (sec_x[0] + sec_x[1])
 
 def mono_fit_2(fn, y0, x0, thr, increase=True, dx=1.0, verbose=True, maxiter=1000):
     if not increase:
         return mono_fit(lambda x: -fn(x), -y0, x0, thr, True)
-    
+
     if verbose:
         log.debug(0, "target f(x) = %20.12f", y0)
     x = x0
@@ -159,11 +159,11 @@ def mono_fit_2(fn, y0, x0, thr, increase=True, dx=1.0, verbose=True, maxiter=100
         sec_x = [x, x1]
     else:
         sec_x = [x1, x]
-    
+
     def error(xx):
         yy = fn(xx)
         return yy - y0
-    
+
     res = brentq(error, sec_x[0], sec_x[1], xtol=thr, rtol=thr,
                  maxiter=maxiter, full_output=True, disp=False)
     mu = res[0]
@@ -217,7 +217,7 @@ def contract_trans_inv_sparse(basisL, basisR, lattice, H, thr = 1e-7):
     mask_H = set(find(True, map(lambda a: la.norm(a) > thr, H)))
 
     for i, k in it.product(mask_basisL, mask_H):
-        #j = lattice.add(i, k) 
+        #j = lattice.add(i, k)
         j = lattice.subtract(i, k) # J=I-K -> K=I-J=I,J
         if j in mask_basisR:
             res += mdot(basisL[i].T, H[k], basisR[j])
@@ -285,7 +285,7 @@ def contract_local_grad_DT(basisL, basisR, lattice):
 def transform_local_grad_A(sep_basis, lattice):
     VA, VB, UA, UB = sep_basis
     ctr = lambda L, R: contract_local_grad(L, R, lattice)
-    resHA = ctr(VA, VA) 
+    resHA = ctr(VA, VA)
     resHB = -ctr(UA, UA)
     resD = ctr(VA, UA)
     resE0 = None
@@ -386,7 +386,7 @@ def transform_imp_env(basis, lattice, H):
     resD = ctr(VA, HA, UA) - ctr(UB, HB, VB) + ctr(VA, D, VB) + ctr(UB, D_T, UA)
     resE0 = np.trace(ctr(UA, HA, UA) + ctr(UB, HB, UB) + ctr(UA, D, VB) + ctr(VB, D_T, UA))
     return np.asarray([resHA, resHB]), resD, resE0
-    
+
 def get_dV_dparam(basis, lattice, vcor):
     # this is a differential version of dV_dparam
     # and is faster
@@ -394,7 +394,7 @@ def get_dV_dparam(basis, lattice, vcor):
         a = a + a.transpose((1, 0, 2, 3))
         a[np.arange(a.shape[0]), np.arange(a.shape[1])] *= 0.5
         return a[np.triu_indices(a.shape[0])]
-    
+
     nbasis = basis.shape[-1]
     dV_dp = np.empty((vcor.length(), nbasis*2, nbasis*2))
     resA, resB, resD = transform_local_grad(basis, lattice)
@@ -407,19 +407,19 @@ def get_dV_dparam(basis, lattice, vcor):
     resB_A = sym_triu(resB_A)
     resB_B = sym_triu(resB_B)
     resB_D = sym_triu(resB_D)
-    
+
     (resD_A, resD_B), resD_D, _ = resD
-    resD_A = resD_A.reshape((-1,) + resD_A.shape[-2:]) 
-    resD_B = resD_B.reshape((-1,) + resD_B.shape[-2:]) 
-    resD_D = resD_D.reshape((-1,) + resD_D.shape[-2:]) 
-    
+    resD_A = resD_A.reshape((-1,) + resD_A.shape[-2:])
+    resD_B = resD_B.reshape((-1,) + resD_B.shape[-2:])
+    resD_D = resD_D.reshape((-1,) + resD_D.shape[-2:])
+
     dA_dV_collect = reduce(lambda x, y : np.append(x, y, axis = 0), \
-            (resA_A, resB_A, resD_A)) 
+            (resA_A, resB_A, resD_A))
     dB_dV_collect = reduce(lambda x, y : np.append(x, y, axis = 0), \
-            (resA_B, resB_B, resD_B)) 
+            (resA_B, resB_B, resD_B))
     dD_dV_collect = reduce(lambda x, y : np.append(x, y, axis = 0), \
             (resA_D, resB_D, resD_D))
-    
+
     for ip in range(vcor.length()):
         dA_dV, dB_dV, dD_dV = \
                 dA_dV_collect[ip], dB_dV_collect[ip], dD_dV_collect[ip]

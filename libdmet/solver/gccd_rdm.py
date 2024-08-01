@@ -30,7 +30,7 @@ def _gamma1_intermediates(mycc, t1, t2, l1, l2):
 
     #dvv  = einsum('ma,mb->ab', t1, l1)
     dvv = einsum('mnea,mneb->ab', t2, l2) * .5
-    
+
     nocc, nvir = t1.shape
     dvo = np.zeros((nvir, nocc))
     dov = np.zeros((nocc, nvir))
@@ -42,7 +42,7 @@ def _gamma1_intermediates(mycc, t1, t2, l1, l2):
     #dvo -= einsum('mi,ma->ai', xt1, t1)
     #dvo -= einsum('ie,ae->ai', t1, xt2)
     #dvo += t1.T
-    
+
     #dov = l1
     return doo, dov, dvo, dvv
 
@@ -85,7 +85,7 @@ def _gamma2_intermediates(mycc, t1, t2, l1, l2):
 
     gvvvv = einsum('ijab,ijcd->abcd', tau, l2 * 0.125)
     goooo = einsum('klab,ijab->klij', l2, tau) * 0.125
-    
+
     #gooov  = einsum('jkba,ib->jkia', tau, l1 * (-0.25))
     #gooov += einsum('iljk,la->jkia', goooo, t1)
     #tmp = np.einsum('icjc->ij', miajb) * .25
@@ -187,7 +187,7 @@ def _make_rdm1(mycc, d1, with_frozen=True, ao_repr=False):
         moidx = np.where(mycc.get_frozen_mask())[0]
         rdm1[moidx[:,None],moidx] = dm1
         dm1 = rdm1
-    
+
     if ao_repr:
         mo = mycc.mo_coeff
         dm1 = lib.einsum('pi,ij,qj->pq', mo, dm1, mo.conj())
@@ -203,7 +203,7 @@ def _make_rdm2(mycc, d1, d2, with_dm1=True, with_frozen=True, ao_repr=False):
     dovov, dvvvv, doooo, doovv, dovvo, dvvov, dovvv, dooov = d2
     nocc, nvir = dovov.shape[:2]
     nmo = nocc + nvir
-    
+
     # ZHC NOTE
     dm2 = np.zeros((nmo,nmo,nmo,nmo), dtype=doooo.dtype)
 

@@ -23,7 +23,7 @@ from libdmet.utils import logger as log
 from libdmet.utils import mdot
 
 COUNT_UNIT_CELL = False
-    
+
 def trans_mu(mu, basis_Ra, basis_Rb):
     nao = basis_Ra.shape[-2]
     mu_mat = np.zeros((2, nao, nao))
@@ -81,7 +81,7 @@ Keyword argument "init_dm" is replaced by "dm0"''')
         dm = mf.get_init_guess(mol, mf.init_guess)
     else:
         dm = dm0
-    
+
     # ZHC NOTE first compute v_mu0
     nelec_target = mf.nelec_target
     tol_nelec = mf.tol_nelec
@@ -115,7 +115,7 @@ Keyword argument "init_dm" is replaced by "dm0"''')
 
     h1e  = np.array(mf.get_hcore(mol), copy=True)
     h1e -= v_mu0
-    
+
     vhf = mf.get_veff(mol, dm)
     e_tot = mf.energy_tot(dm, h1e, vhf)
     logger.info(mf, 'init E= %.15g', e_tot)
@@ -133,7 +133,7 @@ Keyword argument "init_dm" is replaced by "dm0"''')
     # Skip SCF iterations. Compute only the total energy of the initial density
     if mf.max_cycle <= 0:
         fock = mf.get_fock(h1e, s1e, vhf, dm)  # = h1e + vhf, no DIIS
-        mu_elec = mono_fit(get_nelec, nelec_target, mu_elec, tol_nelec, increase=True, dx=0.1, 
+        mu_elec = mono_fit(get_nelec, nelec_target, mu_elec, tol_nelec, increase=True, dx=0.1,
                            verbose=True)
         v_mu = trans_mu(mu_elec, basis_Ra, basis_Rb)
         mf.v_mu = v_mu
@@ -163,15 +163,15 @@ Keyword argument "init_dm" is replaced by "dm0"''')
     mf.pre_kernel(locals())
 
     cput1 = logger.timer(mf, 'initialize scf', *cput0)
-    
+
     for cycle in range(mf.max_cycle):
         dm_last = dm
         last_hf_e = e_tot
-        
+
         fock = mf.get_fock(h1e, s1e, vhf, dm)  # = h1e + vhf, no DIIS
         fock0 = np.array(fock, copy=True)
         mu_elec_old = mu_elec
-        mu_elec = mono_fit(get_nelec, nelec_target, mu_elec, tol_nelec, 
+        mu_elec = mono_fit(get_nelec, nelec_target, mu_elec, tol_nelec,
                            increase=True, dx=0.1, verbose=False)
         v_mu = trans_mu(mu_elec, basis_Ra, basis_Rb)
         fock = fock + v_mu
@@ -225,12 +225,12 @@ Keyword argument "init_dm" is replaced by "dm0"''')
 
         if callable(callback):
             callback(locals())
-        
+
         cput1 = logger.timer(mf, 'cycle= %d'%(cycle+1), *cput1)
 
         if scf_conv:
             break
-    
+
     logger.info(mf, "mu (final) = %s", mf.mu_elec)
     logger.timer(mf, 'scf_cycle', *cput0)
     # A post-processing hook before return
@@ -246,14 +246,14 @@ class GGHFpMu(scf_hp.GGHF):
                  mu_elec=None, nelec_target=None, basis=None, tol_nelec=None,
                  damp=0.0):
         scf_hp.GGHF.__init__(self, mol, DiisDim=DiisDim, MaxIter=MaxIter, alpha=alpha)
-        self._keys = self._keys.union(["mu_elec", "nelec_target", "basis", 
+        self._keys = self._keys.union(["mu_elec", "nelec_target", "basis",
                                        "tol_nelec", "v_mu0", "v_mu"])
         self.mu_elec = mu_elec
         self.nelec_target = nelec_target
         self.basis = basis
         self.tol_nelec = tol_nelec
         self.damp = damp
-    
+
     def dump_flags(self, verbose=None):
         scf_hp.GGHF.dump_flags(self, verbose)
         logger.info(self, 'nelec (target) = %s', self.nelec_target)

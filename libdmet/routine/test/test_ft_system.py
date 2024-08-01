@@ -8,7 +8,7 @@ def test_ftsystem():
     import numpy as np
     import scipy.linalg as la
     from libdmet.routine import ftsystem as ft
-    from libdmet.utils.misc import tril_mat2arr, tril_arr2mat 
+    from libdmet.utils.misc import tril_mat2arr, tril_arr2mat
     np.set_printoptions(5, linewidth =1000)
     np.random.seed(1)
 
@@ -30,7 +30,7 @@ def test_ftsystem():
     print ("mo_energy: \n%s" % mo_energy)
     print ("mo_occ: \n%s" %mo_occ)
     print ("mu: %s" % mu)
-    
+
     # test dw_dv
     drho = ft.make_rdm1(mo_coeff, mo_occ)
     f0 = (drho * drho).sum()
@@ -38,7 +38,7 @@ def test_ftsystem():
     mo_coeff = mo_coeff[None]
     drho = drho[None]
 
-    dw_dv = ft.get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=fix_mu, compact=True)    
+    dw_dv = ft.get_dw_dv(mo_energy, mo_coeff, drho, mu, beta, fix_mu=fix_mu, compact=True)
     h_arr_ref = tril_mat2arr(h)
     grad = np.zeros_like(h_arr_ref)
     dx = 1e-6
@@ -50,10 +50,10 @@ def test_ftsystem():
         rho = ft.make_rdm1(mo_coeff, mo_occ)
         f = (rho*rho).sum()
         grad[i] = (f - f0) / dx
-    
+
     print ("diff of gradients: %s" %(la.norm(grad - dw_dv)))
     assert (la.norm(grad - dw_dv) < 1e-4)
-    
+
     # test rho_grad
     rho0 = drho
     grad = np.zeros_like(grad_ana)
@@ -65,7 +65,7 @@ def test_ftsystem():
         mo_energy, mo_coeff, mo_occ, _ = ft.kernel(h_mat, nelec, beta, mu0=mu, fix_mu=fix_mu)
         rho = ft.make_rdm1(mo_coeff, mo_occ)
         grad[i] = (rho - rho0) / dx
-    
+
     print ("diff of gradients: %s" %(la.norm(grad - grad_ana)))
     assert (la.norm(grad - grad_ana) < 1e-4)
 
@@ -80,20 +80,20 @@ def test_ftsystem():
 def test_smearing_occ(method, mu):
     import numpy as np
     from libdmet.routine.ftsystem import fermi_smearing_occ, gaussian_smearing_occ
-    
+
     if method == 'fermi':
         f_occ = fermi_smearing_occ
     else:
         f_occ = gaussian_smearing_occ
-    
+
     beta = 50.0
-    
-    ew = np.arange(120).reshape(2, 3, 5, 4) 
+
+    ew = np.arange(120).reshape(2, 3, 5, 4)
     occ = f_occ(mu, ew, beta)
-    
+
     ew = np.arange(8).reshape(2, 4).astype(np.double)
     occ = f_occ(mu, ew, beta)
-    
+
     if np.array(mu).size == 1: # restricted case
         # first case
         ew = np.arange(6)

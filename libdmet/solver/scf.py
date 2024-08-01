@@ -3,7 +3,7 @@
 """
 scf solver for impurity problem.
 This module includes:
-    
+
     mean-field routines:
         - SCF class
             - HF (RHF, UHF, UIHF)
@@ -135,7 +135,7 @@ def ao2mo_Ham(Ham, C, compact=True, in_place=False):
     else: # unrestricted case
         assert C.ndim == 3 and C.shape[0] == 2
         norb_pair = norb * (norb + 1) // 2
-        
+
         # H1
         h1e = np.zeros((2, norb, norb))
         for s in range(2):
@@ -143,13 +143,13 @@ def ao2mo_Ham(Ham, C, compact=True, in_place=False):
                 h1e[s] = mdot(C[s].conj().T, Ham.H1["cd"][0], C[s])
             else:
                 h1e[s] = mdot(C[s].conj().T, Ham.H1["cd"][s], C[s])
-        
+
         # H2
         if compact:
             eri = np.zeros((3, norb_pair, norb_pair))
         else:
             eri = np.zeros((3, norb * norb, norb * norb))
-        
+
         if Ham.H2["ccdd"].shape[0] == 1: # res H2
             eri_aa = ao2mo.restore(8, Ham.H2["ccdd"][0], norb)
             eri[0] = ao2mo.full(eri_aa, C[0], compact=compact)
@@ -176,7 +176,7 @@ def ao2mo_Ham(Ham, C, compact=True, in_place=False):
             eri_ab = None
         else:
             raise ValueError
-    
+
     if not compact:
         eri = eri.reshape((-1, norb, norb, norb, norb))
     if in_place:
@@ -217,7 +217,7 @@ def restore_Ham(Ham, symm, in_place=True):
             eri[2] = ao2mo.restore(symm, Ham.H2["ccdd"][2], norb)
         else:
             raise ValueError
-    
+
     if in_place:
         Ham.H2["ccdd"] = eri
         return Ham
@@ -235,7 +235,7 @@ class RIHF(scf.hf.RHF):
         self.max_cycle = MaxIter
         self.alpha = alpha
         self._keys = self._keys.union(["h1e", "ovlp", "Mu", "alpha"])
-    
+
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
         # Note the incore version, which initializes an _eri array in memory.
@@ -265,7 +265,7 @@ def _get_jk(dm, eri, with_j=True, with_k=True):
     vk00 = np.tensordot(dm[0], eri[0], ((0,1), (0,3))) # K a from a
     vk11 = np.tensordot(dm[1], eri[1], ((0,1), (0,3))) # K b from b
     JK = np.asarray([vj00 + vj01 - vk00, vj11 + vj10 - vk11])
-    
+
     PySCF dot_eri_dm convention:
     J: ijkl, kl -> ij
     K: ijkl, il -> jk
@@ -275,10 +275,10 @@ def _get_jk(dm, eri, with_j=True, with_k=True):
         eri: ERI, can have spin dimension, s1 or s4 or s8.
         with_j: calculate J
         with_k: calculate K
-    
+
     Returns:
         vj: (spin, nao, nao), or (2, 2, nao, nao) for UIHF.
-        vk: (spin, nao, nao) 
+        vk: (spin, nao, nao)
     """
     dm = np.asarray(dm, dtype=np.double)
     old_shape = dm.shape
@@ -291,7 +291,7 @@ def _get_jk(dm, eri, with_j=True, with_k=True):
     if spin_dim == 0:
         eri = eri[None]
         spin_dim = 1
-    
+
     if spin == 1:
         if eri_format == 's1':
             eri = ao2mo.restore(8, eri[0], nao)
@@ -304,15 +304,15 @@ def _get_jk(dm, eri, with_j=True, with_k=True):
                 eri = ao2mo.restore(8, eri[0], nao)
             else:
                 eri = eri[0]
-            vj, vk = hf.dot_eri_dm(eri, dm, hermi=1, with_j=with_j, 
+            vj, vk = hf.dot_eri_dm(eri, dm, hermi=1, with_j=with_j,
                                    with_k=with_k)
         elif spin_dim == 3: # UIHF
             assert dm.shape[0] == 2
             eri_aa = ao2mo.restore(4, eri[0], nao)
-            vj00, vk00 = hf.dot_eri_dm(eri_aa, dm[0], hermi=1, with_j=with_j, 
+            vj00, vk00 = hf.dot_eri_dm(eri_aa, dm[0], hermi=1, with_j=with_j,
                                        with_k=with_k)
             eri_aa = None
-            
+
             eri_bb = ao2mo.restore(4, eri[1], nao)
             vj11, vk11 = hf.dot_eri_dm(eri_bb, dm[1], hermi=1, with_j=with_j,
                                        with_k=with_k)
@@ -325,7 +325,7 @@ def _get_jk(dm, eri, with_j=True, with_k=True):
             vj10 = hf.dot_eri_dm(eri_ab.T, dm[0], hermi=1, with_j=with_j,
                                  with_k=False)[0]
             eri_ab = None
-            
+
             # NOTE explicit write down vj, without broadcast
             vj = np.asarray(((vj00, vj11), (vj01, vj10)))
             vk = np.asarray((vk00, vk11))
@@ -346,14 +346,14 @@ def _get_veff(dm, eri):
     spin = dm.shape[0]
     vj, vk = _get_jk(dm, eri)
     if spin == 1:
-        veff = vj - vk * 0.5 
+        veff = vj - vk * 0.5
     else:
         veff = vj[0] + vj[1] - vk
     return veff
 
 class UIHF(scf.uhf.UHF):
     """
-    A routine for unrestricted HF with integrals 
+    A routine for unrestricted HF with integrals
     different for two spin species
     """
     def __init__(self, mol, DiisDim=12, MaxIter=50, alpha=None):
@@ -366,7 +366,7 @@ class UIHF(scf.uhf.UHF):
         self.ovlp = None
         self.Mu = None
         self.alpha = alpha
-    
+
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True):
         '''Coulomb (J) and exchange (K)
 
@@ -389,7 +389,7 @@ class UIHF(scf.uhf.UHF):
         if self.alpha is not None:
             vk *= self.alpha
         return vj, vk
-    
+
     def eig(self, fock, s):
         """
         Allow s has spin dimension.
@@ -419,7 +419,7 @@ class UIHF(scf.uhf.UHF):
         e_coul = 0.5 * np.einsum('spq, sqp', vhf, dm)
         log.debug(1, "E_coul = %.15f", e_coul)
         return e1 + e_coul, e_coul
-    
+
     def _finalize(self):
         # ZHC NOTE FIXME
         # how to calculate the ss, s when ovlp is spin dependent?
@@ -442,7 +442,7 @@ class UIHF(scf.uhf.UHF):
                 pyscflogger.note(self, 'SCF energy = %.15g after %d cycles  ',
                             self.e_tot, self.max_cycle)
         return self
-    
+
     def init_guess_by_1e(self, mol=None, breaksym=False):
         if mol is None: mol = self.mol
         log.debug(0, 'Initial guess from hcore.')
@@ -458,7 +458,7 @@ class UIHF(scf.uhf.UHF):
 
     def get_ovlp(self, *args):
         return self.ovlp
-    
+
 # *********************************************************************
 # Unrestricted Hartree-Fock Bogoliubov (UHFB)
 # ZHC TODO implement permutation symmetry for BCS.
@@ -567,14 +567,14 @@ class UHFB(hf.RHF):
     def get_veff(self, mol, dm, dm_last=0, vhf_last=0, hermi=1):
         assert self._eri is not None
         rhoA, rhoB, kappaBA = extractRdm(dm)
-        
+
         if settings.save_mem:
-            va, vb, vd = _get_veff_bcs_save_mem(rhoA, rhoB, kappaBA, 
+            va, vb, vd = _get_veff_bcs_save_mem(rhoA, rhoB, kappaBA,
                                                 self._eri["ccdd"])
         elif self._eri["cccd"] is None or (max_abs(self._eri["cccd"]) < 1e-12):
             va, vb, vd = _get_veff_bcs(rhoA, rhoB, kappaBA, self._eri["ccdd"])
         else:
-            va, vb, vd = _get_veff_bcs_full(rhoA, rhoB, kappaBA, 
+            va, vb, vd = _get_veff_bcs_full(rhoA, rhoB, kappaBA,
                                             self._eri["ccdd"],
                                             self._eri["cccd"],
                                             self._eri["cccc"])
@@ -591,7 +591,7 @@ class UHFB(hf.RHF):
 
     def energy_elec(self, dm, h1e, vhf):
         """
-        Electronic part of Hartree-Fock energy, 
+        Electronic part of Hartree-Fock energy,
         for given core hamiltonian and HF potential.
         no chemical potential contribution.
         """
@@ -605,7 +605,7 @@ class UHFB(hf.RHF):
         e1 = np.sum(rhoA*HA + rhoB*HB + 2.0 * DT*kappaBA)
         e_coul = 0.5 * np.sum(rhoA*VA + rhoB*VB + 2.0 * VDT*kappaBA)
         return e1 + e_coul, e_coul
-    
+
     def get_hcore(self, *args):
         return self.h1e
 
@@ -629,7 +629,7 @@ class UHFB(hf.RHF):
         mo_occ = np.zeros(nmo)
         nocc = self.mol.nelectron // 2
         mo_occ[e_idx[:nocc]] = 1 # singly occupied
-        
+
         pyscflogger.info(self, 'HOMO = %.12g  LUMO = %.12g',
                     e_sort[nocc-1], e_sort[nocc])
         if e_sort[nocc-1]+1e-3 > e_sort[nocc]:
@@ -695,7 +695,7 @@ def gen_g_hop_uhfb(mf, mo_coeff, mo_occ, fock_ao=None, h1e=None,
 
         d1 = reduce(np.dot, (orbv, x, orbo.conj().T))
         dm1 = d1 + d1.conj().T
-        # ZHC NOTE 
+        # ZHC NOTE
         nmo = mo_occ.shape[0] // 2
         dm1[nmo:, nmo:] += np.eye(nmo)
         v1 = mf.get_veff(mol, dm1)
@@ -722,7 +722,7 @@ def newton(mf):
 
         def get_mo_energy(self, fock, s1e, dm):
             return self.eig(fock, s1e)
-    
+
     return SecondOrderUHFB(mf)
 
 # *********************************************************************
@@ -736,12 +736,12 @@ def _get_veff_ghf(dm, eri):
     """
     dm = np.asarray(dm, dtype=np.double)
     vj, vk = _get_jk(dm, eri)
-    JK = vj[0] - vk[0] 
+    JK = vj[0] - vk[0]
     return JK
 
 def energy_elec_ghf(mf, dm=None, h1e=None, vhf=None):
     '''
-    Electronic part of Hartree-Fock energy, 
+    Electronic part of Hartree-Fock energy,
     for given core hamiltonian and HF potential.
     Not include the contribution of Mu.
     '''
@@ -764,7 +764,7 @@ def energy_elec_ghf(mf, dm=None, h1e=None, vhf=None):
 
 class GGHF(scf.ghf.GHF):
     """
-    a routine for generalized HF 
+    a routine for generalized HF
     with generalized integrals.
     """
     def __init__(self, mol, DiisDim=12, MaxIter=50, alpha=None):
@@ -777,8 +777,8 @@ class GGHF(scf.ghf.GHF):
         self.ovlp = None
         self.Mu = None
         self.alpha = alpha
-    
-    def get_jk(self, mol=None, dm=None, hermi=0, with_j=True, with_k=True, 
+
+    def get_jk(self, mol=None, dm=None, hermi=0, with_j=True, with_k=True,
                omega=None):
         if mol is None: mol = self.mol
         if dm is None: dm = self.make_rdm1()
@@ -788,7 +788,7 @@ class GGHF(scf.ghf.GHF):
         if self.alpha is not None:
             vk *= self.alpha
         return vj[0], vk[0]
-    
+
     def _finalize(self):
         try:
             ss, s = self.spin_square()
@@ -806,7 +806,7 @@ class GGHF(scf.ghf.GHF):
                              '<S^2> = %.8g  2S+1 = %.8g',
                              self.e_tot, self.max_cycle, ss, s)
         return self
-    
+
     energy_elec = energy_elec_ghf
 
 def _get_jk_ghf(dm, eri):
@@ -833,10 +833,10 @@ def _get_jk_ghf(dm, eri):
     # split eri to aa, bb, ab
     eri = np.asarray(eri)
     log.eassert(eri.shape[0] == 3, "GIHF routine needs aa, bb, ab.")
-    
+
     vj = np.zeros((nso, nso))
     vk = np.zeros((nso, nso))
-    
+
     # vj00, vk00
     eri_aa = ao2mo.restore(4, eri[0], nao)
     vj[:nao, :nao], vk[:nao, :nao] = scf.hf.dot_eri_dm(eri_aa, dm_aa, hermi=1)
@@ -846,7 +846,7 @@ def _get_jk_ghf(dm, eri):
     eri_bb = ao2mo.restore(4, eri[1], nao)
     vj[nao:, nao:], vk[nao:, nao:] = scf.hf.dot_eri_dm(eri_bb, dm_bb, hermi=1)
     eri_bb = None
-    
+
     # vj01, vj10, vk22
     # ZHC NOTE this hermi
     eri_ab = ao2mo.restore(4, eri[2], nao)
@@ -864,7 +864,7 @@ def _get_jk_ghf(dm, eri):
 
 class GIHF(GGHF):
     """
-    a routine for generalized HF 
+    a routine for generalized HF
     with integrals different for two spin species.
     """
     def get_jk(self, mol=None, dm=None, hermi=0, with_j=True, with_k=True,
@@ -875,7 +875,7 @@ class GIHF(GGHF):
         log.eassert(self._eri is not None, "mf._eri should be intialized.")
         vj, vk = _get_jk_ghf(dm, self._eri)
         return vj, vk
-    
+
 # *********************************************************************
 # Main class for HF (RHF, UHF, UIHF), HFB (UHFB), GHF and MP2 (UMP2)
 # *********************************************************************
@@ -911,7 +911,7 @@ class SCF(object):
     def set_system(self, nelec, spin, bogoliubov, spinRestricted,
                    max_memory=120000):
         if bogoliubov:
-            log.eassert(nelec is None, 
+            log.eassert(nelec is None,
                         "nelec cannot be specified when doing BCS calculations")
         self.nelec = nelec
         self.spin = spin
@@ -939,11 +939,11 @@ class SCF(object):
         log.eassert(self.sys_initialized, "set_integral() should be used "
                     "after initializing set_system()")
         if len(args) == 1:
-            log.eassert(self.bogoliubov == args[0].bogoliubov, 
+            log.eassert(self.bogoliubov == args[0].bogoliubov,
                         "Integral is not consistent with system type")
             self.integral = args[0]
         elif len(args) == 4:
-            self.integral = integral.Integral(args[0], self.spinRestricted, 
+            self.integral = integral.Integral(args[0], self.spinRestricted,
                                               self.bogoliubov, *args[1:])
         else:
             log.error("input either an integral object, or (norb, H0, H1, H2)")
@@ -958,9 +958,9 @@ class SCF(object):
         If Mu is not None and using UHF, Mu will add to h1e[0]
         to mimic the GHF behavior.
         """
-        log.eassert(self.sys_initialized and self.integral_initialized, 
+        log.eassert(self.sys_initialized and self.integral_initialized,
                     "components for Hartree-Fock (Bogoliubov) calculation"
-                    " are not ready\nsys_init = %s\nint_init = %s", 
+                    " are not ready\nsys_init = %s\nint_init = %s",
                     self.sys_initialized, self.integral_initialized)
         if self.bogoliubov:
             return self.HFB(0., DiisDim, MaxIter, InitGuess, tol)
@@ -988,12 +988,12 @@ class SCF(object):
 
             if not do_diis:
                 self.mf.diis = None
-            
+
             if self.newton_ah:
                 self.mf = self.mf.newton()
 
             if beta < np.inf:
-                from libdmet.routine import pbc_helper as pbc_hp 
+                from libdmet.routine import pbc_helper as pbc_hp
                 self.mf = pbc_hp.smearing_(self.mf, sigma=1.0/beta,
                                            method='fermi', fit_spin=fit_spin)
 
@@ -1022,9 +1022,9 @@ class SCF(object):
 
             if self.newton_ah: # RHF w/ newton
                 self.mf = self.mf.newton()
-            
+
             if beta < np.inf:
-                from libdmet.routine import pbc_helper as pbc_hp 
+                from libdmet.routine import pbc_helper as pbc_hp
                 self.mf = pbc_hp.smearing_(self.mf, sigma=1.0/beta,
                                            method='fermi', fit_spin=fit_spin)
 
@@ -1036,7 +1036,7 @@ class SCF(object):
                 E = self.mf.kernel(dm0=InitGuess)
                 # ZHC NOTE the 0.5 factor and additional dim
                 rho = np.asarray(self.mf.make_rdm1())[None] * 0.5
-        
+
         log.result("Hartree-Fock convergence: %s", self.mf.converged)
         log.result("Hartree-Fock energy = %20.12f", E)
         self.doneHF = True
@@ -1044,9 +1044,9 @@ class SCF(object):
 
     def HFB(self, Mu, DiisDim=12, MaxIter=50, InitGuess=None, tol=1e-10,
             do_diis=True):
-        log.eassert(self.sys_initialized and self.integral_initialized, 
+        log.eassert(self.sys_initialized and self.integral_initialized,
                     "components for Hartree-Fock Bogoliubov calculation"
-                    " are not ready\nsys_init = %s\nint_init = %s", 
+                    " are not ready\nsys_init = %s\nint_init = %s",
                     self.sys_initialized, self.integral_initialized)
 
         norb = self.integral.norb
@@ -1076,7 +1076,7 @@ class SCF(object):
             if self.newton_ah:
                 self.mf = newton(self.mf)
             if InitGuess is not None:
-                log.eassert(InitGuess.ndim == 2, 
+                log.eassert(InitGuess.ndim == 2,
                             "HFB InitGuess should have shape (nso, nso)")
             else:
                 # ZHC FIXME the HFB solution can be very different.
@@ -1094,18 +1094,18 @@ class SCF(object):
         log.result("Hartree-Fock-Bogoliubov energy = %20.12f", E)
         self.doneHF = True
         return E, GRho
-    
+
     def GHF(self, Mu, DiisDim=12, MaxIter=50, InitGuess=None, tol=1e-10,
             do_diis=True, alpha=None, beta=np.inf):
-        log.eassert(self.sys_initialized and self.integral_initialized, 
+        log.eassert(self.sys_initialized and self.integral_initialized,
                     "components for GHF calculation"
-                    " are not ready\nsys_init = %s\nint_init = %s", 
+                    " are not ready\nsys_init = %s\nint_init = %s",
                     self.sys_initialized, self.integral_initialized)
         norb = self.integral.norb
         if self.mol.nelectron is None:
             self.mol.nelectron = norb
         nelec = self.mol.nelectron
-        
+
         log.result("Generalized Hartree-Fock with pyscf")
         self.mf = GIHF(self.mol)
         self.mf.diis_space = DiisDim
@@ -1123,15 +1123,15 @@ class SCF(object):
         h1e[norb:, norb:] = self.integral.H1["cd"][1] + ovlp * Mu
         h1e[:norb, norb:] = self.integral.H1["cd"][2]
         h1e[norb:, :norb] = self.integral.H1["cd"][2].conj().T
-        self.mf.get_hcore = lambda *args: h1e 
+        self.mf.get_hcore = lambda *args: h1e
 
         s1e = np.zeros_like(h1e)
         s1e[:norb, :norb] = ovlp
         s1e[norb:, norb:] = ovlp
-        self.mf.get_ovlp = lambda *args: s1e 
-        
+        self.mf.get_ovlp = lambda *args: s1e
+
         self.mf._eri = self.integral.H2["ccdd"] # should has shape (3, ...)
-        
+
         if not do_diis:
             self.mf.diis = None
 
@@ -1139,12 +1139,12 @@ class SCF(object):
             self.mf = self.mf.newton()
 
         if beta < np.inf:
-            from libdmet.routine import pbc_helper as pbc_hp 
+            from libdmet.routine import pbc_helper as pbc_hp
             self.mf = pbc_hp.smearing_(self.mf, sigma=1.0/beta,
                                        method='fermi', fit_spin=True)
 
         if InitGuess is not None:
-            log.eassert(InitGuess.ndim == 2, 
+            log.eassert(InitGuess.ndim == 2,
                         "GHF InitGuess should have shape (nso, nso)")
         else:
             # ZHC FIXME the GHF solution can be very different.
@@ -1160,14 +1160,14 @@ class SCF(object):
         log.result("GHF energy = %20.12f", E)
         self.doneHF = True
         return E, GRho
-    
+
     def GGHF(self, Mu=None, DiisDim=12, MaxIter=50, InitGuess=None, tol=1e-10,
              do_diis=True, alpha=None, beta=np.inf, fit_mu=False,
              nelec_target=None, basis=None, mu_elec=None, conv_tol_grad=None,
              tol_nelec=None, fix_mu=False):
-        log.eassert(self.sys_initialized and self.integral_initialized, 
+        log.eassert(self.sys_initialized and self.integral_initialized,
                     "components for GHF calculation are not ready"
-                    "\nsys_init = %s\nint_init = %s", 
+                    "\nsys_init = %s\nint_init = %s",
                     self.sys_initialized, self.integral_initialized)
         norb = self.integral.norb
         if self.mol.nelectron is None:
@@ -1182,7 +1182,7 @@ class SCF(object):
                 log.warn("fit chemical potential typically need basis to pass in...")
             self.mf = scf_mu.GGHFpMu(self.mol, alpha=alpha,
                                      nelec_target=nelec_target,
-                                     basis=basis, mu_elec=mu_elec, 
+                                     basis=basis, mu_elec=mu_elec,
                                      tol_nelec=tol_nelec)
         else:
             self.mf = GGHF(self.mol, alpha=alpha)
@@ -1193,7 +1193,7 @@ class SCF(object):
         self.mf.conv_tol_grad = conv_tol_grad
         if self.chkname is not None:
             self.mf.chkfile = self.chkname
-        
+
         h1e = np.array(self.integral.H1["cd"][0], copy=True)
         ovlp = self.integral.ovlp
         nao = norb // 2
@@ -1207,7 +1207,7 @@ class SCF(object):
         self.mf.Mu = Mu
         self.mf.energy_nuc = lambda *args: self.integral.H0
         self.mf.get_hcore = lambda *args: h1e
-        self.mf.get_ovlp = lambda *args: ovlp 
+        self.mf.get_ovlp = lambda *args: ovlp
         self.mf._eri = self.integral.H2["ccdd"][0]
 
         if not do_diis:
@@ -1215,7 +1215,7 @@ class SCF(object):
 
         if self.newton_ah:
             self.mf = self.mf.newton()
-        
+
         if beta < np.inf:
             from libdmet.routine import pbc_helper as pbc_hp
             log.debug(0, "smearing: beta: %s , fix_mu: %s", beta, fix_mu)
@@ -1224,7 +1224,7 @@ class SCF(object):
                                        mu0=0.0, fix_mu=fix_mu)
 
         if InitGuess is not None:
-            log.eassert(InitGuess.ndim == 2, 
+            log.eassert(InitGuess.ndim == 2,
                         "GHF InitGuess should have shape (nso, nso)")
         else:
             # ZHC FIXME the GHF solution can be very different.
@@ -1236,7 +1236,7 @@ class SCF(object):
         else:
             E = self.mf.kernel(dm0=InitGuess)
             GRho = np.asarray(self.mf.make_rdm1())
-        
+
         log.result("GHF convergence: %s", self.mf.converged)
         log.result("GHF energy = %20.12f", E)
         self.doneHF = True
@@ -1249,7 +1249,7 @@ class SCF(object):
         log.check(self.mf.converged, "Hartree-Fock calculation has not converged")
         if not self.spinRestricted:
             log.result("Unrestricted MP2 with pyscf")
-            self.mp = UIMP2(self.mf, frozen=frozen, mo_coeff=mo_coeff, 
+            self.mp = UIMP2(self.mf, frozen=frozen, mo_coeff=mo_coeff,
                             mo_occ=mo_occ)
             E, t2 = self.mp.kernel(mo_energy=mo_energy, mo_coeff=mo_coeff)
             rdm1 = self.mp.make_rdm1(ao_repr=True)
@@ -1262,7 +1262,7 @@ class SCF(object):
             # ZHC NOTE add spin dim and scaled by 0.5
             rdm1 = rdm1[None] * 0.5
         return E, rdm1
-    
+
     def GMP2(self, mo_energy=None, mo_coeff=None, mo_occ=None, frozen=None):
         if not self.doneHF:
             log.warning("running HF first with default settings")
@@ -1323,19 +1323,19 @@ if __name__ == "__main__":
     # UHF
     myscf.set_system(8, 0, False, False)
     myscf.set_integral(8, 0, {"cd": Int1e}, {"ccdd": Int2e})
-    _, rhoHF = myscf.HF(MaxIter=100, tol=1e-8, 
+    _, rhoHF = myscf.HF(MaxIter=100, tol=1e-8,
                         InitGuess=(np.diag([1,0,1,0,1,0,1,0.0]),
                                    np.diag([0,1,0,1,0,1,0,1.0]))
                         )
     log.result("HF density matrix:\n%s\n%s", rhoHF[0], rhoHF[1])
-    
+
     # UHFB
     myscf = SCF(newton_ah=True)
     np.random.seed(8)
     myscf.set_system(None, 0, True, False)
     myscf.set_integral(8, 0, {"cd": Int1e, "cc": np.random.rand(1,8,8) * 0.1},
                        {"ccdd": Int2e, "cccd": None, "cccc": None})
-    _, GRhoHFB = myscf.HF(MaxIter=100, tol=1e-3, Mu=2.02, 
+    _, GRhoHFB = myscf.HF(MaxIter=100, tol=1e-3, Mu=2.02,
                           InitGuess=np.diag([1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]))
     rhoA, rhoB, kappaBA = extractRdm(GRhoHFB)
     log.result("HFB density matrix:\n%s\n%s\n%s", rhoA, rhoB, -kappaBA.T)

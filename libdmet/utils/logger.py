@@ -80,7 +80,7 @@ def print_dash_line():
 def warning(msg, *args):
     if __verbose() >= Level['WARNING']:
         print_dash_line()
-        print_logo(WARNING_LOGO) 
+        print_logo(WARNING_LOGO)
         __clock()
         flush("******* ", " ", indent = clock * INDENT)
         __clock()
@@ -92,7 +92,7 @@ warn = warning
 def note(msg, *args):
     if __verbose() >= Level['WARNING']:
         print_dash_line()
-        #print_logo(NOTE_LOGO) 
+        #print_logo(NOTE_LOGO)
         __clock()
         flush(" ", " ", indent = clock * INDENT)
         __clock()

@@ -8,7 +8,7 @@ Currently using NIB.
 def test_compare_rhf_ghf_nib():
     """
     Compare rdm1 and vcor between RHF- and GHF-based DMET.
-    """ 
+    """
     from libdmet.routine import spinless
     from libdmet.utils.misc import max_abs
     rdm1_rhf, vcor_rhf = t_self_consistency_rhf()
@@ -34,7 +34,7 @@ def t_self_consistency_rhf():
     import os, sys
     import numpy as np
     import scipy.linalg as la
-    
+
     from pyscf import lib, fci, ao2mo
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, gto, df, dft, cc
@@ -49,7 +49,7 @@ def t_self_consistency_rhf():
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -73,7 +73,7 @@ def t_self_consistency_rhf():
     exxdiv = None
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -167,13 +167,13 @@ def t_self_consistency_rhf():
     # use IAO orbital as Wannier's guess
     C_ao_lo = C_ao_iao
     Lat.set_Ham(kmf, gdf, C_ao_lo)
-    
+
     # compute and store the H2_emb and reuse it
     H2_unit = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo, symmetry=4)
     neo = Lat.nao + Lat.nval
     H2_emb = slater.unit2emb(H2_unit, neo)
     H2_unit = None
-    
+
     ### ************************************************************
     ### DMET procedure
     ### ************************************************************
@@ -188,7 +188,7 @@ def t_self_consistency_rhf():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -204,7 +204,7 @@ def t_self_consistency_rhf():
         solver_args = {"nelec": min((Lat.ncore+Lat.nval)*2, \
                 cell.nelectron*nkpts), \
                 "dm0": dmet.foldRho_k(res["rho_k"], basis_k)*2.0}
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
             solver_args=solver_args, thrnelec=nelec_tol, \
@@ -223,7 +223,7 @@ def t_self_consistency_rhf():
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, \
                 C_ao_lo, rho, Lat.getFock(kspace=False)], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter, \
@@ -239,18 +239,18 @@ def t_self_consistency_rhf():
 
         dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
         log.result("trace of vcor: %20.12f ", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
 
@@ -267,7 +267,7 @@ def t_self_consistency_ghf():
     import os, sys
     import numpy as np
     import scipy.linalg as la
-    
+
     from pyscf import lib, fci, ao2mo
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, gto, df, dft, cc
@@ -277,13 +277,13 @@ def t_self_consistency_ghf():
     from libdmet.basis_transform import eri_transform
     from libdmet.routine import spinless
     from libdmet.system.hamiltonian import HamNonInt
-    
+
     from libdmet.utils import logger as log
     import libdmet.dmet.HubbardGSO as dmet
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -307,7 +307,7 @@ def t_self_consistency_ghf():
     exxdiv = None
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -403,15 +403,15 @@ def t_self_consistency_ghf():
     # use IAO orbital as Wannier's guess
     C_ao_lo = C_ao_iao
     Lat.set_Ham(kmf, gdf, C_ao_lo)
-    
+
     # compute and store the H2_emb and reuse it
     neo = (Lat.nao + Lat.nval) * 2
-    
+
     # GH2
     H2_unit = eri_transform.get_unit_eri(cell, gdf, C_ao_lo=C_ao_lo, symmetry=4)
     GH2_loc, GH1_from_H2_loc, GH0_from_H2 = spinless.transform_H2_local(H2_unit[0])
     GH2_emb = spinless.unit2emb(GH2_loc, neo)[None]
-    
+
     # GFock and GH1
     Fock  = np.asarray(Lat.getFock(kspace=False))[0]
     Fock_k = Lat.R2k(Fock)
@@ -420,19 +420,19 @@ def t_self_consistency_ghf():
 
     GFock, GH0_from_Fock = spinless.transform_H1_k(Fock_k)
     GH1_from_H1, GH0_from_H1 = spinless.transform_H1_k(H1_k)
-    
+
     # GH1 from H2 full
     GH1_from_H2_full, GH0_from_H2_full = \
             spinless.get_H1_H0_from_df(gdf, C_ao_lo=C_ao_lo)
     GH1 = GH1_from_H1 + GH1_from_H2_full
     GH0 = GH0_from_H1 + GH0_from_H2_full #+ GH0_from_vcor #+ GH0_from_Fock
-    
+
     # GRdm1
     GRdm1 = dmet.transform_rdm1_k(Lat.rdm1_lo_k[0] * 0.5)
-    
-    Ham_ghf = HamNonInt(Lat, GH1, GH2_loc, Fock=GFock, H0=GH0, spin_dim_H2=3, 
+
+    Ham_ghf = HamNonInt(Lat, GH1, GH2_loc, Fock=GFock, H0=GH0, spin_dim_H2=3,
                         kspace_input=True)
-    
+
     Lat.setHam_model(Ham_ghf, use_hcore_as_emb_ham=use_hcore_as_emb_ham,
                      rdm1=Lat.k2R(GRdm1))
     Lat.is_model = True
@@ -443,12 +443,12 @@ def t_self_consistency_ghf():
     GRho, Mu, ires = dmet.GHartreeFock(Lat, vcor, None, mu0_elec=Mu, \
             beta=beta, fix_mu=False, mu0=None, thrnelec=1e-10, scf=False,
             full_return=True, verbose=1, conv_tol=1e-10, ph_trans=False)
-    
+
     E_mf = ires["E"]
     E_mf_ref = kmf.e_tot - kmf.energy_nuc()
     print ("diff mean-field energy: ", E_mf - E_mf_ref)
     assert abs(E_mf - E_mf_ref) < 1e-10
-    
+
     ### ************************************************************
     ### DMET procedure
     ### ************************************************************
@@ -463,7 +463,7 @@ def t_self_consistency_ghf():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -483,13 +483,13 @@ def t_self_consistency_ghf():
 
         log.section("\nsolving impurity problem\n")
         solver_args = {"dm0": dmet.foldRho_k(GRho_k, basis_k)}
-        
+
         GRhoEmb, EnergyEmb, ImpHam, dmu = \
                 dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, \
                 solver, solver_args, thrnelec=nelec_tol, delta=delta, step=step)
         dmet.SolveImpHam_with_fitting.save("./frecord")
         last_dmu += dmu
-        
+
         GRhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(GRhoEmb, EnergyEmb, Lat, basis, ImpHam, \
                 H1e, Mu, last_dmu=last_dmu, int_bath=int_bath, \
@@ -501,13 +501,13 @@ def t_self_consistency_ghf():
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, GRhoEmb, basis, GRhoImp, \
                 C_ao_lo, GRho, Lat.getFock(kspace=False)], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(GRhoEmb, Lat, basis, \
                 vcor, Mu, beta, MaxIter1=emb_fit_iter, \
                 MaxIter2=full_fit_iter, method='CG', \
                 imp_fit=imp_fit, ytol=1e-8, gtol=1e-4)
-        
+
         #if iter >= trace_start:
         #    # to avoid spiral increase of vcor and mu
         #    log.result("Keep trace of vcor unchanged")
@@ -517,18 +517,18 @@ def t_self_consistency_ghf():
 
         dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
         log.result("trace of vcor: %20.12f ", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
 

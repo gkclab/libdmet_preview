@@ -15,7 +15,7 @@ import numpy as np
 import scipy.linalg as la
 
 from scipy.optimize import minimize_scalar, fmin
-from scipy.optimize._trustregion_ncg import CGSteihaugSubproblem 
+from scipy.optimize._trustregion_ncg import CGSteihaugSubproblem
 from scipy.optimize import OptimizeResult
 from scipy.optimize._differentiable_functions import ScalarFunction, FD_METHODS
 
@@ -172,10 +172,10 @@ def wrap_function(function, args):
 # ****************************************************************************
 
 def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
-                 ytol=1e-7, gtol=1e-3, dx_tol=1e-7, norm=norm, 
+                 ytol=1e-7, gtol=1e-3, dx_tol=1e-7, norm=norm,
                  eps=_epsilon, maxiter=None,
-                 disp=False, return_all=False, 
-                 init_step=1.0, min_step=0.1, 
+                 disp=False, return_all=False,
+                 init_step=1.0, min_step=0.1,
                  xatol=1e-5, finite_diff_rel_step=None, **unknown_options):
     """
     Minimization of scalar function of one or more variables using the
@@ -237,18 +237,18 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
             pkp1 = -gfkp1 + beta_k * pk
             gnorm = norm(gfkp1)
             return (alpha, xkp1, pkp1, gfkp1, gnorm)
-        
+
         LineSearchFn = lambda step: f(xk + step * pk)
-        
+
         def FindStep():
             scale = max(abs(np.average(steps[-2:])), min_step[0])
-            res = minimize_scalar(LineSearchFn, bounds=(0.0, scale), 
-                                  method="bounded", options={"maxiter": 100, 
+            res = minimize_scalar(LineSearchFn, bounds=(0.0, scale),
+                                  method="bounded", options={"maxiter": 100,
                                                              "xatol": xatol[0]})
-            if res.fun > old_fval: 
+            if res.fun > old_fval:
                 # ZHC NOTE line search is not accurate enough
                 # minimize_scalar can give a local minima higher than f(0).
-                xopt, fopt, _, _, _ = fmin(LineSearchFn, 0.0, disp=False, 
+                xopt, fopt, _, _, _ = fmin(LineSearchFn, 0.0, disp=False,
                                            xtol=xatol[0]*0.1, full_output=True)
                 if fopt > old_fval:
                     log.warn("line search fails, resulting value  %20.12f is\n"
@@ -260,7 +260,7 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
             else:
                 res = (res.x, res.fun)
             return res
-        
+
         alpha_k, new_fval = FindStep()
         steps.append(alpha_k)
         dy = abs(new_fval - old_fval)
@@ -270,11 +270,11 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
             log.debug(0, "CG: dx (%20.12g) < %15.8g reached.", norm_dx, dx_tol)
             break
         old_fval = new_fval
-        
+
         alpha_k, xk, pk, gfk, gnorm = polak_ribiere_powell_step(alpha_k)
         log.debug(0, "%4d %20.12f %20.12f %20.12f %15.3e", k, old_fval, gnorm,
                   norm_dx, alpha_k)
-        
+
         if retall:
             allvecs.append(xk)
         if callback is not None:
@@ -286,7 +286,7 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
         if gnorm < gtol:
             log.debug(0, "CG: gnorm (%20.12g) < %15.8g reached.", gnorm, gtol)
             break
-        
+
         if dy < ytol:
             log.debug(0, "CG: dy (%20.12g) < %15.8g reached.", dy, ytol)
             break
@@ -314,10 +314,10 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
     return result
 
 def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
-                   ytol=1e-7, gtol=1e-5, dx_tol=1e-7, norm=norm, 
+                   ytol=1e-7, gtol=1e-5, dx_tol=1e-7, norm=norm,
                    eps=_epsilon, maxiter=None,
-                   disp=False, return_all=False, 
-                   init_step=1.0, min_step=0.1, xatol=1e-5,  
+                   disp=False, return_all=False,
+                   init_step=1.0, min_step=0.1, xatol=1e-5,
                    finite_diff_rel_step=None, **unknown_options):
     """
     Minimization of scalar function of one or more variables using the
@@ -371,16 +371,16 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
 
     while (gnorm > gtol) and (k < maxiter):
         pk = -np.dot(Hk, gfk)
-        
+
         LineSearchFn = lambda step: f(xk + step * pk)
-        
+
         def FindStep():
             scale = max(abs(np.average(steps[-2:])), min_step[0])
-            res = minimize_scalar(LineSearchFn, bounds=(0.0, scale), 
+            res = minimize_scalar(LineSearchFn, bounds=(0.0, scale),
                                   method="bounded", options={"maxiter": 100,
                                                              "xatol": xatol[0]})
             if res.fun > old_fval: # line search is not accurate enough
-                xopt, fopt, _, _, _ = fmin(LineSearchFn, 0.0, disp=False, 
+                xopt, fopt, _, _, _ = fmin(LineSearchFn, 0.0, disp=False,
                                            xtol=xatol[0]*0.1, full_output=True)
                 if fopt > old_fval:
                     log.warn("line search fails, resulting value  %20.12f is\n"
@@ -392,7 +392,7 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
             else:
                 res = (res.x, res.fun)
             return res
-        
+
         alpha_k, new_fval = FindStep()
         steps.append(alpha_k)
         dy = abs(new_fval - old_fval)
@@ -410,14 +410,14 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
         gfk = gfkp1
         if callback is not None:
             callback(xk)
-        
+
         k += 1
         gnorm = norm(gfk)
-        
+
         if gnorm < gtol:
             log.debug(0, "BFGS: gnorm (%20.12g) < %15.8g reached.", gnorm, gtol)
             break
-        
+
         if dy < ytol:
             log.debug(0, "BFGS: dy (%20.12g) < %15.8g reached.", dy, ytol)
             break
@@ -486,7 +486,7 @@ def _minimize_bfgs(fun, x0, args=(), jac=None, callback=None,
 def _minimize_trust_region(fun, x0, args=(), jac=None, hess=None, hessp=None,
                            subproblem=CGSteihaugSubproblem,
                            initial_trust_radius=0.001,
-                           max_trust_radius=0.01, eta=0.10, 
+                           max_trust_radius=0.01, eta=0.10,
                            ytol=1e-7, gtol=1e-3, dx_tol=1e-7,
                            maxiter=None, disp=False, return_all=False,
                            callback=None, inexact=True, **unknown_options):
@@ -551,7 +551,7 @@ def _minimize_trust_region(fun, x0, args=(), jac=None, hess=None, hessp=None,
     # limit the number of iterations
     if maxiter is None:
         maxiter = len(x0)*200
-    
+
     # init the search status
     warnflag = 0
 
@@ -562,7 +562,7 @@ def _minimize_trust_region(fun, x0, args=(), jac=None, hess=None, hessp=None,
         allvecs = [x]
     m = subproblem(x, fun, jac, hess, hessp)
     k = 0
-    
+
     x_old = np.array(x, copy=True)
     # search for the function min
     # do not even start if the gradient is small enough
@@ -609,7 +609,7 @@ def _minimize_trust_region(fun, x0, args=(), jac=None, hess=None, hessp=None,
             allvecs.append(np.copy(x))
         if callback is not None:
             callback(np.copy(x))
-        
+
         # ZHC NOTE printing the information on the fly.
         dx = x - x_old
         norm_dx = norm(dx)
@@ -622,13 +622,13 @@ def _minimize_trust_region(fun, x0, args=(), jac=None, hess=None, hessp=None,
             log.debug(0, "NCG: g = 0 condition reached.")
             warnflag = 0
             break
-        
+
         # ZHC NOTE terminate if m.fun is close to 0
         if m.fun < ytol * 0.1:
             log.debug(0, "NCG: y = 0 condition reached.")
             warnflag = 0
             break
-        
+
         # ZHC NOTE terminate if x changes very small
         if abs(norm_dx) < dx_tol:
             log.debug(0, "NCG: dx = 0 condition reached.")
@@ -795,9 +795,9 @@ def rotate_orb_cc(iah, u0, conv_tol_grad=None, verbose=logger.NOTE):
                         norm_gorb = norm(g_orb)
                         pyscflog.debug('Out of trust region. Restore previouse step')
                         break
-        
+
         # ZHC NOTE
-        u = ukf + dr 
+        u = ukf + dr
         pyscflog.debug('    tot inner=%d  |g|= %4.3g ', stat.imic, norm_gorb)
         h_op = h_diag = None
         t3m = pyscflog.timer('aug_hess in %d inner iters' % stat.imic, *t3m)
@@ -846,11 +846,11 @@ def kernel(localizer, u0, callback=None, verbose=None):
         norm_dx = norm(u)
         e = localizer.cost_function(u0)
         e_last, de = e, e-e_last
-        
+
         pyscflog.info('macro= %d  f(x)= %.14g  delta_f= %g  |g|= %g  %d KF %d Hx',
                  imacro+1, e, de, norm_gorb, stat.tot_kf+1, stat.tot_hop)
         cput1 = pyscflog.timer('cycle= %d'%(imacro+1), *cput1)
-        
+
         log.debug(0, "%4d %20.12f %20.12f %20.12f ", imacro, e, norm_gorb, norm_dx)
         if imacro > 0 and de > localizer.conv_tol:
             log.warn("CIAH: function value increasing, de = %20.12f", de)
@@ -858,7 +858,7 @@ def kernel(localizer, u0, callback=None, verbose=None):
             e = localizer.cost_function(u0)
             e_last, de = e, e-e_last
             break
-        
+
         if (norm_gorb < conv_tol_grad or abs(de) < localizer.conv_tol):
             conv = True
 
@@ -922,7 +922,7 @@ class CIAHMinimizer(CIAHOptimizerMixin):
         ciah.CIAHOptimizerMixin.__init__(self)
         self.stdout = sys.stdout
         self.verbose = 5
-        
+
         # ZHC NOTE check whether the diagonal hessian can be computed efficiently?
         self.func   = func
         self.grad   = grad
@@ -952,7 +952,7 @@ class CIAHMinimizer(CIAHOptimizerMixin):
         pyscflog.info('ah_lindep = %s'      , self.ah_lindep      )
         pyscflog.info('ah_max_cycle = %s'   , self.ah_max_cycle   )
         pyscflog.info('ah_trust_region = %s', self.ah_trust_region)
-    
+
     def gen_g_hop(self, u):
         g = self.grad(u)
         h_op = lambda p: self.h_op(u, p)

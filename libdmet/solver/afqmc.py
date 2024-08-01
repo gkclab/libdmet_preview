@@ -43,7 +43,7 @@ def dumpH2(filename, H2):
     else:
         U = H2["U"]
         nimp = H2["nsites"]
-    
+
     with open(filename, "w") as f:
         f.write("%.12f # U\n" % U)
         f.write("%d # Nup\n" % nimp)
@@ -96,7 +96,7 @@ def read1pdm(filename):
     return rho, drho
 
 class AFQMC(object):
-    
+
     execPath = os.path.join(os.environ["HOME"], "dev/afqmc")
     nproc = 1
     nnode = 1
@@ -195,5 +195,5 @@ class AFQMC(object):
         return outputfile
 
     def cleanup(self):
-        import shutil  
+        import shutil
         shutil.rmtree(self.tmpDir)

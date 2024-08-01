@@ -45,7 +45,7 @@ def get_R_vec(cell, kmesh):
 
 def make_kpts_scaled(kmesh):
     """
-    Make scaled kpoints that follow the convention of np.fft, 
+    Make scaled kpoints that follow the convention of np.fft,
     should be the same as cell.make_kpts with wrap_around=True.
     """
     ks_each_axis = [scifft.fftfreq(kmesh[d], 1.) for d in range(len(kmesh))]
@@ -99,7 +99,7 @@ def get_phase(cell, kpts, kmesh=None):
     """
     if kmesh is None:
         kmesh = get_kmesh(cell, kpts)
-    
+
     R_vec_abs = get_R_vec(cell, kmesh)
     ncells = len(R_vec_abs)
     phase = np.exp(1.0j * np.einsum('Ru, ku -> Rk', R_vec_abs, kpts))
@@ -162,14 +162,14 @@ def FFTtoK(A, kmesh):
     before FFT ncells * nscsites * nscsites where the first index is cell
     after FFT first index is k-point
     """
-    return scifft.fftn(A.reshape(tuple(kmesh) + A.shape[-2:]), 
+    return scifft.fftn(A.reshape(tuple(kmesh) + A.shape[-2:]),
                        axes=range(len(kmesh)), workers=-1).reshape(A.shape)
 
 def FFTtoT(B, kmesh, tol=IMAG_DISCARD_TOL):
     """
     from k space to real space.
     """
-    A = scifft.ifftn(B.reshape(tuple(kmesh) + B.shape[-2:]), 
+    A = scifft.ifftn(B.reshape(tuple(kmesh) + B.shape[-2:]),
                      axes=range(len(kmesh)), workers=-1).reshape(B.shape)
     if max_abs(A.imag) > tol:
         log.warn("k2R: non-zero imaginary part: %15.8g", max_abs(A.imag))
@@ -260,7 +260,7 @@ def find_idx_k_in_K(k_abs, sk_abs, scell, tol=1e-10, wrap_around=True):
     """
     recip_vec_sc = scell.reciprocal_vectors()
     sk_scaled_sc = scell.get_scaled_kpts(sk_abs)
-    k_scaled_sc = round_to_FBZ(Real2Frac(recip_vec_sc, k_abs), tol=tol, 
+    k_scaled_sc = round_to_FBZ(Real2Frac(recip_vec_sc, k_abs), tol=tol,
                                wrap_around=wrap_around)
     norm_diff = la.norm(k_scaled_sc[:, None] - sk_scaled_sc[None], axis=-1)
     idx = np.where(norm_diff < tol)[1]
@@ -273,7 +273,7 @@ def find_idx_R_vec(R_vec, skmesh, scell, tol=1e-10):
     cart_prod = (R_vec_scaled + tol).astype(int)
     return get_cart_prod_idx(cart_prod, skmesh)
 
-def k2gamma(mo_energy, mo_coeff, mo_occ, phase, make_real=False, 
+def k2gamma(mo_energy, mo_coeff, mo_occ, phase, make_real=False,
             lattice=None, ovlp=None, tol_deg=1e-5):
     """
     Convert mf objects with k sampling to ones at Gamma point.
@@ -284,7 +284,7 @@ def k2gamma(mo_energy, mo_coeff, mo_occ, phase, make_real=False,
         mo_occ: occupancy,         (nkpts, nmo)
         phase: 1/sqrt(N) exp(iRk)
         make_real: whether make the coefficient real
-    
+
     Returns:
         mo_energy_g
         mo_coeff_g
@@ -300,11 +300,11 @@ def k2gamma(mo_energy, mo_coeff, mo_occ, phase, make_real=False,
     nkpts, nao, nmo = mo_coeff.shape[-3:]
     nR = phase.shape[0]
     assert nR == nkpts
-    
+
     mo_energy_g = mo_energy.reshape(nkpts*nmo)
     mo_coeff_g = np.einsum('Rk, kum -> Rukm', phase, mo_coeff).reshape(nR*nao, nkpts*nmo)
     mo_occ_g = mo_occ.reshape(nkpts*nmo)
-    
+
     # sort according to orbital energy
     sort_idx = np.argsort(mo_energy_g.ravel(), kind='mergesort')
     mo_energy_g = mo_energy_g[sort_idx]
@@ -343,7 +343,7 @@ def k2gamma(mo_energy, mo_coeff, mo_occ, phase, make_real=False,
                 fock = np.dot(mo_coeff_g * mo_energy_g, mo_coeff_g.conj().T)
                 assert max_abs(fock.imag) < IMAG_DISCARD_TOL
                 e, mo_coeff_g = la.eigh(fock.real, ovlp_R_sc, type=2)
-    
+
     # add kpt dim
     mo_energy_g = mo_energy_g[None]
     mo_coeff_g = mo_coeff_g[None]
@@ -364,7 +364,7 @@ def fold_kmf(mo_energy, mo_coeff, mo_occ, latt_0, latt_1, resort=True, tol=1e-10
         mo_occ: occupancy,         (nkpts, nmo)
         latt_0: lattice object for kmesh_0
         latt_1: lattice object for kmesh_1
-    
+
     Returns:
         ew, ev, occ in latt_1.
     """
@@ -386,7 +386,7 @@ def fold_kmf(mo_energy, mo_coeff, mo_occ, latt_0, latt_1, resort=True, tol=1e-10
     idx_R_in_1 = find_idx_R_vec(R_vec_0, kmesh_1, cell_1, tol=tol)
     idx_R = np.argsort(idx_R_in_1, kind='mergesort')
     log.debug(2, "idx R: \n%s", idx_R)
-     
+
     mo_energy = np.asarray(mo_energy)
     mo_coeff = np.asarray(mo_coeff)
     mo_occ = np.asarray(mo_occ)
@@ -397,10 +397,10 @@ def fold_kmf(mo_energy, mo_coeff, mo_occ, latt_0, latt_1, resort=True, tol=1e-10
     nmo_1 = nmo_0 * nkpts_0 // nkpts_1
 
     ew = mo_energy[idx_k].reshape(nkpts_1, nmo_1)
-    ev = np.einsum('Rk, kum -> Rukm', phase_0[idx_R][:, idx_k], 
+    ev = np.einsum('Rk, kum -> Rukm', phase_0[idx_R][:, idx_k],
                    mo_coeff[idx_k]).reshape(nR_1, nao_1, nkpts_1, nmo_1)
     occ = mo_occ[idx_k].reshape(nkpts_1, nmo_1)
-    
+
     # sort according to orbital energy at each k
     if resort:
         sort_idx = np.argsort(ew, axis=-1, kind='mergesort')
@@ -408,17 +408,17 @@ def fold_kmf(mo_energy, mo_coeff, mo_occ, latt_0, latt_1, resort=True, tol=1e-10
             ew[k] = ew[k, idx]
             ev[:, :, k]  = ev[:, :, k, idx]
             occ[k] = occ[k, idx]
-    
+
     # absorb the phase factor of supercell
     ev = np.einsum('Rk, Rukm -> kum', phase_1.conj(), ev)
     log.debug(1, "Fold kmf: end")
     return ew, ev, occ
 
-def fold_h1(hcore_0_k, latt_0, latt_1, resort_row=False, resort_col=False, 
+def fold_h1(hcore_0_k, latt_0, latt_1, resort_row=False, resort_col=False,
             uc2sc=False, tol=1e-10):
     """
     Fold 1-body operator to the supercell.
-    
+
     Args:
         hcore_0_k: h1 in the small cell, with kpts
         latt_0: the small cell lattice
@@ -429,14 +429,14 @@ def fold_h1(hcore_0_k, latt_0, latt_1, resort_row=False, resort_col=False,
         tol: tolerance for kpts, Rvec equivalence.
 
     Returns:
-        hcore_1_k: the folded object.    
+        hcore_1_k: the folded object.
     """
     log.debug(1, "Fold h1 / lo: start")
     hcore_0_k = np.asarray(hcore_0_k)
     cell_0  = latt_0.cell
-    nkpts_0, nrow_0, ncol_0 = hcore_0_k.shape 
+    nkpts_0, nrow_0, ncol_0 = hcore_0_k.shape
     kmesh_0 = latt_0.kmesh
-    log.eassert(np.prod(kmesh_0) == nkpts_0, 
+    log.eassert(np.prod(kmesh_0) == nkpts_0,
                 "kmesh_0 (%s) != nkpts_0 (%s)", np.prod(kmesh_0), nkpts_0)
 
     cell_1  = latt_1.cell
@@ -450,14 +450,14 @@ def fold_h1(hcore_0_k, latt_0, latt_1, resort_row=False, resort_col=False,
     idx_R_in_1 = find_idx_R_vec(R_vec_0, kmesh_1, cell_1, tol=tol)
     idx_R = np.argsort(idx_R_in_1, kind='mergesort')
     log.debug(2, "idx R: \n%s", idx_R)
-    
+
     hcore_0_R = latt_0.k2R(hcore_0_k)
     hcore_1_R = np.zeros((nkpts_0, nrow_0, ncells_first, ncol_0), dtype=hcore_0_R.dtype)
     for q, cell_q in enumerate(idx_R[:ncells_first]):
         idx = [latt_0.subtract(cell_p, cell_q) for cell_p in idx_R]
         hcore_1_R[:, :, q] = hcore_0_R[idx]
     hcore_1_R = hcore_1_R.reshape(nkpts_1, nrow_1, ncol_1)
-     
+
     # possible sort for orbitals
     if resort_row:
         ncore_0 = latt_0.ncore
@@ -469,7 +469,7 @@ def fold_h1(hcore_0_k, latt_0, latt_1, resort_row=False, resort_col=False,
         virt_row_idx = (np.arange(ncore_0+nval_0, ncore_0+nval_0+nvirt_0) + cell_row_idx).ravel()
         sort_row_idx = np.hstack((core_row_idx, val_row_idx, virt_row_idx))
         hcore_1_R = hcore_1_R[:, sort_row_idx]
-     
+
     if resort_col:
         ncore_0 = latt_0.ncore
         nval_0  = latt_0.nval
@@ -490,16 +490,16 @@ def fold_h1(hcore_0_k, latt_0, latt_1, resort_row=False, resort_col=False,
     log.debug(1, "Fold h1 / lo: end")
     return hcore_1_k
 
-def fold_lo(C_ao_lo, latt_0, latt_1, resort_row=False, resort_col=True, 
+def fold_lo(C_ao_lo, latt_0, latt_1, resort_row=False, resort_col=True,
             uc2sc=False, tol=1e-10):
     """
     Fold C_ao_lo to supercell. See fold_h1 for details.
-    
+
     Note:
-        Column indices will be resorted according to latt_0. 
+        Column indices will be resorted according to latt_0.
         The core, val and virtual are grouped separately.
     """
-    return fold_h1(C_ao_lo, latt_0, latt_1, resort_row=resort_row, 
+    return fold_h1(C_ao_lo, latt_0, latt_1, resort_row=resort_row,
                    resort_col=resort_col, uc2sc=uc2sc, tol=tol)
 
 def get_phase_unfold(latt_uc, latt_sc, tol=1e-10):
@@ -554,7 +554,7 @@ def get_phase_unfold(latt_uc, latt_sc, tol=1e-10):
     return phase_unfold
 
 def unfold_mo_coeff(mo_coeff_sc, latt_uc, latt_sc, tol=1e-10):
-    """  
+    """
     Unfold MO coefficients of supercell to unit cell.
     """
     # ZHC FIXME allow wrap_around = True
@@ -603,7 +603,7 @@ def unfold_mo_energy(mo_energy_sc, latt_uc, latt_sc, tol=1e-10):
 
 """
 Supercell basis / atom indexing and labels.
-Select some coordinates and find the corresponding basis, atom ids 
+Select some coordinates and find the corresponding basis, atom ids
 in the whole lattice.
 """
 
@@ -657,15 +657,15 @@ def search_atom_id_sc(cell, scell, coords, tol=1e-8):
     coords = Frac2Real(cell.lattice_vectors(), coords)
     norm_diff = la.norm(coords[:, None] - coords_sc[None], axis=-1)
     atom_ids = np.where(norm_diff < tol)[1]
-    log.eassert(len(atom_ids) == len(coords), 
-                "len(atom_ids) [%s] != len(coords) [%s]", 
+    log.eassert(len(atom_ids) == len(coords),
+                "len(atom_ids) [%s] != len(coords) [%s]",
                 len(atom_ids), len(coords))
     return atom_ids
-    
+
 def translate_labels(labels, ncells, natm):
     """
     Translate AO / LO labels to supercell.
-    
+
     Args:
         labels: a list of string, 'id atom nlm'
         ncells: number of cells in the lattice
@@ -677,7 +677,7 @@ def translate_labels(labels, ncells, natm):
     for lab in labels:
         lab_sp = lab.split()
         labels_sp.append(lab_sp)
-    
+
     labels_sc = []
     for R in range(ncells):
         for lab in labels_sp:

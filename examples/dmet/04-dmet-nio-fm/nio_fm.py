@@ -66,7 +66,7 @@ gdf_fname = '../03-dmet-nio-afm/gdf_ints_222.h5'
 chkfname = './nio_222.chk'
 
 ### ************************************************************
-### DMET settings 
+### DMET settings
 ### ************************************************************
 
 # system
@@ -109,7 +109,7 @@ imp_fit = False
 emb_fit_iter = 2000 # embedding fitting
 full_fit_iter = 0
 ytol = 1e-7
-gtol = 1e-3 
+gtol = 1e-3
 CG_check = False
 
 ### ************************************************************
@@ -118,7 +118,7 @@ CG_check = False
 
 log.section("\nSolving SCF mean-field problem\n")
 
-# idx of orbitals 
+# idx of orbitals
 aoind = cell.aoslice_by_atom()
 ao_labels = cell.ao_labels()
 
@@ -191,7 +191,7 @@ else:
     kmf.max_cycle = 50
 
     Lat.mulliken_lo_R0(Lat.k2R(dm)[:, 0], labels=cell.ao_labels())
-    
+
     #from libdmet.routine import pbc_helper as pbc_hp
     #kmf = pbc_hp.smearing_(kmf, sigma=(1.0/beta))
 
@@ -235,7 +235,7 @@ if load_frecord:
 
 for iter in range(MaxIter):
     log.section("\nDMET Iteration %d\n", iter)
-    
+
     log.section("\nSolving mean-field problem\n")
     log.result("Vcor =\n%s", vcor.get())
     log.result("Mu (guess) = %s", Mu)
@@ -243,7 +243,7 @@ for iter in range(MaxIter):
     rho, Mu, res = dmet.HartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
     rho = rho.real
     rho_k = Lat.R2k(rho)
-    
+
     Lat.mulliken_lo_R0(rho[:, 0], labels=np.asarray(lo_labels))
 
     print ("mf rho alpha")
@@ -257,7 +257,7 @@ for iter in range(MaxIter):
     dm_Ni1_3d_b = rho[1,0][np.ix_(iao_Ni1_3d, iao_Ni1_3d)]
     print (dm_Ni0_3d_b)
     print (dm_Ni1_3d_b)
-     
+
     log.section("\nConstructing impurity problem\n")
     ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, int_bath=int_bath, max_memory=max_memory)
     ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
@@ -279,9 +279,9 @@ for iter in range(MaxIter):
     EnergyImp *= nscsites
     log.result("last_dmu = %20.12f", last_dmu)
     log.result("E(DMET) = %20.12f", EnergyImp)
-    
+
     Lat.mulliken_lo_R0(rhoImp, labels=np.asarray(lo_labels))
-    
+
     print ("alpha")
     dm_Ni0_3d_a = rhoImp[0][np.ix_(iao_Ni0_3d, iao_Ni0_3d)]
     dm_Ni1_3d_a = rhoImp[0][np.ix_(iao_Ni1_3d, iao_Ni1_3d)]
@@ -305,7 +305,7 @@ for iter in range(MaxIter):
     dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, C_ao_lo, \
             Lat.getFock(kspace=False), rho], dtype=object)
     np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter)
-    
+
     log.section("\nfitting correlation potential\n")
     vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
             vcor, beta, Filling, MaxIter1=emb_fit_iter, MaxIter2=full_fit_iter, method='CG', \
@@ -313,21 +313,21 @@ for iter in range(MaxIter):
 
     dVcor_per_ele = np.max(np.abs(vcor_new.param - vcor.param))
     dE = EnergyImp - E_old
-    E_old = EnergyImp 
-    
+    E_old = EnergyImp
+
     if iter >= diis_start:
         pvcor = adiis.update(vcor_new.param)
         dc.nDim = adiis.get_num_vec()
     else:
         pvcor = vcor_new.param
-    
+
     dVcor_per_ele = np.max(np.abs(pvcor - vcor.param))
     vcor.update(pvcor)
     log.result("Trace of vcor: %20.12f ", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-    
+
     history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
     history.write_table()
-    
+
     if dVcor_per_ele < u_tol and abs(dE) < E_tol and iter > iter_tol :
         conv = True
         break

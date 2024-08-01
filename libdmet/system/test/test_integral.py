@@ -15,7 +15,7 @@ def test_integral():
     output = "./DMETDUMPtest"
     integral.dump(output, Ham, "FCIDUMP")
     s = call(["diff", input, output])
-    
+
     if s == 0:
         log.result("... Successful")
         call(["rm", output])
@@ -31,7 +31,7 @@ def test_integral():
     output = "./HUBDUMPtest"
     integral.dump(output, Ham, "FCIDUMP")
     s = call(["diff", input, output])
-    
+
     if s == 0:
         log.result("... Successful")
         call(["rm", output])
@@ -56,7 +56,7 @@ def test_integral():
     else:
         log.result("... Failed")
         assert False
-    
+
     integral.dumpFCIDUMP_no_perm("FCIDUMP", Ham1, thr=1e-12)
 
 def test_dump_FCIDUMP():
@@ -72,27 +72,27 @@ def test_dump_FCIDUMP():
     H2 = H2 + H2.transpose(0, 1, 3, 2)
     H2 = H2 + H2.transpose(1, 0, 2, 3)
     H2 = H2 + H2.transpose(2, 3, 0, 1)
-    
+
     output = "FCIDUMP"
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1[None]}, \
             {"ccdd": H2[None]}, ovlp=None)
     integral.dump(output, Ham, "FCIDUMP")
-    
+
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1[None]}, \
             {"ccdd": ao2mo.restore(4, H2, norb)[None]}, ovlp=None)
     integral.dump(output, Ham, "FCIDUMP")
-    
+
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1[None]}, \
             {"ccdd": ao2mo.restore(8, H2, norb)[None]}, ovlp=None)
     integral.dump(output, Ham, "FCIDUMP")
-    
+
     H2_a = H2
     H2_b = H2 + 1.0
     H2_ab = H2 - 0.4
     Ham = integral.Integral(norb, False, False, H0, {"cd": np.array((H1, H1))}, \
             {"ccdd": np.array((H2_a, H2_b, H2_ab))}, ovlp=None)
     integral.dump(output, Ham, "FCIDUMP")
-    
+
 
     Ham = integral.Integral(norb, False, False, H0, {"cd": np.array((H1, H1))}, \
             {"ccdd": np.array((ao2mo.restore(4, H2_a, norb), \
@@ -118,11 +118,11 @@ def test_save_load_integral():
                 assert np.allclose(x, v2[i])
         else:
             assert np.allclose(v1, v2)
-    
+
     log.result("Testing Hubbard restricted integrals ...")
     input = os.path.dirname(os.path.realpath(__file__)) + "/HUBDUMP"
     Ham_3 = integral.read(input, 12, True, False, "FCIDUMP")
-    
+
     Ham_3.save(fname="int.h5")
     Ham_4 = integral.load("int.h5")
     for k, v1 in Ham_3.__dict__.items():
@@ -132,7 +132,7 @@ def test_save_load_integral():
                 assert np.allclose(x, v2[i])
         else:
             assert np.allclose(v1, v2)
-    
+
     # overwrite the original integrals
     Ham.load(fname="int.h5")
     for k, v1 in Ham_3.__dict__.items():
@@ -142,48 +142,48 @@ def test_save_load_integral():
                 assert np.allclose(x, v2[i])
         else:
             assert np.allclose(v1, v2)
-    
+
 def test_get_eri_format():
     import numpy as np
     from pyscf import ao2mo
     from libdmet.system import integral
     nao = 5
-    
+
     # spin = 0
     eri = np.random.random((nao, nao, nao, nao))
     eri_format, spin_dim = integral.get_eri_format(eri, nao)
     assert eri_format == 's1'
     assert spin_dim == 0
-    
+
     eri_s4 = ao2mo.restore(4, eri, nao)
     eri_format, spin_dim = integral.get_eri_format(eri_s4, nao)
     assert eri_format == 's4'
     assert spin_dim == 0
-    
+
     eri_s8 = ao2mo.restore(8, eri_s4, nao)
     eri_format, spin_dim = integral.get_eri_format(eri_s8, nao)
     assert eri_format == 's8'
     assert spin_dim == 0
-    
+
     # spin = 1
     eri_format, spin_dim = integral.get_eri_format(eri[None], nao)
     assert eri_format == 's1'
     assert spin_dim == 1
-    
+
     eri_format, spin_dim = integral.get_eri_format(eri_s4[None], nao)
     assert eri_format == 's4'
     assert spin_dim == 1
-    
+
     eri_format, spin_dim = integral.get_eri_format(eri_s8[None], nao)
     assert eri_format == 's8'
     assert spin_dim == 1
-    
+
     # spin = 3
     eri = np.random.random((3, nao, nao, nao, nao))
     eri_format, spin_dim = integral.get_eri_format(eri, nao)
     assert eri_format == 's1'
     assert spin_dim == 3
-    
+
     eri_s4 = np.array((eri_s4, eri_s4, eri_s4))
     eri_format, spin_dim = integral.get_eri_format(eri_s4, nao)
     assert eri_format == 's4'

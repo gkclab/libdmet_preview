@@ -39,7 +39,7 @@ def test_non_int_bath():
     #             0.0     0.0     6.0 '''
     #cell.atom = ''' H 5.0      5.0      0.75
     #                H 5.0      5.0      2.25
-    #                H 5.0      5.0      3.75 
+    #                H 5.0      5.0      3.75
     #                H 5.0      5.0      5.25'''
     cell.basis = 'sto3g'
     cell.verbose = 4
@@ -63,7 +63,7 @@ def test_non_int_bath():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -106,10 +106,10 @@ def test_non_int_bath():
     #imp_fit = True
     emb_fit_iter = 300 # embedding fitting
     full_fit_iter = 0
-    #emb_fit_iter = 0 
+    #emb_fit_iter = 0
     #full_fit_iter = 100 # full fitting
     ytol = 1e-8
-    gtol = 1e-4 
+    gtol = 1e-4
     CG_check = True
 
     # vcor initialization
@@ -183,7 +183,7 @@ def test_non_int_bath():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -191,11 +191,11 @@ def test_non_int_bath():
         Lat.update_Ham(rho*2.0)
 
         log.section("\nconstructing impurity problem\n")
-        ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=True, 
+        ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=True,
                 int_bath=int_bath, add_vcor=True, incore=True)
         ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
-        
+
         log.section("\nsolving impurity problem\n")
         if iter < 3:
             restart = False
@@ -215,11 +215,11 @@ def test_non_int_bath():
             dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
             lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
             solver=solver, solver_args=solver_args)
-         
+
         EnergyImp *= nscsites
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter, MaxIter2=full_fit_iter, method='CG', \
@@ -234,27 +234,27 @@ def test_non_int_bath():
 
         dVcor_per_ele = np.max(np.abs(vcor_new.param - vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = np.max(np.abs(pvcor - vcor.param))
         vcor.update(pvcor)
         log.result("Trace of vcor: %20.12f ", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter)
-        
+
         if dVcor_per_ele < u_tol and abs(dE) < E_tol and iter > iter_tol :
             conv = True
             break
-    
+
     print ("diff: ", abs(EnergyImp - -1.196534405734))
     assert abs(EnergyImp - -1.196534405734) < 1e-4
     ### ************************************************************

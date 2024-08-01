@@ -25,7 +25,7 @@ def test_mfd_fft():
 
     log.verbose = "DEBUG2"
     np.set_printoptions(3, linewidth=1000, suppress=True)
-    
+
     cell = gto.Cell()
     cell.a = ''' 5.0    0.0     0.0
                  0.0     5.0    0.0
@@ -88,7 +88,7 @@ def test_mfd_fft():
     occ = cell.nelectron / (2.0 * nscsites)
 
     rhoT, mu, E = HF(Lat, vcor, occ, restricted, mu0 = 0., beta = np.inf, ires = False)
-    E_diff = abs(E - E_kmf) 
+    E_diff = abs(E - E_kmf)
     rdm_diff = max_abs(rhoT - Lat.rdm1_lo_R*0.5)
 
     print ("diff E between HF and pyscf", E_diff)

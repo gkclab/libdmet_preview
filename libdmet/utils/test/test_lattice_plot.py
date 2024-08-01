@@ -6,7 +6,7 @@ def test_lattice_plot():
     from libdmet.system import lattice
     import matplotlib
     matplotlib.use('Agg')
-    
+
     Lat = lattice.Square3BandSymm(1, 1, 1, 1)
 
     latt_plt = lattice_plot.LatticePlot(Lat)
@@ -27,7 +27,7 @@ def test_lattice_plot():
 def plot_3band_order(res, pairing="Cu-Cu", transparent=True, **kwargs):
     """
     Plot order parameter of the 3band model in a 2x2 cluster.
-    
+
     Args:
         res: result dict from the get_3band_order
         pairing: "Cu-Cu", "O-O", "Cu-O"
@@ -35,7 +35,7 @@ def plot_3band_order(res, pairing="Cu-Cu", transparent=True, **kwargs):
     Returns:
         latt_plt: LatticePlot object.
     """
-    #        
+    #
     #        4O        15O2
     #         |          |
     #  14O2 - 3Cu - 5O - 6Cu - 7O
@@ -46,30 +46,30 @@ def plot_3band_order(res, pairing="Cu-Cu", transparent=True, **kwargs):
     #  (0,1)  |          |
     #        13O2       10O (3, 0)
     #                    |
-    
+
     from libdmet.system import lattice
     from libdmet.utils import lattice_plot
     from libdmet.utils.lattice_plot import COLORS
     Lat = lattice.Square3BandSymm(1, 1, 1, 1)
-    
+
     O2_names = ["O2", "O2", "O2", "O2"]
     O2_coords = [[4.0, 1.0], [1.0, 0.0], [0.0, 3.0], [3.0, 4.0]]
     O2_charges = 2.0 - res["charge"][[1, 4, 7, 10]]
     O2_spins = res["m_AFM_O_list"][::2]
-    
+
     latt_plt = lattice_plot.LatticePlot(Lat)
     latt_plt.plot_lattice(**kwargs)
-    
+
     # plot hole density
-    latt_plt.plot_atoms(rad_list=(2.0 - res["charge"]), 
+    latt_plt.plot_atoms(rad_list=(2.0 - res["charge"]),
                         color_dic={'Cu': COLORS['gold'], 'O': 'C3'})
     latt_plt.plot_atoms(rad_list=O2_charges, names=O2_names, coords=O2_coords,
                         color_dic={'O2': COLORS["red2"]}, edgecolor=COLORS["red-gray"])
-    
+
     # plot spin
     #latt_plt.plot_spins(m_list=res["spin_density"])
     #latt_plt.plot_spins(m_list=O2_spins, coords=O2_coords, color=COLORS["red-gray"])
-    
+
     # plot pairing
     if "m_Cu_Cu_dic" in res:
         if pairing == "Cu-Cu":
@@ -89,21 +89,21 @@ def test_plot_3band_order():
     import os
     import numpy as np
     from collections import OrderedDict
-    
+
     from libdmet.system import lattice
     from libdmet.utils import lattice_plot
     from libdmet.utils import get_order_param as order
     import matplotlib
     matplotlib.use('Agg')
-    
+
     GRho_file = os.path.dirname(os.path.realpath(__file__)) + "/GRho_3band"
     GRho = np.load(GRho_file)
     res = order.get_3band_order(GRho)
-    
+
     #print (res)
 
     #exit()
-    res["m_Cu_Cu_dic"] = {(0, 3): 0.01406, 
+    res["m_Cu_Cu_dic"] = {(0, 3): 0.01406,
                           (0, 9): -0.01546,
                           (3, 6): -0.01243,
                           (6, 9): 0.01070}
@@ -112,10 +112,10 @@ def test_plot_3band_order():
                                 yleft=0, yright=4)
     #latt_plt = lattice_plot.plot_3band_order(res, pairing='O-O')
     #latt_plt = lattice_plot.plot_3band_order(res, pairing='Cu-O')
-    
+
     #latt_plt.show()
     latt_plt.savefig("pairing.png")
-    
+
 if __name__ == "__main__":
     test_plot_3band_order()
     test_lattice_plot()

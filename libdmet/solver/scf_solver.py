@@ -16,12 +16,12 @@ from libdmet.solver import scf, mp, cc, umc1step, gmc1step
 from libdmet.utils import logger as log
 
 class SCFSolver(object):
-    def __init__(self, nproc=1, nthread=1, nnode=1, TmpDir="./tmp", SharedDir=None, 
+    def __init__(self, nproc=1, nthread=1, nnode=1, TmpDir="./tmp", SharedDir=None,
                  restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-10,
-                 max_cycle=200,  max_memory=40000, scf_newton=True, 
-                 mp2=False, oomp2=False, ooccd=False, 
+                 max_cycle=200,  max_memory=40000, scf_newton=True,
+                 mp2=False, oomp2=False, ooccd=False,
                  mc_conv_tol=1e-4, mc_max_cycle=20,
-                 ci_conv_tol=None, ci_diis_space=8, 
+                 ci_conv_tol=None, ci_diis_space=8,
                  tol_normt=1e-5, level_shift=0.0, frozen=0, restart=False,
                  approx_l=False, fix_fcivec=False, use_mpi=False, verbose=4,
                  alpha=None, beta=np.inf, linear=False, conv_tol_grad=None,
@@ -50,10 +50,10 @@ class SCFSolver(object):
         self.bcs = bcs
         self.ghf = ghf
         self.Sz = Sz
-        
+
         self.restart = restart
         self.C_lo_co = None # for restart
-        
+
         self.alpha = alpha # scaled exact exchange
         self.beta = beta
         self.fix_mu = fix_mu
@@ -67,7 +67,7 @@ class SCFSolver(object):
         self.scfsolver = scf.SCF(newton_ah=scf_newton)
         self.onepdm = None
         self.twopdm = None
-        
+
         # MPI related args for OO-CCD
         self.nnode = nnode
         self.nproc = nproc
@@ -93,12 +93,12 @@ class SCFSolver(object):
                 nelec = Ham.norb // 2
             else:
                 nelec = Ham.norb
-        
+
         nelec_a = (nelec + self.Sz) // 2
         nelec_b = (nelec - self.Sz) // 2
-        
+
         assert (nelec_a >= 0) and (nelec_b >=0) and (nelec_a + nelec_b == nelec)
-        
+
         log.debug(1, "HF solver: mean-field")
         dm0 = kwargs.get("dm0", None)
         fname = kwargs.get("fname", "mcscf")
@@ -114,24 +114,24 @@ class SCFSolver(object):
                 basis = basis.reshape(basis.shape[0], -1, basis.shape[-1])
             else:
                 basis = basis.reshape(-1, basis.shape[-1])
-        
+
         scf_max_cycle = kwargs.get("scf_max_cycle", 200)
 
         self.scfsolver.set_system(nelec, self.Sz, False, self.restricted,
                                   max_memory=self.max_memory)
         self.scfsolver.set_integral(Ham)
-        
+
         if self.ghf:
             if scf_max_cycle < 0:
                 # ZHC NOTE special case that no SCF is wanted
                 assert dm0 is not None
                 self.scfsolver.no_kernel = True
-                E_HF, rhoHF = self.scfsolver.GGHF(tol=self.conv_tol, 
+                E_HF, rhoHF = self.scfsolver.GGHF(tol=self.conv_tol,
                                                   MaxIter=scf_max_cycle,
                                                   InitGuess=dm0,
                                                   alpha=self.alpha,
                                                   beta=self.beta,
-                                                  Mu=Mu, 
+                                                  Mu=Mu,
                                                   fit_mu=fit_mu,
                                                   nelec_target=nelec_target,
                                                   basis=kwargs.get("basis", None),
@@ -146,7 +146,7 @@ class SCFSolver(object):
                 s_half =  np.dot(v[:, idx] * np.sqrt(e[idx]), v[:,idx].conj().T)
                 s_half_inv =  np.dot(v[:, idx] / np.sqrt(e[idx]), v[:,idx].conj().T)
                 dm0_lo = np.dot(s_half, np.dot(dm0, s_half))
-                
+
                 natocc, natorb = la.eigh(dm0_lo)
                 natorb = np.dot(s_half_inv, natorb)
                 natocc = natocc[::-1]
@@ -157,12 +157,12 @@ class SCFSolver(object):
                 self.scfsolver.mf.mo_coeff = natorb
                 self.scfsolver.mf.mo_occ = mo_occ
             else:
-                E_HF, rhoHF = self.scfsolver.GGHF(tol=self.conv_tol, 
+                E_HF, rhoHF = self.scfsolver.GGHF(tol=self.conv_tol,
                                                   MaxIter=scf_max_cycle,
                                                   InitGuess=dm0,
                                                   alpha=self.alpha,
                                                   beta=self.beta,
-                                                  Mu=Mu, 
+                                                  Mu=Mu,
                                                   fit_mu=fit_mu,
                                                   nelec_target=nelec_target,
                                                   basis=kwargs.get("basis", None),
@@ -171,14 +171,14 @@ class SCFSolver(object):
                                                   tol_nelec=self.tol_nelec,
                                                   fix_mu=self.fix_mu)
         else:
-            E_HF, rhoHF = self.scfsolver.HF(tol=self.conv_tol, 
+            E_HF, rhoHF = self.scfsolver.HF(tol=self.conv_tol,
                                             MaxIter=scf_max_cycle,
                                             InitGuess=dm0,
                                             alpha=self.alpha,
                                             beta=self.beta)
-        log.debug(1, "HF solver: mean-field converged: %s", 
+        log.debug(1, "HF solver: mean-field converged: %s",
                   self.scfsolver.mf.converged)
-        
+
         if "mo_energy_custom" in kwargs:
             self.scfsolver.mf.mo_energy = kwargs["mo_energy_custom"]
         if "mo_occ_custom" in kwargs:
@@ -190,13 +190,13 @@ class SCFSolver(object):
             rhoHF = np.asarray(self.scfsolver.mf.make_rdm1())
             if (not self.ghf) and self.restricted:
                 rhoHF *= 0.5
-        
+
         if self.oomp2 or self.ooccd:
             if self.oomp2:
                 fcisolver = mp.MP2AsFCISolver
             else:
                 if self.use_mpi:
-                    from libdmet.solver import mpicc 
+                    from libdmet.solver import mpicc
                     fcisolver = mpicc.MPIGCCDAsFCISolver
                 else:
                     fcisolver = cc.CCDAsFCISolver
@@ -238,7 +238,7 @@ class SCFSolver(object):
                             # since MO is already closest, directly use old t2:
                             mc.fcisolver.fcivec = mc.fcisolver.load_fcivec("%s_fcivec.h5"%fname)
                             mc.fcisolver.optimized = True
-                        
+
                         # u should be removed at the beginning
                         if os.path.exists(fname+"_u.npy"):
                             os.remove(fname+"_u.npy")
@@ -258,7 +258,7 @@ class SCFSolver(object):
 
                 E = mc.mc2step(mo_coeff)[0]
                 self.onepdm = mc.make_rdm1()
-                
+
                 if restart and (basis is not None):
                     # save C_lo_co for restart
                     self.C_lo_co = np.dot(basis, mc.mo_coeff)
@@ -308,7 +308,7 @@ class SCFSolver(object):
                             # since MO is already closest, directly use old t2:
                             mc.fcisolver.fcivec = mc.fcisolver.load_fcivec("%s_fcivec.h5"%fname)
                             mc.fcisolver.optimized = True
-                        
+
                         # u should be removed at the beginning
                         if os.path.exists(fname+"_u_a.npy"):
                             os.remove(fname+"_u_a.npy")
@@ -330,10 +330,10 @@ class SCFSolver(object):
                     mc.callback = save_u
                 else:
                     mo_coeff = None
-                
+
                 E = mc.mc2step(mo_coeff)[0]
                 self.onepdm = np.asarray(mc.make_rdm1s())
-                
+
                 if restart and (basis is not None):
                     # save C_lo_co for restart
                     self.C_lo_co = np.einsum('spm, smn -> spn', basis, mc.mo_coeff)
@@ -349,8 +349,8 @@ class SCFSolver(object):
             self.onepdm = rhoHF
             E = E_HF
         return self.onepdm, E
-    
-    def run_dmet_ham(self, Ham, last_aabb=True, save_dmet_ham=False, 
+
+    def run_dmet_ham(self, Ham, last_aabb=True, save_dmet_ham=False,
                      dmet_ham_fname='dmet_ham.h5', use_calculated_twopdm=False,
                      ao_repr=False, **kwargs):
         """
@@ -368,7 +368,7 @@ class SCFSolver(object):
             log.info("Using exisiting twopdm in MO basis...")
         else:
             self.make_rdm2(ao_repr=ao_repr)
-        
+
         if ao_repr:
             r1 = self.onepdm
             r2 = self.twopdm
@@ -381,8 +381,8 @@ class SCFSolver(object):
             h2 = Ham.H2["ccdd"][0]
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
-            # energy 
+
+            # energy
             E1 = np.einsum('pq, qp', h1, r1)
             E2 = np.einsum('pqrs, pqrs', h2, r2) * 0.5
             E = E1 + E2
@@ -391,7 +391,7 @@ class SCFSolver(object):
             h2 = Ham.H2["ccdd"]
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             # energy
             E1 = np.einsum('pq, qp', h1[0], r1[0]) * 2.0
             E2 = np.einsum('pqrs, pqrs', h2[0], r2[0]) * 0.5
@@ -403,23 +403,23 @@ class SCFSolver(object):
             # r2 is in aa, bb, ab order
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             # energy
             E1 = np.einsum('spq, sqp', h1, r1)
             E2_aa = 0.5 * np.einsum('pqrs, pqrs', r2[0], h2[0])
             E2_bb = 0.5 * np.einsum('pqrs, pqrs', r2[1], h2[1])
             E2_ab = np.einsum('pqrs, pqrs', r2[2], h2[2])
-            E = E1 + E2_aa + E2_bb + E2_ab 
+            E = E1 + E2_aa + E2_bb + E2_ab
         E += Ham.H0
-        
+
         if save_dmet_ham:
             fdmet_ham = h5py.File(dmet_ham_fname, 'w')
             fdmet_ham['H1'] = h1
             fdmet_ham['H2'] = h2
             fdmet_ham.close()
-        
+
         return E
-    
+
     def make_rdm1(self):
         return self.onepdm
 
@@ -436,7 +436,7 @@ class SCFSolver(object):
             raise NotImplementedError
         else:
             if ao_repr:
-                if self.ghf: 
+                if self.ghf:
                     # GHF rdm2
                     self.twopdm = \
                             np.einsum('qp, sr -> pqrs', self.onepdm, self.onepdm) -\
@@ -446,24 +446,24 @@ class SCFSolver(object):
                     self.twopdm = \
                             (4.0 * np.einsum('qp, sr -> pqrs', self.onepdm[0],
                                              self.onepdm[0]) - \
-                             2.0 * np.einsum('sp, qr -> pqrs', self.onepdm[0], 
+                             2.0 * np.einsum('sp, qr -> pqrs', self.onepdm[0],
                                              self.onepdm[0]))[None]
                 else:
                     # UHF rdm2, in aa, bb, ab order
                     rdm2_aa = np.einsum('qp, sr -> pqrs', self.onepdm[0],
                                         self.onepdm[0]) - \
-                              np.einsum('sp, qr -> pqrs', self.onepdm[0], 
+                              np.einsum('sp, qr -> pqrs', self.onepdm[0],
                                         self.onepdm[0])
-                    rdm2_bb = np.einsum('qp, sr -> pqrs', self.onepdm[1], 
+                    rdm2_bb = np.einsum('qp, sr -> pqrs', self.onepdm[1],
                                         self.onepdm[1]) - \
-                              np.einsum('sp, qr -> pqrs', self.onepdm[1], 
+                              np.einsum('sp, qr -> pqrs', self.onepdm[1],
                                         self.onepdm[1])
-                    rdm2_ab = np.einsum('qp, sr -> pqrs', self.onepdm[0], 
+                    rdm2_ab = np.einsum('qp, sr -> pqrs', self.onepdm[0],
                                         self.onepdm[1])
                     self.twopdm = np.asarray((rdm2_aa, rdm2_bb, rdm2_ab))
                 return self.twopdm
             else:
-                if self.ghf: 
+                if self.ghf:
                     # GHF rdm2
                     onepdm = np.diag(self.scfsolver.mf.mo_occ)
                     self.onepdm_mo = onepdm

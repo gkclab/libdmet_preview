@@ -29,7 +29,7 @@ def check_lo(lattice, C_ao_lo, kpts=None, ovlp=None, tol=1e-10):
     kpts_scaled = lattice.cell.get_scaled_kpts(kpts)
     kpts_round = round_to_FBZ(kpts_scaled, tol=tol)
     C_ao_lo = np.asarray(C_ao_lo)
-    
+
     # check time reversal symmetry
     diff_k_mk = 0.0
     weights = np.ones(nkpts, dtype=int)
@@ -40,7 +40,7 @@ def check_lo(lattice, C_ao_lo, kpts=None, ovlp=None, tol=1e-10):
                 sum_ij -= np.round(sum_ij)
                 if max_abs(sum_ij) < tol:
                     if C_ao_lo.ndim == 3:
-                        diff_k_mk = max(diff_k_mk, 
+                        diff_k_mk = max(diff_k_mk,
                                         max_abs(C_ao_lo[j] - C_ao_lo[i].conj()))
                     else:
                         for s in range(C_ao_lo.shape[0]):
@@ -50,12 +50,12 @@ def check_lo(lattice, C_ao_lo, kpts=None, ovlp=None, tol=1e-10):
                     weights[j] = 0
                     break
     log.info("Maximal difference between k and -k orbitals: %.2e", diff_k_mk)
-    
+
     # check imaginary
     C_ao_lo_R = lattice.k2R(C_ao_lo)
     imag_norm = max_abs(C_ao_lo_R.imag)
     log.info("Imaginary part of orbitals: %.2e", imag_norm)
-    
+
     if ovlp is not None:
         from libdmet.lo.lowdin import check_orthonormal
         log.info("Orthonormal: %s", check_orthonormal(C_ao_lo, ovlp, tol=tol))
@@ -75,14 +75,14 @@ def symmetrize_lo(lattice, C_ao_lo, kpts=None, tol=1e-10, real_first=False):
     kpts_scaled = lattice.cell.get_scaled_kpts(kpts)
     kpts_round = round_to_FBZ(kpts_scaled, tol=tol)
     C_ao_lo_symm = np.array(C_ao_lo, copy=True)
-    
+
     if real_first:
-        # enforce reality 
+        # enforce reality
         C_ao_lo_symm_R = lattice.k2R(C_ao_lo_symm)
         imag_norm = max_abs(C_ao_lo_symm_R.imag)
         C_ao_lo_symm = lattice.R2k(C_ao_lo_symm_R.real)
         log.info("Imaginary part of orbitals: %s", imag_norm)
-    
+
     # enforce time reversal symmetry
     diff_k_mk = 0.0
     weights = np.ones(nkpts, dtype=int)
@@ -98,16 +98,16 @@ def symmetrize_lo(lattice, C_ao_lo, kpts=None, tol=1e-10, real_first=False):
                         C_ao_lo_symm[j] = C_ao_lo_symm[i].conj()
                     else:
                         for s in range(C_ao_lo_symm.shape[0]):
-                            diff_k_mk = max(diff_k_mk, 
+                            diff_k_mk = max(diff_k_mk,
                                             max_abs(C_ao_lo_symm[s, j] - C_ao_lo_symm[s, i].conj()))
                             C_ao_lo_symm[s, j] = C_ao_lo_symm[s, i].conj()
                     weights[i] = 2
                     weights[j] = 0
                     break
     log.info("Maximal difference between k and -k orbitals: %.2e", diff_k_mk)
-    
+
     if not real_first:
-        # enforce reality 
+        # enforce reality
         C_ao_lo_symm_R = lattice.k2R(C_ao_lo_symm)
         imag_norm = max_abs(C_ao_lo_symm_R.imag)
         C_ao_lo_symm = lattice.R2k(C_ao_lo_symm_R.real)
@@ -149,7 +149,7 @@ def symmetrize_kmf(lattice, kmf, tol=1e-10):
                     break
     return kmf
 
-def analyze(lattice, kmf, C_ao_lo=None, labels=None, 
+def analyze(lattice, kmf, C_ao_lo=None, labels=None,
             verbose=pyscf_logger.DEBUG, rdm1_lo_R0=None, method='meta-lowdin',
             pre_orth_ao='ANO'):
     """
@@ -159,7 +159,7 @@ def analyze(lattice, kmf, C_ao_lo=None, labels=None,
     Args:
         lattice: lattice object.
         kmf: kscf object.
-        C_ao_lo: shape ((spin,), nkpts, nao, nlo), 
+        C_ao_lo: shape ((spin,), nkpts, nao, nlo),
                  if None, meta Lowdin is used.
         labels: LO labels, list of strings.
         verbose: verbose level.
@@ -169,7 +169,7 @@ def analyze(lattice, kmf, C_ao_lo=None, labels=None,
     from libdmet.lo import lowdin
     kmf.dump_scf_summary(verbose)
     ovlp = np.asarray(kmf.get_ovlp())
-    
+
     if rdm1_lo_R0 is None:
         mo_occ   = kmf.mo_occ
         mo_coeff = kmf.mo_coeff
@@ -179,10 +179,10 @@ def analyze(lattice, kmf, C_ao_lo=None, labels=None,
 
     if C_ao_lo is None:
         C_ao_lo = lowdin.lowdin_k(kmf, method=method, s=ovlp, pre_orth_ao=pre_orth_ao)
-    return mulliken_lo(lattice, rdm1, ovlp, C_ao_lo=C_ao_lo, labels=labels, 
+    return mulliken_lo(lattice, rdm1, ovlp, C_ao_lo=C_ao_lo, labels=labels,
                        verbose=verbose, rdm1_lo_R0=rdm1_lo_R0)
 
-def mulliken_lo(lattice, rdm1, ovlp, C_ao_lo, labels, 
+def mulliken_lo(lattice, rdm1, ovlp, C_ao_lo, labels,
                 verbose=pyscf_logger.DEBUG, rdm1_lo_R0=None, rdm1_lo_R0_2=None):
     """
     A modified Mulliken population analysis, based on given LO.
@@ -194,7 +194,7 @@ def mulliken_lo(lattice, rdm1, ovlp, C_ao_lo, labels,
         cell = lattice.cell.copy()
     log = pyscf_logger.new_logger(cell, verbose)
     C_ao_lo = np.asarray(C_ao_lo)
-    
+
     if rdm1_lo_R0 is None:
         rdm1_lo = lattice.k2R(make_basis.transform_rdm1_to_lo(rdm1, C_ao_lo, ovlp))
         if rdm1_lo.ndim == 3: # RHF
@@ -203,17 +203,17 @@ def mulliken_lo(lattice, rdm1, ovlp, C_ao_lo, labels,
             rdm1_lo_R0 = rdm1_lo[:, 0]
     rdm1_lo_R0 = np.asarray(rdm1_lo_R0)
     nlo = rdm1_lo_R0.shape[-1]
-    
+
     if labels is None:
         idx_to_ao_labels = np.arange(nlo)
     else:
         # IAO indices need to resort according to each atom.
         atom_ids = [int(lab.split()[0]) for lab in labels]
         idx_to_ao_labels = np.argsort(atom_ids, kind='mergesort')
-        
+
         labels_ao = [labels[idx] for idx in idx_to_ao_labels]
         # a hack, only keep atom id
-        labels_ao_no_fmt = [(int(lab.split()[0]),) for lab in labels_ao] 
+        labels_ao_no_fmt = [(int(lab.split()[0]),) for lab in labels_ao]
 
         def ao_labels(fmt=True):
             if fmt:
@@ -222,16 +222,16 @@ def mulliken_lo(lattice, rdm1, ovlp, C_ao_lo, labels,
                 return labels_ao_no_fmt
         cell.ao_labels = ao_labels
 
-    # resort rdm1_lo_R0 according to LO labels, 
+    # resort rdm1_lo_R0 according to LO labels,
     # so that the order is the same as AOs.
-    mesh = np.ix_(idx_to_ao_labels, idx_to_ao_labels) 
+    mesh = np.ix_(idx_to_ao_labels, idx_to_ao_labels)
     if rdm1_lo_R0.ndim == 2: # RHF
         rdm1_lo_R0 = rdm1_lo_R0[mesh]
     else:
         if rdm1_lo_R0.shape[0] == 1: # RHF
             rdm1_lo_R0 = rdm1_lo_R0[0][mesh]
         else: # UHF
-            rdm1_lo_R0 = np.asarray([rdm1_lo_R0[s][mesh] 
+            rdm1_lo_R0 = np.asarray([rdm1_lo_R0[s][mesh]
                                      for s in range(rdm1_lo_R0.shape[0])])
 
     log.note(' ** Mulliken pop on LOs **')
@@ -247,13 +247,13 @@ def mulliken_lo(lattice, rdm1, ovlp, C_ao_lo, labels,
             if rdm1_lo_R0_2.shape[0] == 1: # RHF
                 rdm1_lo_R0_2 = rdm1_lo_R0_2[0][mesh]
             else: # UHF
-                rdm1_lo_R0_2 = np.asarray([rdm1_lo_R0_2[s][mesh] 
+                rdm1_lo_R0_2 = np.asarray([rdm1_lo_R0_2[s][mesh]
                                            for s in range(rdm1_lo_R0_2.shape[0])])
         compare_density(cell, rdm1_lo_R0, rdm1_lo_R0_2, np.eye(nlo))
         return None, None
 
 def mulliken_lo_R0(lattice, rdm1_lo_R0, rdm1_lo_R0_2=None, labels=None):
-    return mulliken_lo(lattice, None, None, None, labels, 
+    return mulliken_lo(lattice, None, None, None, labels,
                        rdm1_lo_R0=rdm1_lo_R0, rdm1_lo_R0_2=rdm1_lo_R0_2)
 
 def mulliken_pop_uhf(mol, dm, s=None, verbose=pyscf_logger.DEBUG):
@@ -272,7 +272,7 @@ def mulliken_pop_uhf(mol, dm, s=None, verbose=pyscf_logger.DEBUG):
     for i, s in enumerate(mol.ao_labels()):
         log.info('pop of  %-14s %10.5f | %-10.5f  %10.5f',
                  s.strip(), pop_a[i], pop_b[i], pop_a[i] - pop_b[i])
-    log.info('In total               %10.5f | %-10.5f  %10.5f', 
+    log.info('In total               %10.5f | %-10.5f  %10.5f',
              sum(pop_a), sum(pop_b), sum(pop_a) - sum(pop_b))
 
     log.note(' ** Mulliken atomic charges    ( Nelec_alpha | Nelec_beta )'
@@ -316,7 +316,7 @@ def compare_density(mol, rdm_1, rdm_2, s=None, verbose=pyscf_logger.DEBUG):
         chg2 = mol.atom_charges() - chg2
         for ia in range(mol.natm):
             symb = mol.atom_symbol(ia)
-            log.note('charge of  %d%s =   %10.5f  %10.5f', ia, symb, 
+            log.note('charge of  %d%s =   %10.5f  %10.5f', ia, symb,
                      chg1[ia], chg2[ia])
     else: # ROHF, UHF
         pop1_a = np.einsum('ij,ji->i', rdm_1[0], s).real
@@ -328,7 +328,7 @@ def compare_density(mol, rdm_1, rdm_2, s=None, verbose=pyscf_logger.DEBUG):
         for i, s in enumerate(mol.ao_labels()):
             log.info('pop of  %s %10.5f | %-10.5f  %10.5f | %-10.5f',
                      s, pop1_a[i], pop1_b[i], pop2_a[i], pop2_b[i])
-        log.info('In total           %10.5f | %-10.5f  %10.5f | %-10.5f', 
+        log.info('In total           %10.5f | %-10.5f  %10.5f | %-10.5f',
                  sum(pop1_a), sum(pop1_b), sum(pop2_a), sum(pop2_b))
 
         log.note(' ** Mulliken atomic charges   ( Nelec_alpha | Nelec_beta )'
@@ -348,11 +348,11 @@ def compare_density(mol, rdm_1, rdm_2, s=None, verbose=pyscf_logger.DEBUG):
             symb = mol.atom_symbol(ia)
             log.note('charge of  %d%s =   %10.5f  (  %10.5f   %10.5f )'
                      '   %10.5f  (  %10.5f   %10.5f )',
-                     ia, symb, chg1[ia], nelec1_a[ia], nelec1_b[ia], 
+                     ia, symb, chg1[ia], nelec1_a[ia], nelec1_b[ia],
                                chg2[ia], nelec2_a[ia], nelec2_b[ia])
 
-def analyze_kmo(kmf, C_ao_lo=None, lo_labels=None, C_lo_mo=None, num_max=4, 
-                k_loop_first=True, mo_print_list=None, kpts_print_list=None, 
+def analyze_kmo(kmf, C_ao_lo=None, lo_labels=None, C_lo_mo=None, num_max=4,
+                k_loop_first=True, mo_print_list=None, kpts_print_list=None,
                 nmo_print=None, nkpts_print=None, pre_orth_ao='ANO'):
     """
     Analyze k-MO at each k point for each MO.
@@ -376,10 +376,10 @@ def analyze_kmo(kmf, C_ao_lo=None, lo_labels=None, C_lo_mo=None, num_max=4,
         C_lo_mo_abs: (spin, nkpts, nlo_grouped, nmo)
     """
     from libdmet.lo import lowdin
-    from libdmet.basis_transform import make_basis 
+    from libdmet.basis_transform import make_basis
     log.info("Analyze k-MO")
     log.info("-" * 79)
-    
+
     mo_coeff = np.asarray(kmf.mo_coeff)
     if mo_coeff.ndim == 3:
         mo_coeff = mo_coeff[None]
@@ -390,7 +390,7 @@ def analyze_kmo(kmf, C_ao_lo=None, lo_labels=None, C_lo_mo=None, num_max=4,
     ovlp = np.asarray(kmf.get_ovlp())
 
     if C_ao_lo is None:
-        C_ao_lo = lowdin.lowdin_k(kmf, method='meta_lowdin', s=ovlp, 
+        C_ao_lo = lowdin.lowdin_k(kmf, method='meta_lowdin', s=ovlp,
                                   pre_orth_ao=pre_orth_ao)
     C_ao_lo = np.asarray(C_ao_lo)
     C_ao_lo = add_spin_dim(C_ao_lo, spin)
@@ -400,7 +400,7 @@ def analyze_kmo(kmf, C_ao_lo=None, lo_labels=None, C_lo_mo=None, num_max=4,
     C_lo_mo_abs = np.abs(C_lo_mo) ** 2 * 100.0
     if lo_labels is None:
         lo_labels = kmf.cell.ao_labels()
-    
+
     if nmo_print is None:
         nmo_print = nmo
     else:
@@ -435,7 +435,7 @@ def analyze_kmo(kmf, C_ao_lo=None, lo_labels=None, C_lo_mo=None, num_max=4,
                 log.info(" kpt: %4s", k)
                 for m in mo_print_list:
                     idx = order[s, k, :num_max, m]
-                    string = "".join(["%15s (%5.1f) "%(lo_keys[id].strip(), 
+                    string = "".join(["%15s (%5.1f) "%(lo_keys[id].strip(),
                                       C_lo_mo_abs[s, k, id, m]) for id in idx])
                     log.info("   MO  %4s : %s", m, string)
         else:
@@ -444,14 +444,14 @@ def analyze_kmo(kmf, C_ao_lo=None, lo_labels=None, C_lo_mo=None, num_max=4,
                          mo_energy_min[s, m], mo_energy_max[s, m])
                 for k in kpts_print_list:
                     idx = order[s, k, :num_max, m]
-                    string = "".join(["%15s (%5.1f) "%(lo_keys[id].strip(), 
+                    string = "".join(["%15s (%5.1f) "%(lo_keys[id].strip(),
                                       C_lo_mo_abs[s, k, id, m]) for id in idx])
                     log.info("   kpt %4s : %s", k, string)
         log.info("-" * 79)
     return (order, C_lo_mo_abs)
 
-def analyze_cas(mf, basis, lo_labels, num_max=4, mo_print_list=None, 
-                nmo_print=None, mo_coeff=None, mo_energy=None, mo_occ=None, 
+def analyze_cas(mf, basis, lo_labels, num_max=4, mo_print_list=None,
+                nmo_print=None, mo_coeff=None, mo_energy=None, mo_occ=None,
                 sum_R=True):
     """
     Analyze CAS-MO.
@@ -472,7 +472,7 @@ def analyze_cas(mf, basis, lo_labels, num_max=4, mo_print_list=None,
     """
     log.info("Analyze CAS-MO")
     log.info("-" * 79)
-    
+
     if mo_coeff is None:
         mo_coeff = mf.mo_coeff
     if mo_energy is None:
@@ -489,10 +489,10 @@ def analyze_cas(mf, basis, lo_labels, num_max=4, mo_print_list=None,
     mo_occ = np.asarray(mo_occ)
     if mo_occ.ndim == 1:
         mo_occ = mo_occ[None]
-    
+
     spin, neo, nmo = mo_coeff.shape
     basis = np.asarray(basis)
-    
+
     C_lo_mo = np.einsum('sRpi, sij -> sRpj', basis, mo_coeff)
     if sum_R:
         C_lo_mo = np.sum(np.abs(C_lo_mo), axis=-3) # sum over R
@@ -531,7 +531,7 @@ def analyze_cas(mf, basis, lo_labels, num_max=4, mo_print_list=None,
             idx = order[s, :num_max, m]
             string = "".join(["%15s (%5.1f) "%(lo_keys[i].strip(),
                               C_lo_mo_abs[s, i, m]) for i in idx])
-            log.info("  MO %4s [%10.5f, %4.2f] : %s", m, 
+            log.info("  MO %4s [%10.5f, %4.2f] : %s", m,
                      mo_energy[s, m], mo_occ[s, m], string)
     log.info("-" * 79)
     return (order, C_lo_mo_abs)
@@ -554,13 +554,13 @@ def get_symm_orb(mol, idx, perm_idx=None, tol=1e-6, ignore_empty_irep=True):
     log.info("real symmetry: %s", mol.groupname)
     log.info("selected indices: %s", format_idx(idx))
     log.debug(0, "labels:\n%s", np.array(mol.ao_labels())[idx])
-    
+
     if perm_idx is None:
         perm_idx = np.arange(len(idx))
     log.info("perm indices: %s", format_idx(perm_idx))
-    log.debug(0, "labels after permutation:\n%s", 
+    log.debug(0, "labels after permutation:\n%s",
               np.array(mol.ao_labels())[idx][perm_idx])
-    
+
     norb_tot = 0
     nirep = 0
     irep_sizes = []
@@ -570,7 +570,7 @@ def get_symm_orb(mol, idx, perm_idx=None, tol=1e-6, ignore_empty_irep=True):
         norm = la.norm(tmp, axis=0)
         idx_non_zero = norm > tol
         tmp = tmp[:, idx_non_zero]
-        
+
         if tmp.size > 0:
             orbs = tmp[:, [0]]
             for j in range(1, tmp.shape[-1]):
@@ -588,7 +588,7 @@ def get_symm_orb(mol, idx, perm_idx=None, tol=1e-6, ignore_empty_irep=True):
                 symm_orb.append(orbs)
                 nirep += 1
                 irep_sizes.append(orbs.shape[-1])
-    
+
     log.info("nirep: %s", nirep)
     log.info("irep sizes: \n%s", np.array(irep_sizes))
     log.eassert(norb_tot == len(idx), "norb_tot (%d) != len(idx) (%d) ",
@@ -618,11 +618,11 @@ def get_bond_pairs(mol, length_range=[0.0, 2.0], unit='A', allow_pbc=True,
         if unit == 'A':
             coords = coords * BOHR
         diff = la.norm(coords - coords[:, None], axis=2)
-    
+
     if triu:
         idx = np.triu_indices(diff.shape[-1], 1)
     else:
-        idx = tuple(lib.cartesian_prod((np.arange(diff.shape[-1]), 
+        idx = tuple(lib.cartesian_prod((np.arange(diff.shape[-1]),
                                         np.arange(diff.shape[-1]))).T)
     dis = diff[idx]
     keep = (dis >= length_range[0]) & (dis <= length_range[1])
@@ -644,10 +644,10 @@ def get_bond_pairs(mol, length_range=[0.0, 2.0], unit='A', allow_pbc=True,
 
     return pairs, dis
 
-def get_bond_order_all(mol, rdm1, ovlp, length_range=[0.0, 2.0], order_tol=0.01, 
+def get_bond_order_all(mol, rdm1, ovlp, length_range=[0.0, 2.0], order_tol=0.01,
                        bond_type=None, labels=None, unit='A'):
     """
-    Mayer bond order. 
+    Mayer bond order.
     Compute all bonds within length_range, and stronger than order_tol.
 
     Args:
@@ -676,7 +676,7 @@ def get_bond_order_all(mol, rdm1, ovlp, length_range=[0.0, 2.0], order_tol=0.01,
     else:
         from libdmet.lo import ibo
         offset = ibo.get_offset(labels)
-    
+
     log.info("\n" + "-" * 79)
     log.info("Bond analysis")
     log.info("-" * 79)
@@ -715,7 +715,7 @@ def get_bond_order(rdm1, ovlp, idx_0, idx_1, PS=None):
     rdm1 = np.asarray(rdm1)
     ovlp = np.asarray(ovlp)
     assert ovlp.ndim == 2
-    
+
     if isinstance(idx_0, slice) and isinstance(idx_1, slice):
         idx_ba = (idx_1, idx_0)
         idx_ab = (idx_0, idx_1)

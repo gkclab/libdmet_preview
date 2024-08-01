@@ -296,7 +296,7 @@ class DMRGSCF(CASSCF):
         else:
             casHam = integral.Integral(ncas, False, False, 0., \
                     {"cd": np.asarray(h1)}, {"ccdd": np.asarray(h2)})
-            rot = np.asarray([np.eye(ncas), np.eye(ncas)]) 
+            rot = np.asarray([np.eye(ncas), np.eye(ncas)])
 
         # mo reorder to match exact CI step
         if self.mom_reorder:

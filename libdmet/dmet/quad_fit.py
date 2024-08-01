@@ -53,7 +53,7 @@ def get_roots(a, b, c, tol=1e-12):
                        2: root1 (linear equation)
                        3: root1, root2 (complex).
     """
-    
+
     if abs(a) < tol and abs(b) < tol:
         log.warn('a = 0, b = 0, not a quadratic equation.')
         status = 0
@@ -87,7 +87,7 @@ def quad_fit(mu, dnelecs, tol=1e-12):
 
     Returns:
         mu_new: new mu.
-        status: True for sucess.   
+        status: True for sucess.
     """
     mu_lst      = np.array(mu, copy=True)
     dnelecs_lst = np.array(dnelecs, copy=True)
@@ -99,13 +99,13 @@ def quad_fit(mu, dnelecs, tol=1e-12):
         log.warn("dnelecs is not a monotonic function of mu...")
     mu_lst = mu_lst[idx1]
     dnelecs_lst = dnelecs_lst[idx1]
-    
+
     a, b, c, status = get_parabola_vertex(mu_lst, dnelecs_lst, tol=tol)
     if not status:
         log.warn("Duplicated points among three dots:\nmu:     %s\ndnelec: %s", \
                 mu_lst, dnelecs_lst)
         return 0, False
-    
+
     roots, status = get_roots(a, b, c, tol=tol)
     if status == 0:
         log.warn("Root finding error")
@@ -120,7 +120,7 @@ def quad_fit(mu, dnelecs, tol=1e-12):
             return 0, False
         else:
             roots = [roots[0].real, roots[1].real]
-     
+
     if dnelecs_lst[0] >= 0.0:
         left  = -np.inf
         right = mu_lst[0]
@@ -133,9 +133,9 @@ def quad_fit(mu, dnelecs, tol=1e-12):
     else:
         left  = mu_lst[2]
         right = np.inf
-    
+
     if roots[0] < right and roots[0] > left:
-        if roots[1] < right and roots[1] > left: 
+        if roots[1] < right and roots[1] > left:
             if abs(roots[0] - mu[0]) < abs(roots[1] - mu[0]):
                 return roots[0], True
             else:
@@ -143,7 +143,7 @@ def quad_fit(mu, dnelecs, tol=1e-12):
         else:
             return roots[0], True
     else:
-        if roots[1] < right and roots[1] > left: 
+        if roots[1] < right and roots[1] > left:
             return roots[1], True
         else:
             log.warn("Can not find proper root within the range, "
@@ -175,19 +175,19 @@ def quad_fit_mu(mus, nelecs, filling, step):
     mus = np.asarray(mus)
     nelecs = np.asarray(nelecs)
     log.info("use quadratic fitting # %d", len(mus) - 2)
- 
+
     target = filling * 2.0
     dnelec = nelecs - target
     dnelec_abs = np.abs(dnelec)
-    
+
     # get three nearest points
     idx_dnelec  = np.argsort(dnelec_abs, kind='mergesort')
     mus_sub     = mus[idx_dnelec][:3]
     dnelec_sub  = dnelec[idx_dnelec][:3]
-   
+
     # quadratic fit
     dmu, status = quad_fit(mus_sub, dnelec_sub, tol=1e-12)
-    
+
     # check duplicates
     if has_duplicate(dmu, mus):
         log.info("duplicate in extrapolation.")
@@ -197,7 +197,7 @@ def quad_fit_mu(mus, nelecs, filling, step):
         log.info("quadratic fails or duplicates, use linear regression.")
         slope, intercept, r_value, p_value, std_err = stats.linregress(dnelec_sub, mus_sub)
         dmu = intercept
-    
+
     # check monotonic for the predict mu:
     if violate_previous_mu(dmu, mus, target, nelecs):
         log.info("predicted mu violates previous mus. Try linear regression.")
@@ -211,17 +211,17 @@ def quad_fit_mu(mus, nelecs, filling, step):
     if abs(dmu - mus[-1]) > step:
         log.info("extrapolation dMu %20.12f more than trust step %20.12f", dmu - mus[-1], step)
         dmu = math.copysign(step, dmu - mus[-1]) + mus[-1]
-   
+
     # TODO determine the range mu should be and use middle point to predict next mu.
     # check duplicates
     if has_duplicate(dmu, mus):
         log.info("duplicate in extrapolation.")
         dmu = math.copysign(step, dmu - mus[-1]) + mus[-1]
-    
+
     if (dmu - mus[-1]) * (target - nelecs[-1]) < 0 and abs(dmu - mus[-1]) > 2e-3 :
         log.info("extrapolation gives wrong direction, use finite difference")
         dmu = math.copysign(step, (target - nelecs[-1])) +  mus[-1]
-    
+
     log.result("extrapolated to dMu = %20.12f", dmu)
     return dmu
 

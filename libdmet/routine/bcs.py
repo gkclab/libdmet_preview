@@ -79,14 +79,14 @@ def __embBasis_proj(lattice, GRho, **kwargs):
         u, sigma, vt = la.svd(GRhoEnvImp, full_matrices=False)
         log.debug(0, "Zero singular values number: %s", np.sum(np.abs(sigma) < 1e-8))
         log.debug(1, "Singular values:\n%s", sigma)
-         
+
         B = u.reshape((ncells-1, nscsites*2, nval*2))
         localize_bath = kwargs.get("localize_bath", None)
         if localize_bath is not None:
             log.eassert(lattice.is_model == True, \
                     "Only model is currently supported for localization of bath.")
             B = localizer.localize_bath(B, method=localize_bath)
-        
+
         basis[0, 0, :nscsites, :nscsites] = np.eye(nscsites)
         basis[1, 0, :nscsites, :nscsites] = np.eye(nscsites)
         w = np.diag(np.tensordot(B[:,:nscsites], B[:,:nscsites], axes = ((0,1),(0,1))))
@@ -123,7 +123,7 @@ def __embBasis_phsymm(lattice, GRho, **kwargs):
     BA1 = np.dot(GRho, la.inv(A1.T))
     BA1 = orthonormalizeBasis(BA1)
     basis[0] = BA1
-    
+
     # hole part -> beta spin
     GRho_h = -GRho
     GRho_h[0] += np.eye(nscsites*2)
@@ -142,7 +142,7 @@ def embHam(lattice, basis, vcor, mu, local=True, **kwargs):
     log.info("One-body part")
     (Int1e, H0_from1e), (Int1e_energy, H0_energy_from1e) = \
             __embHam1e(lattice, basis, vcor, mu, Int2e, **kwargs)
-    
+
     nbasis = basis.shape[-1]
     H0 = H0_from1e + H0_from2e
     H0_energy = H0_energy_from1e + H0_from2e
@@ -160,9 +160,9 @@ def __embHam2e(lattice, basis, vcor, local, int_bath=False, \
         last_aabb=True, **kwargs):
     nscsites = lattice.nscsites
     nbasis = basis.shape[-1]
-    eri_symmetry = lattice.eri_symmetry 
+    eri_symmetry = lattice.eri_symmetry
     max_memory = kwargs.get("max_memory", lattice.cell.max_memory)
-    
+
     if lattice.is_model:
         LatH2 = lattice.getH2(compact=False, kspace=False)
         if settings.save_mem:
@@ -187,7 +187,7 @@ def __embHam2e(lattice, basis, vcor, local, int_bath=False, \
             cccc = np.zeros((1, nbasis, nbasis, nbasis, nbasis))
         log.info("H2 memory allocated size = %d MB", \
                 ccdd.size * 2 * 8. / 1024 / 1024)
-         
+
         if local:
             if "sites" in kwargs:
                 log.eassert(Lat.H2_format == "local", "only local H2 \
@@ -207,7 +207,7 @@ def __embHam2e(lattice, basis, vcor, local, int_bath=False, \
                 if lattice.H2_format == "local":
                     if int_bath:
                         raise NotImplementedError
-                        H2 = transform_eri_local(basis, lattice, LatH2) 
+                        H2 = transform_eri_local(basis, lattice, LatH2)
                     else:
                         for i in range(ccdd.shape[0]):
                             ccdd[i, :nscsites, :nscsites, :nscsites, :nscsites] = LatH2
@@ -262,13 +262,13 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, \
     fock_R = lattice.getFock(kspace=False)
     hcore_R = lattice.getH1(kspace=False)
     ImpJK = lattice.getImpJK()
-    
+
     spin = 2
     H0 = 0.
     H1 = {"cd": np.empty((2, nbasis, nbasis)), "cc": np.empty((1, nbasis, nbasis))}
     H0energy = 0.
     H1energy = {"cd": np.empty((2, nbasis, nbasis)), "cc": np.empty((1, nbasis, nbasis))}
-    
+
     log.debug(1, "transform hcore")
     H1["cd"], H1["cc"][0], H0 = \
             transform_trans_inv_sparse(basis, lattice, hcore_R)
@@ -283,7 +283,7 @@ def __embHam1e(lattice, basis, vcor, mu, H2_emb, \
             lattice.JK_core = None
         else: # NIB but use fock as embedding hamiltonian.
             raise NotImplementedError
-    
+
     if add_vcor:
         # then add Vcor, only in environment; and -mu*I in impurity and environment
         # add it everywhere then subtract impurity part
@@ -358,7 +358,7 @@ def FitVcorEmb(GRho, lattice, basis, vcor, mu, beta=np.inf, \
         imp_fit=False, fit_idx=None, **kwargs):
     """
     Fitting the correlation potential in the embedding space.
-    
+
     Analytic gradient for 0 T:
         # dGRho_ij / dV_ij, where V corresponds to terms in the
         # embedding generalized density matrix
@@ -417,7 +417,7 @@ def FitVcorEmb(GRho, lattice, basis, vcor, mu, beta=np.inf, \
         V[:nbasis, nbasis:] += D0
         V[nbasis:, :nbasis] += D0.T
         return V
-    
+
     if beta == np.inf:
         def errfunc(param):
             embHeff = embH + Vemb_param(param)
@@ -434,7 +434,7 @@ def FitVcorEmb(GRho, lattice, basis, vcor, mu, beta=np.inf, \
             val = la.norm(GRho1 - GRho)
             ewocc, ewvirt = ew[:nbasis], ew[nbasis:]
             evocc, evvirt = ev[:, :nbasis], ev[:, nbasis:]
-            
+
             e_mn = 1. / (-ewvirt.reshape((-1,1)) + ewocc)
             temp_mn = mdot(evvirt.T, GRho1 - GRho, evocc) \
                     * e_mn / (val * sqrt(2.))
@@ -449,7 +449,7 @@ def FitVcorEmb(GRho, lattice, basis, vcor, mu, beta=np.inf, \
                     beta, mu0=mu0, fix_mu=fix_mu)
             GRho1 = ftsystem.make_rdm1(mo_coeff, mo_occ)
             return la.norm((GRho1 - GRho)) / sqrt(2.)
-        
+
         def gradfunc(param):
             embHeff = embH + Vemb_param(param)
             mo_energy, mo_coeff, mo_occ, mu_ref = \
@@ -463,7 +463,7 @@ def FitVcorEmb(GRho, lattice, basis, vcor, mu, beta=np.inf, \
             dw_dparam = dV_dparam.reshape(dV_dparam.shape[0], -1).dot(dw_dv.ravel()) \
                     / (2.0 * val * sqrt(2.))
             return dw_dparam
-    
+
     err_begin = errfunc(vcor.param)
     if beta == np.inf:
         log.info("Using analytic gradient for 0 T")
@@ -477,7 +477,7 @@ def FitVcorEmb(GRho, lattice, basis, vcor, mu, beta=np.inf, \
         from libdmet.routine.slater import test_grad
         test_grad(vcor, errfunc, gradfunc, dx=1e-4)
         test_grad(vcor, errfunc, gradfunc, dx=1e-5)
-    
+
     param, err_end, pattern, gnorm_res = minimize(errfunc, vcor.param, \
             MaxIter, gradfunc, **kwargs)
     vcor.update(param)
@@ -503,12 +503,12 @@ def FitVcorEmb(GRho, lattice, basis, vcor, mu, beta=np.inf, \
                 options={'maxiter': len(param_new)*10, \
                 'disp': True, 'gtol': gtol})
         param_new_2 = min_result.x
-        log.info("CG Final Diff: %s", min_result.fun) 
+        log.info("CG Final Diff: %s", min_result.fun)
         log.info("Converged: %s", min_result.status)
         log.info("Jacobian: %s", max_abs(min_result.jac))
         if(not min_result.success):
             log.warn("Minimization unsuccessful. Message:\n%s", min_result.message)
-        
+
         gnorm_new = max_abs(min_result.jac)
         diff_CG_old = max_abs(param_new_2 - param_new)
         log.info("max diff in x between %s and old: %s", method, diff_CG_old)
@@ -528,7 +528,7 @@ def FitVcorEmb(GRho, lattice, basis, vcor, mu, beta=np.inf, \
     else:
         log.info("Old result used")
     return vcor, err_begin, err_end
-        
+
 def FitVcorFull(GRho, lattice, basis, vcor, mu, beta=np.inf, MaxIter=20, method='CG', \
         ytol=1e-7, gtol=1e-2, **kwargs):
     nbasis = basis.shape[-1]
@@ -683,7 +683,7 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
     if E is not None:
         # The energy is from defination of Edmet.
         # Efrag = E1 + E2
-        # where E1 = partial Tr(rho, H1), 
+        # where E1 = partial Tr(rho, H1),
         # H1 should not include contribution from Mu and last_dmu
         # E2 = E_solver - <psi | himp| psi>, psi is the wavefunction
         last_dmu = kwargs["last_dmu"]
@@ -695,8 +695,8 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
         from libdmet.dmet.HubbardBCS import apply_dmu
         ImpHam_no_last_dmu = apply_dmu(lattice, deepcopy(ImpHam), basis, -last_dmu)
         H1_scaled = deepcopy(ImpHam_no_last_dmu.H1)
-        
-        # add back the global mu 
+
+        # add back the global mu
         v = np.zeros((3, nscsites, nscsites))
         v[0] = mu * np.eye(nscsites)
         v[1] = mu * np.eye(nscsites)
@@ -705,7 +705,7 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
         H1_scaled["cc"][0] += tempCC
 
         # scale by the number of imp indices
-        limp = lattice.limp 
+        limp = lattice.limp
         H1_scaled["cd"][0][:limp, limp:] *= 0.5
         H1_scaled["cd"][0][limp:, :limp] *= 0.5
         H1_scaled["cd"][0][limp:, limp:] = 0.0
@@ -757,7 +757,7 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
 #        embH[nbasis:, nbasis:] = -embHB
 #        embH[:nbasis, nbasis:] = embD
 #        embH[nbasis:, :nbasis] = embD.T
-#        
+#
 #        # now compute dV/dparam (will be used in gradient)
 #        dV_dparam = np.empty((vcor.length(), nbasis*2, nbasis*2))
 #        for ip in range(vcor.length()):
@@ -767,7 +767,7 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
 #            dV_dparam[ip, nbasis:, nbasis:] = -dB_dV
 #            dV_dparam[ip, :nbasis, nbasis:] = dD_dV
 #            dV_dparam[ip, nbasis:, :nbasis] = dD_dV.T
-#        
+#
 #        vcor_zero = deepcopy(vcor)
 #        vcor_zero.update(np.zeros(vcor_zero.length()))
 #        v0 = vcor_zero.get()
@@ -777,11 +777,11 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
 #        v0[1] -= mu * np.eye(limp)
 #        (A0, B0), D0, _ = \
 #                transform_local(basis, lattice, v0)
-#        
+#
 #        embH_list.append(embH.copy())
 #        dV_dparam_list.append(dV_dparam.copy())
 #        ABD_list.append((A0.copy, B0.copy(), D0.copy()))
-#        
+#
 #    def vcor_list_update(param_all):
 #        start = 0
 #        for i in range(nImp):
@@ -808,20 +808,20 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
 #            param = param_all[start:end]
 #            #vcor_list[i].update(param)
 #            start = end
-#            
+#
 #            embHeff = embH_list[i] + Vemb_param(param, dV_dparam_list[i], ABD_list[i])
 #            ew, ev = la.eigh(embHeff)
 #            occ = 1 * (ew < 0.)
 #            GRho1 = mdot(ev, np.diag(occ), ev.T)
 #            res += la.norm(GRho_list[i] - GRho1) / sqrt(2.)
 #        return res
-#    
+#
 #    def gradfunc(param_all):
 #        res = 0.0
 #        start = 0
 #        grad_list = []
 #        for i in range(nImp):
-#            
+#
 #            GRho = GRho_list[i]
 #            embH = embH_list[i]
 #            dV_dparam = dV_dparam_list[i]
@@ -838,10 +838,10 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
 #            nocc = 1 * (ew < 0.)
 #            GRho1 = mdot(ev, np.diag(nocc), ev.T)
 #            val = la.norm(GRho - GRho1)
-#       
+#
 #            ewocc, ewvirt = ew[:nbasis], ew[nbasis:]
 #            evocc, evvirt = ev[:, :nbasis], ev[:, nbasis:]
-#            
+#
 #            e_mn = 1. / (-ewvirt.reshape((-1,1)) + ewocc)
 #            temp_mn = mdot(evvirt.T, GRho1 - GRho, evocc) * e_mn / val / sqrt(2.)
 #            dnorm_dV = mdot(evvirt, temp_mn, evocc.T)
@@ -853,18 +853,18 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
 #    err_begin = errfunc(param_all_begin)
 #    log.info("Using analytic gradient")
 #    param_all, err_end, pattern, gnorm_res = minimize(errfunc, vcor.param, MaxIter, gradfunc, **kwargs)
-#    
+#
 #    # ZHC NOTE
 #    #gnorm_res = max_abs(gradfunc(param_all))
 #    vcor_list_update(param_all)
-#    
+#
 #    log.info("Minimizer converge pattern: %d ", pattern)
 #    log.info("Current function value: %15.8f", err_end)
 #    log.info("Norm of gradients: %15.8f", gnorm_res)
 #    log.info("Norm diff of x: %15.8f", (max_abs(param_all - param_all_begin)))
-#    
+#
 #    if CG_check and (pattern == 0 or gnorm_res > 1.0e-4):
-#        
+#
 #        log.info("Not converge in Bo-Xiao's minimizer, try mixed solver in scipy...")
 #
 #        param_new = param_all.copy()
@@ -875,12 +875,12 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
 #        min_result = opt.minimize(errfunc, param_new, method = 'CG', jac = gradfunc ,\
 #                options={'maxiter': 10 * len(param_new), 'disp': True, 'gtol': gtol})
 #        param_new_2 = min_result.x
-#    
+#
 #        log.info("CG Final Diff: %s, Converged: %s, Jacobian: %s", \
-#                min_result.fun, min_result.status, max_abs(min_result.jac))      
+#                min_result.fun, min_result.status, max_abs(min_result.jac))
 #        if(not min_result.success):
 #            log.warn("Minimization unsuccessful. Message: %s", min_result.message)
-#    
+#
 #        gnorm_new = max_abs(min_result.jac)
 #        diff_CG_old = max_abs(param_new_2 - param_new)
 #        log.info("max diff in x between CG and old: %s", diff_CG_old)
@@ -893,5 +893,5 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, \
 #            vcor_list_update(param_new)
 #    else:
 #        log.info("old result used")
-#    
+#
 #    return vcor_list, err_begin, err_end

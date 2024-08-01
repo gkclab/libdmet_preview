@@ -26,7 +26,7 @@ def test_self_consistency_non_local():
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -47,7 +47,7 @@ def test_self_consistency_non_local():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -157,7 +157,7 @@ def test_self_consistency_non_local():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get(return_all=True))
         log.result("Mu (guess) = %20.12f", Mu)
@@ -191,7 +191,7 @@ def test_self_consistency_non_local():
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, \
                 C_ao_lo, rho, Lat.getFock(kspace=False)], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter, MaxIter2=full_fit_iter, method='CG', \
@@ -205,19 +205,19 @@ def test_self_consistency_non_local():
 
         dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
         log.result("trace of vcor: %s", \
                 np.sum(np.diagonal((vcor.get(i=0, kspace=False))[:2], 0, 1, 2), axis=1))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
 

@@ -61,7 +61,7 @@ def test_bcc_solver():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -103,10 +103,10 @@ def test_bcc_solver():
     #imp_fit = True
     emb_fit_iter = 300 # embedding fitting
     full_fit_iter = 0
-    #emb_fit_iter = 0 
+    #emb_fit_iter = 0
     #full_fit_iter = 100 # full fitting
     ytol = 1e-8
-    gtol = 1e-4 
+    gtol = 1e-4
     CG_check = True
 
     # vcor initialization
@@ -174,7 +174,7 @@ def test_bcc_solver():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -186,7 +186,7 @@ def test_bcc_solver():
                 add_vcor=False, orth=True)
         ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
-        
+
         log.section("\nsolving impurity problem\n")
         if iter < 1:
             restart = False
@@ -202,24 +202,24 @@ def test_bcc_solver():
                 "restart": restart, "dump_tl": dump_tl, "basis": basis, \
                 "bcc": True, "bcc_verbose": 2, "bcc_restart": True, \
                 "ccsdt": False, "ccsdt_energy": False, "ccd": False}
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
             solver_args=solver_args, thrnelec=nelec_tol, \
             delta=delta, step=step)
         dmet.SolveImpHam_with_fitting.save("./frecord")
         last_dmu += dmu
-        
+
         EnergyImp_HF = get_E_dmet_HF(basis, Lat, ImpHam, last_dmu, solver.scfsolver)
         log.result("E(DMET-HF) = %20.12f", EnergyImp_HF/float(ncell_sc))
-        
+
         rhoImp, EnergyImp, nelecImp = \
             dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
             lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
             solver=solver, solver_args=solver_args)
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp*nscsites/float(ncell_sc))
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter, MaxIter2=full_fit_iter, method='CG', \
@@ -234,27 +234,27 @@ def test_bcc_solver():
 
         dVcor_per_ele = np.max(np.abs(vcor_new.param - vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = np.max(np.abs(pvcor - vcor.param))
         vcor.update(pvcor)
         log.result("Trace of vcor: %20.12f ", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-        
+
         history.update(EnergyImp*nscsites/float(ncell_sc), err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter)
-        
+
         if dVcor_per_ele < u_tol and abs(dE) < E_tol and iter > iter_tol :
             conv = True
             break
-    
+
     assert abs(EnergyImp*nscsites/float(ncell_sc) - -1.243042935207) < 1e-4
 
 if __name__ == "__main__":

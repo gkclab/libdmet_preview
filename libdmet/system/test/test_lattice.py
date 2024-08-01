@@ -9,7 +9,7 @@ np.set_printoptions(4, linewidth=1000)
 def test_neighbor():
     from libdmet.system.lattice import ChainLattice, SquareLattice, ham
     from libdmet.utils import logger as log
-    
+
     chain = ChainLattice(240, 4)
     log.result("%s", chain)
     log.result("kpoints: %s", chain.kpoints())
@@ -53,9 +53,9 @@ def test_analyze():
     cell.verbose = 4
     cell.precision = 1e-10
     cell.build(unit='Angstrom')
-   
+
     # lattice class
-    kmesh = [1, 1, 3]  
+    kmesh = [1, 1, 3]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts = Lat.kpts_abs
@@ -85,13 +85,13 @@ def test_analyze():
         kmf.conv_tol = 1e-10
         kmf.chkfile = chkfname
         kmf.kernel()
-    
+
     ovlp = np.asarray(kmf.get_ovlp())
     # test RHF with meta Lowdin
     print ("\nTest meta-lowdin RHF analysis")
     pop_rhf, chg_rhf = Lat.analyze(kmf)
-    
-    
+
+
     # test RHF with IAOs
     print ("\nTest IAO+PAO RHF analysis")
     minao = 'minao'
@@ -99,7 +99,7 @@ def test_analyze():
     labels = iao.get_labels(cell, minao)[0]
     idx_to_ao_labels = iao.get_idx_to_ao_labels(cell, minao)
     Lat.analyze(kmf, C_ao_lo=C_ao_lo, labels=labels)
-    
+
     # analyze each MO
     analyze_kmo(kmf, C_ao_lo, labels)
     idx_dic = iao.get_idx_each(cell, minao=minao, kind='atom nl')
@@ -113,14 +113,14 @@ def test_analyze():
     print ("\nTest IAO+PAO RHF compare density")
     Lat.mulliken_lo_R0(rdm1_lo_R0=rdm1_ao_R0, rdm1_lo_R0_2=rdm1_lo_R0, \
             labels=labels)
-    
+
     # test UHF with meta Lowdin
     print ("\nTest IAO+PAO UHF analysis")
-    kmf = scf.addons.convert_to_uhf(kmf) 
+    kmf = scf.addons.convert_to_uhf(kmf)
     pop_uhf, chg_uhf = Lat.analyze(kmf)
     assert max_abs(pop_uhf[0] + pop_uhf[1] - pop_rhf) < 1e-10
     assert max_abs(chg_uhf - chg_rhf) < 1e-10
-    
+
     # test UHF with IAOs, 1 valence and 1 virtual
     print ("\nTest IAO+PAO UHF analysis 1 valence 1 virtual")
     C_ao_lo = make_basis.get_C_ao_lo_iao(Lat, kmf, minao=minao)
@@ -135,9 +135,9 @@ def test_analyze():
             labels=labels)
     Lat.mulliken_lo_R0(rdm1_lo_R0=rdm1_lo_R0, rdm1_lo_R0_2=rdm1_lo_R0, \
             labels=labels)
-    
-    import libdmet.dmet.Hubbard as dmet 
-    kmf = scf.addons.convert_to_rhf(kmf) 
+
+    import libdmet.dmet.Hubbard as dmet
+    kmf = scf.addons.convert_to_rhf(kmf)
     C_ao_lo = make_basis.get_C_ao_lo_iao(Lat, kmf, minao=minao)
     nval, nvirt, ncore = 2, 2, 0
     Lat.set_val_virt_core(nval, nvirt, ncore)
@@ -147,10 +147,10 @@ def test_analyze():
     Mu = 0.0
     beta = np.inf
     rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
-    
+
     ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, int_bath=True)
     basis_k = Lat.R2k_basis(basis)
-    
+
     solver = dmet.impurity_solver.SCFSolver(restricted=True, tol=1e-10)
     solver_args = {"nelec": min((Lat.ncore+Lat.nval)*2, \
             cell.nelectron*nkpts), \
@@ -158,21 +158,21 @@ def test_analyze():
     rhoEmb, EnergyEmb, ImpHam, dmu = \
         dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
         solver_args=solver_args, thrnelec=1e+6)
-    
+
     mf = solver.scfsolver.mf
     analyze_cas(mf, basis, labels, num_max=4, \
                 mo_print_list=None, nmo_print=None)
-    
-    order, C_lo_mo_abs = analyze_cas(mf, basis, idx_dic, num_max=4, 
+
+    order, C_lo_mo_abs = analyze_cas(mf, basis, idx_dic, num_max=4,
                                      mo_print_list=None, nmo_print=100)
-    
+
     scell = Lat.bigcell
     labels_sc = translate_labels(labels, Lat.nkpts, cell.natm)
     keep_id = [0, 1, 2]
     coords = np.array([atm[1] for atm in scell._atom])
     coords_frac = lattice.Real2Frac(scell.lattice_vectors(), coords)
     keep_id = np.where(coords_frac[:, -1] < 0.5)[0]
-    
+
     symbols = ["imp" if int(label.split()[0]) in keep_id else "other" for label in labels_sc]
     idx_dic = iao.get_idx_each(scell, symbols=symbols)
     print (idx_dic)
@@ -182,7 +182,7 @@ def test_bond_analysis():
     from libdmet.system import lattice
     from libdmet.utils.misc import max_abs
     np.set_printoptions(3, linewidth=1000, suppress=True)
-    
+
     benzene = [[ 'C'  , ( 4.673795 ,   6.280948 , 0.00  ) ],
                [ 'C'  , ( 5.901190 ,   5.572311 , 0.00  ) ],
                [ 'C'  , ( 5.901190 ,   4.155037 , 0.00  ) ],
@@ -198,20 +198,20 @@ def test_bond_analysis():
 
     mol = gto.M(atom=benzene,
                 basis='631g')
-    
+
     myhf = mol.RHF()
     myhf.kernel()
     ovlp = myhf.get_ovlp()
     rdm1 = myhf.make_rdm1()
-    pairs_r, dis_r, orders_r = lattice.get_bond_order_all(mol, rdm1, ovlp, 
+    pairs_r, dis_r, orders_r = lattice.get_bond_order_all(mol, rdm1, ovlp,
                                length_range=[0.5, 3.0], bond_type=[("C", "C")])
 
     myhf = mol.UHF()
     myhf.kernel()
     rdm1 = myhf.make_rdm1()
-    pairs, dis, orders = lattice.get_bond_order_all(mol, rdm1, ovlp, 
+    pairs, dis, orders = lattice.get_bond_order_all(mol, rdm1, ovlp,
                          length_range=[0.5, 3.0], bond_type=set([("C", "C")]))
-    
+
     assert max_abs(pairs - pairs_r) < 1e-7
     assert max_abs(dis - dis_r) < 1e-7
     assert max_abs(orders - orders_r) < 1e-7
@@ -221,13 +221,13 @@ def test_bond_analysis_pbc():
     from libdmet.system import lattice
     from libdmet.utils.misc import mdot
     np.set_printoptions(3, linewidth=1000, suppress=True)
-    
+
     cell = lattice.HChain(nH=6, R=1.5)
     cell.basis = '321G'
     cell.verbose = 4
     cell.precision = 1e-12
     cell.build(unit='Angstrom')
-    
+
     kmesh = [1, 1, 1]
     Lat = lattice.Lattice(cell, kmesh)
     kpts = Lat.kpts
@@ -260,11 +260,11 @@ def test_bond_analysis_pbc():
         kmf.max_cycle = 300
         kmf.chkfile = chkfname
         kmf.kernel()
-    
+
     ovlp = kmf.get_ovlp()
     rdm1 = kmf.make_rdm1()
     pairs_r, dis_r, orders_r = lattice.get_bond_order_all(cell, rdm1, ovlp, length_range=[0.5, 2.0])
-    
+
     from libdmet.basis_transform import make_basis
     from libdmet.lo import iao, ibo
     kmf.mo_coeff = kmf.mo_coeff[None]
@@ -276,7 +276,7 @@ def test_bond_analysis_pbc():
     idx_re = iao.get_idx_to_ao_labels(cell, minao=None, labels=lo_labels)
     lo_labels = np.asarray(lo_labels)[idx_re]
     C_ao_iao = np.asarray(C_ao_iao)[:, idx_re]
-    
+
     rdm1 = make_basis.transform_rdm1_to_mo_mol(rdm1, C_ao_iao, ovlp)
     ovlp = make_basis.transform_h1_to_mo_mol(ovlp, C_ao_iao)
     pairs_r, dis_r, orders_r = lattice.get_bond_order_all(cell, rdm1, ovlp, length_range=[0.5, 2.0], labels=lo_labels)

@@ -26,7 +26,7 @@ def test_csc():
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=False)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -47,7 +47,7 @@ def test_csc():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -158,12 +158,12 @@ def test_csc():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
         rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
-        
+
         log.section("\nconstructing impurity problem\n")
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, \
                 matching=True, int_bath=int_bath, orth=True)
@@ -180,7 +180,7 @@ def test_csc():
             delta=delta, step=step)
         dmet.SolveImpHam_with_fitting.save("./frecord")
         last_dmu += dmu
-        
+
         # CSC based on global density matrix
         veff, veff_ao, rdm1_glob = slater.get_veff_from_rdm1_emb(Lat, rhoEmb,
                 basis, return_update=True)
@@ -199,7 +199,7 @@ def test_csc():
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, \
                 C_ao_lo, rho, Lat.getFock(kspace=False)], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter,
@@ -213,26 +213,26 @@ def test_csc():
 
         dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
         log.result("trace of vcor: %s", \
                 np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2), axis=1))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
 
         if dVcor_per_ele < u_tol and abs(dE) < E_tol and iter > iter_tol :
             conv = True
             break
-    
+
     assert abs(EnergyImp - -1.242180528205) < 1e-4
 
 if __name__ == "__main__":

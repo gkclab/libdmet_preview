@@ -11,7 +11,7 @@ def test_cas_from_rdm1():
     from libdmet.utils.misc import mdot
     from libdmet.utils import logger as log
     log.verbose = "DEBUG2"
-    
+
     natocc = np.array([0.99, 0.0, 0.0, 1.0, 0.9, 0.6, 0.6, 0.6, 0.2, 0.29, 1.0])
     nao = len(natocc)
     C = la.qr(np.random.random((nao, nao)))[0]
@@ -19,36 +19,36 @@ def test_cas_from_rdm1():
     nelec = 8
     nelecas = 5
     ncas = 6
-    
+
     print ("nao: ", nao)
     print ("nelec: ", nelec)
     print ("ncas: ", ncas)
     print ("nelecas: ", nelecas)
     core, cas, virt, casinfo = cas_from_rdm1(rdm1, ncas, nelecas, nelec)
     assert casinfo == (1, 3, 2)
-    
+
     # no core, no virt
     nelec = 7
     nelecas = 7
-    ncas = nao 
+    ncas = nao
     print ("nao: ", nao)
     print ("nelec: ", nelec)
     print ("ncas: ", ncas)
     print ("nelecas: ", nelecas)
     core, cas, virt, casinfo = cas_from_rdm1(rdm1, ncas, nelecas, nelec)
     assert casinfo == (4, 3, 4)
-    
+
     # no virt
     nelec = nao
     nelecas = 7
-    ncas = 7 
+    ncas = 7
     print ("nao: ", nao)
     print ("nelec: ", nelec)
     print ("ncas: ", ncas)
     print ("nelecas: ", nelecas)
     core, cas, virt, casinfo = cas_from_rdm1(rdm1, ncas, nelecas, nelec)
     assert casinfo == (0, 3, 4)
-    
+
     # no core
     nelec = 5
     nelecas = 5
@@ -66,12 +66,12 @@ def test_cas_from_energy():
     from libdmet.solver.dmrgci import cas_from_energy
     from libdmet.utils import logger as log
     log.verbose = "DEBUG2"
-    
+
     nao = 12
     fock = np.random.random((nao, nao))
     fock = fock + fock.T
     mo_energy, mo_coeff = la.eigh(fock)
-    
+
     nelec = 8
     nelecas = 5
     ncas = 6
@@ -81,7 +81,7 @@ def test_cas_from_energy():
     print ("nelecas: ", nelecas)
     core, cas, virt, casinfo = cas_from_energy(mo_coeff, mo_energy, ncas, nelecas, nelec)
     assert casinfo == (5, 0, 1)
-    
+
     nelec = 8
     nelecas = nelec
     ncas = nao
@@ -91,7 +91,7 @@ def test_cas_from_energy():
     print ("nelecas: ", nelecas)
     core, cas, virt, casinfo = cas_from_energy(mo_coeff, mo_energy, ncas, nelecas, nelec)
     assert casinfo == (8, 0, 4)
-    
+
     # all occupied all cas
     nelec = nao
     nelecas = nelec
@@ -114,7 +114,7 @@ def test_match_cas_basis():
     from libdmet.utils.misc import max_abs
 
     np.set_printoptions(3, linewidth =1000, suppress=True)
-    
+
     norb = 12
     nelec = 5
     beta = 1000.0
@@ -127,14 +127,14 @@ def test_match_cas_basis():
     ew, ev = la.eigh(h)
     C_eo_mo_old = ev[:, :8][None]
     C_lo_mo_old = np.einsum('sRle, sec -> sRlc', C_lo_eo_old, C_eo_mo_old)
-    
+
     noise = 0.001
     ew, ev = la.eigh(h + np.random.random((norb, norb)) * noise)
     C_lo_eo = la.qr(a + np.random.random((norb, norb)) * noise)[0].reshape(1, 3, \
             4, 12)
     C_eo_mo = ev[:, :8][None]
     C_lo_mo = np.einsum('sRle, sec -> sRlc', C_lo_eo, C_eo_mo)
-    
+
     print ("Before matching")
     print ("diff C_lo_eo")
     print (max_abs(C_lo_eo - C_lo_eo_old))
@@ -143,7 +143,7 @@ def test_match_cas_basis():
     print ("diff C_lo_mo")
     val_old = max_abs(C_lo_mo - C_lo_mo_old)
     print (val_old)
-   
+
     casinfo = [(5, 0, 3)]
     u_mat, diff = match_cas_basis(C_lo_eo, C_eo_mo, C_lo_eo_old, C_eo_mo_old, casinfo)
     C_eo_mo_new = np.einsum('sec, scC -> seC', C_eo_mo, u_mat)
@@ -158,17 +158,17 @@ def test_match_cas_basis():
 def test_split_localize():
     import numpy as np
     import scipy.linalg as la
-    
+
     from pyscf import lib
     from libdmet.utils import logger as log
     import libdmet.dmet.Hubbard as dmet
 
     np.set_printoptions(4, linewidth=1000, suppress=True)
     log.verbose = "DEBUG2"
-    
+
     beta = 1000.0
 
-    U = 6.0 
+    U = 6.0
     LatSize = [40, 40]
     ImpSize = [2, 2]
     Filling = 0.8 / 2
@@ -212,7 +212,7 @@ def test_split_localize():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %s", Mu)
@@ -220,21 +220,21 @@ def test_split_localize():
         rho, Mu, res = dmet.HartreeFock(Lat, vcor, [Filling, Filling], Mu, ires=True, beta=beta)
         E_mf = res["E"] / nscsites
         log.result("Mean-field energy (per site): %s", E_mf)
-    
+
         log.section("\nconstructing impurity problem\n")
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=False, int_bath=int_bath)
-        ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu) 
+        ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
 
         log.section("\nsolving impurity problem\n")
         solver_args = {"guess": dmet.foldRho_k(Lat.R2k(rho), basis_k), "basis": basis}
         solver.loc_method = 'ciah'
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
                 dmet.SolveImpHam_with_fitting(Lat, [Filling, Filling], ImpHam, basis, solver, \
                 solver_args)
         dmet.SolveImpHam_with_fitting.save("./frecord")
-        
+
         last_dmu += dmu
         rhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
@@ -242,14 +242,14 @@ def test_split_localize():
                 solver=solver, solver_args=solver_args)
         log.result("E (DMET) : %s", EnergyImp)
         assert abs(EnergyImp - -0.982681432008679) < 1e-7
-        
+
         # use pyscf's ER
         solver.loc_method = 'ciah'
         rhoEmb, EnergyEmb, ImpHam, dmu = \
                 dmet.SolveImpHam_with_fitting(Lat, [Filling, Filling], ImpHam, basis, solver, \
                 solver_args)
         dmet.SolveImpHam_with_fitting.save("./frecord")
-        
+
         last_dmu += dmu
         rhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
@@ -257,7 +257,7 @@ def test_split_localize():
                 solver=solver, solver_args=solver_args)
         log.result("E (DMET) : %s", EnergyImp)
         assert abs(EnergyImp - -0.982681432008679) < 1e-7
-        
+
         break
 
 def test_gaopt():
@@ -278,18 +278,18 @@ def test_gaopt():
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1[None]}, \
             {"ccdd": H2[None]}, ovlp=None)
     K_s1 = gaopt(Ham, tmp='.', only_file=True)
-    
+
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1[None]}, \
             {"ccdd": ao2mo.restore(4, H2, norb)[None]}, ovlp=None)
     K_s4 = gaopt(Ham, tmp='.', only_file=True)
-    
+
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1[None]}, \
             {"ccdd": ao2mo.restore(8, H2, norb)[None]}, ovlp=None)
     K_s8 = gaopt(Ham, tmp='.', only_file=True)
-    
+
     assert np.allclose(K_s4, K_s1)
     assert np.allclose(K_s8, K_s1)
-    
+
     H2_a = H2
     H2_b = H2 + 1.0
     H2_ab = H2 - 0.4
@@ -297,13 +297,13 @@ def test_gaopt():
     Ham = integral.Integral(norb, False, False, H0, {"cd": np.array((H1, H1))}, \
             {"ccdd": np.array((H2_a, H2_b, H2_ab))}, ovlp=None)
     K_s1 = gaopt(Ham, tmp='.', only_file=True)
-    
+
     Ham = integral.Integral(norb, False, False, H0, {"cd": np.array((H1, H1))}, \
             {"ccdd": np.array((ao2mo.restore(4, H2_a, norb), \
                                ao2mo.restore(4, H2_b, norb),
                                ao2mo.restore(4, H2_ab, norb)))}, ovlp=None)
     K_s4 = gaopt(Ham, tmp='.', only_file=True)
-    
+
     assert np.allclose(K_s4, K_s1)
 
 def test_momopt():
@@ -311,35 +311,35 @@ def test_momopt():
     import scipy.linalg as la
     from libdmet.solver import dmrgci
     from libdmet.utils.misc import max_abs
-    
+
     np.set_printoptions(3, linewidth=1000, suppress=True)
     norb = 6
     a1 = np.random.random((norb, norb)) - 0.5
     basis_1 = la.qr(a1)[0].reshape((1, 3, 2, 6))[:, :, :, :5]
-    
+
     # 1. only the basis order is changed
     perm_idx = np.random.permutation(5)
     basis_2 = basis_1[:, :, :, perm_idx]
     reorder, val = dmrgci.momopt(basis_1, basis_2)
     perm_re = np.argsort(reorder, kind='mergesort')
-    
+
     assert max_abs(basis_2[:, :, :, reorder] - basis_1) < 1e-12
     assert (perm_re == perm_idx).all()
     assert abs(val - 1.0) < 1e-10
 
     # 2. has noise, not perfect matching.
-    # note that when degenracy of orbitals exist, 
+    # note that when degenracy of orbitals exist,
     # the orbitals can have a phsae difference
     # so that the reordered basis can have phase difference
     np.random.seed(10)
     a2 = a1 + (np.random.random((norb, norb)) - 0.5) * 1e-5
     basis_2 = la.qr(a2)[0].reshape((1, 3, 2, 6))[:, :, :, :5]
-    
+
     perm_idx = np.random.permutation(5)
     basis_2 = basis_2[:, :, :, perm_idx]
     reorder, val = dmrgci.momopt(basis_1, basis_2)
     perm_re = np.argsort(reorder, kind='mergesort')
-    
+
     assert (perm_re == perm_idx).all()
     assert abs(val - 1.0) < 1e-3
     assert max_abs(basis_2[:, :, :, reorder] - basis_1) < 1e-2
@@ -364,21 +364,21 @@ def test_reorder():
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1.copy()[None]}, \
             {"ccdd": H2.copy()[None]}, ovlp=None)
     mo = la.qr(np.random.random((norb, norb)))[0][None]
-    
+
     order = np.random.permutation(norb)
-    
+
     H0_ref = H0
     H1_ref = H1[np.ix_(order, order)].copy()
     H2_ref = H2[np.ix_(order, order, order, order)].copy()
     H2_ref_s4 = ao2mo.restore(4, H2_ref, norb)
     H2_ref_s8 = ao2mo.restore(8, H2_ref, norb)
-    
+
     # s1
     Ham, mo = reorder(order, Ham, mo, rot=None)
     assert max_abs(Ham.H0 - H0_ref) < 1e-10
     assert max_abs(Ham.H1["cd"] - H1_ref) < 1e-10
     assert max_abs(Ham.H2["ccdd"] - H2_ref) < 1e-10
-    
+
     # s4
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1.copy()[None]}, \
             {"ccdd": ao2mo.restore(4, H2, norb)[None]}, ovlp=None)
@@ -386,7 +386,7 @@ def test_reorder():
     assert max_abs(Ham.H0 - H0_ref) < 1e-10
     assert max_abs(Ham.H1["cd"] - H1_ref) < 1e-10
     assert max_abs(Ham.H2["ccdd"] - H2_ref_s4) < 1e-10
-    
+
     # s8
     Ham = integral.Integral(norb, True, False, H0, {"cd": H1.copy()[None]}, \
             {"ccdd": ao2mo.restore(8, H2, norb)[None]}, ovlp=None)
@@ -394,33 +394,33 @@ def test_reorder():
     assert max_abs(Ham.H0 - H0_ref) < 1e-10
     assert max_abs(Ham.H1["cd"] - H1_ref) < 1e-10
     assert max_abs(Ham.H2["ccdd"] - H2_ref_s8) < 1e-10
-    
+
     # UHF
     H2_a = H2
     H2_b = H2 + 1.0
     H2_ab = H2 - 0.4
-    
+
     H0_ref = H0
     H1_ref = H1[np.ix_(order, order)].copy()
     H1_ref = np.array((H1_ref, H1_ref))
-    
+
     H2_a_ref  = H2_a[np.ix_(order, order, order, order)].copy()
     H2_b_ref  = H2_b[np.ix_(order, order, order, order)].copy()
     H2_ab_ref = H2_ab[np.ix_(order, order, order, order)].copy()
     H2_ref =  np.array((H2_a_ref, H2_b_ref, H2_ab_ref))
-    
+
     H2_a_ref_s4  = ao2mo.restore(4, H2_a_ref, norb)
     H2_b_ref_s4  = ao2mo.restore(4, H2_b_ref, norb)
     H2_ab_ref_s4 = ao2mo.restore(4, H2_ab_ref, norb)
     H2_ref_s4 = np.array((H2_a_ref_s4, H2_b_ref_s4, H2_ab_ref_s4))
-    
+
     # s1
     Ham = integral.Integral(norb, False, False, H0, {"cd": np.array((H1, H1))}, \
             {"ccdd": np.array((H2_a, H2_b, H2_ab))}, ovlp=None)
     Ham, mo = reorder(order, Ham, mo, rot=None)
     assert max_abs(Ham.H1["cd"] - H1_ref) < 1e-10
     assert max_abs(Ham.H2["ccdd"] - H2_ref) < 1e-10
-    
+
     # s4
     Ham = integral.Integral(norb, False, False, H0, {"cd": np.array((H1, H1))}, \
             {"ccdd": np.array((ao2mo.restore(4, H2_a, norb), \
@@ -434,7 +434,7 @@ def test_dmrgci_rhf():
     import os
     import numpy as np
     import scipy.linalg as la
-    
+
     from pyscf import lib, fci, ao2mo
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, gto, df, dft, cc
@@ -448,7 +448,7 @@ def test_dmrgci_rhf():
 
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -468,7 +468,7 @@ def test_dmrgci_rhf():
     exxdiv = None
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -565,7 +565,7 @@ def test_dmrgci_rhf():
     ### ************************************************************
     ### DMET procedure
     ### ************************************************************
-    
+
     ncas = Lat.nao + Lat.nval
     nelecas = (Lat.ncore + Lat.nval)*2
     fcisolver = dmet.impurity_solver.FCI(restricted=restricted, tol=1e-12)
@@ -583,7 +583,7 @@ def test_dmrgci_rhf():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -613,13 +613,13 @@ def test_dmrgci_rhf():
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
         solver.twopdm = None
-       
+
         print ("E diff: ",  abs(EnergyImp - -1.243371414159))
-        assert abs(EnergyImp - -1.243371414159) < 1e-8 
-        
+        assert abs(EnergyImp - -1.243371414159) < 1e-8
+
         # use pyscf's ER
         solver.loc_method = 'ciah'
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
             solver_args=solver_args, thrnelec=nelec_tol, \
@@ -634,16 +634,16 @@ def test_dmrgci_rhf():
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
         solver.twopdm = None
-       
+
         print ("E diff: ",  abs(EnergyImp - -1.243371414159))
-        assert abs(EnergyImp - -1.243371414159) < 1e-8 
+        assert abs(EnergyImp - -1.243371414159) < 1e-8
         break
 
 def test_dmrgci_uhf():
     import os
     import numpy as np
     import scipy.linalg as la
-    
+
     from pyscf import lib
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, gto, df, cc, tools
@@ -696,7 +696,7 @@ def test_dmrgci_uhf():
     chkfname = '%s.chk'%name
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -730,13 +730,13 @@ def test_dmrgci_uhf():
     nelecas = min((Lat.ncore+Lat.nval)*2, nkpts*cell.nelectron) - 2
     cc_etol = natom_sc * 1e-8
     cc_ttol = 1e-5
-    cisolver = dmet.impurity_solver.CCSD(restricted=restricted, tol=cc_etol, 
+    cisolver = dmet.impurity_solver.CCSD(restricted=restricted, tol=cc_etol,
                                          tol_normt=cc_ttol, max_memory=max_memory)
-    solver = dmet.impurity_solver.CASCI(ncas=ncas, nelecas=nelecas, 
-                                        splitloc=True, MP2natorb=False, 
+    solver = dmet.impurity_solver.CASCI(ncas=ncas, nelecas=nelecas,
+                                        splitloc=True, MP2natorb=False,
                                         cisolver=cisolver, mom_reorder=False,
                                         tmpDir="./tmp")
-    
+
     nelec_tol = 2.5e-6 # per orbital
     delta = 0.01
     step = 0.1
@@ -747,7 +747,7 @@ def test_dmrgci_uhf():
     emb_fit_iter = 200 # embedding fitting
     full_fit_iter = 0
     ytol = 1e-9
-    gtol = 1e-5 
+    gtol = 1e-5
     CG_check = False
 
     # vcor initialization
@@ -827,7 +827,7 @@ def test_dmrgci_uhf():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %s", Mu)
@@ -845,10 +845,10 @@ def test_dmrgci_uhf():
         else:
             solver.optimized = False
             restart = False
-        
-        solver_args = {"guess": dmet.foldRho_k(res["rho_k"], basis_k), 
+
+        solver_args = {"guess": dmet.foldRho_k(res["rho_k"], basis_k),
                        "basis": basis, "nelec":(Lat.ncore+Lat.nval) * 2}
-        
+
         #solver.loc_method = 'ciah'
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
@@ -860,14 +860,14 @@ def test_dmrgci_uhf():
             dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
             lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
             solver=solver, solver_args=solver_args)
-        
+
         E_DMET_per_cell = EnergyImp*nscsites / ncell_sc
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", E_DMET_per_cell)
-         
+
         print ("E diff:", abs(E_DMET_per_cell - -1.211826367632))
         assert abs(E_DMET_per_cell - -1.211826367632) < 1e-7
-        
+
         # use pyscf's ER
         #solver.loc_method = 'jacobi'
         solver.loc_method = 'ciah'
@@ -875,43 +875,43 @@ def test_dmrgci_uhf():
             dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
             solver_args=solver_args, thrnelec=nelec_tol, \
             delta=delta, step=step)
-        
+
         rhoImp, EnergyImp, nelecImp = \
             dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
             lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
             solver=solver, solver_args=solver_args)
-        
+
         E_DMET_per_cell = EnergyImp*nscsites / ncell_sc
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", E_DMET_per_cell)
-        
+
         print ("E diff:", abs(E_DMET_per_cell - -1.211826367632))
         assert abs(E_DMET_per_cell - -1.211826367632) < 1e-7
-        
+
         # customized core, cas, virt
         core = np.load("dmrgci_core.npy")
         cas  = np.load("dmrgci_cas.npy")
         virt = np.load("dmrgci_virt.npy")
-        solver_args = {"guess": dmet.foldRho_k(res["rho_k"], basis_k), 
+        solver_args = {"guess": dmet.foldRho_k(res["rho_k"], basis_k),
                        "basis": basis, "nelec":(Lat.ncore+Lat.nval) * 2,
                        "orbs": (core, cas, virt)}
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
             solver_args=solver_args, thrnelec=nelec_tol, \
             delta=delta, step=step)
-        
+
         rhoImp, EnergyImp, nelecImp = \
             dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
             lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
             solver=solver, solver_args=solver_args)
-        
+
         E_DMET_per_cell = EnergyImp*nscsites / ncell_sc
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", E_DMET_per_cell)
-        
+
         print ("E diff:", abs(E_DMET_per_cell - -1.211826367632))
         assert abs(E_DMET_per_cell - -1.211826367632) < 1e-7
-        
+
         break
 
 if __name__ == "__main__":
@@ -921,9 +921,9 @@ if __name__ == "__main__":
     test_split_localize()
     test_dmrgci_rhf()
     test_cas_from_energy()
-    
+
     test_match_cas_basis()
     test_gaopt()
     test_reorder()
-    
-    
+
+

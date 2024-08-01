@@ -71,7 +71,7 @@ def afqmc_symmetrize(lattice, basis, h, h1e):
     h1e[1] = mdot(rot.T, h1e[1], rot)
     return basis, h, h1e
 
-def ConstructImpHam(Lat, rho, v, mu=None, afqmc=False, matching=True, 
+def ConstructImpHam(Lat, rho, v, mu=None, afqmc=False, matching=True,
                     local=True, split=False, **kwargs):
     log.result("Making embedding basis")
     basis = slater.embBasis(Lat, rho, local=local, **kwargs)
@@ -94,7 +94,7 @@ def ConstructImpHam(Lat, rho, v, mu=None, afqmc=False, matching=True,
                     basis[:, :, :, nimp:] = basisMatching(basis[:, :, :, nimp:])
                 else:
                     basis = basisMatching(basis)
-            
+
         log.result("Constructing impurity Hamiltonian")
         ImpHam, H1e = slater.embHam(Lat, basis, v, local=local, **kwargs)
     return ImpHam, H1e, basis
@@ -286,7 +286,7 @@ def VcorDCAPhSymm(U, ImpSize, subA, subB):
                         else:
                             g[idxp, 0, idx1, idx2] = 1
                             g[idxp, 1, idx1, idx2] = 1
-            self.grad = g 
+            self.grad = g
         return self.grad
 
     v.evaluate = types.MethodType(evaluate, v)

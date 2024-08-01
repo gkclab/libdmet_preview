@@ -283,7 +283,7 @@ def kernel(casci, mo_coeff=None, ci0=None, verbose=logger.NOTE):
     if h1eff.shape[0] != ncas*2:
         raise RuntimeError('Active space size error. nmo=%d ncore=%d ncas=%d' %
                            (mo_coeff.shape[-1], casci.ncore, ncas))
-    
+
     # FCI
     max_memory = max(400, casci.max_memory-lib.current_memory()[0])
     e_tot, fcivec = casci.fcisolver.kernel(h1eff, eri_cas, ncas*2, nelecas,
@@ -497,13 +497,13 @@ To enable the solvent model for CASCI, the following code needs to be called
             mo_coeff = self.mo_coeff[:,ncore*2:nocc*2]
         elif mo_coeff.shape[-1] != ncas*2:
             mo_coeff = mo_coeff[:,ncore*2:nocc*2]
-        
+
         if self._scf._eri is not None:
             # ZHC NOTE first guess eri format
             eri_size = self._scf._eri.size
             nso = mo_coeff.shape[-2]
             nso_pair = nso * (nso + 1) // 2
-            
+
             if (eri_size == nso ** 4) or (eri_size == nso_pair**2) or \
                (eri_size == nso_pair * (nso_pair + 1) // 2):
                 eri = ao2mo.full(self._scf._eri, mo_coeff,
@@ -573,7 +573,7 @@ To enable the solvent model for CASCI, the following code needs to be called
             self.converged = True
         self._finalize()
         return self.e_tot, self.e_cas, self.ci, self.mo_coeff, self.mo_energy
-    
+
     def _finalize(self):
         log = logger.Logger(self.stdout, self.verbose)
         if log.verbose >= logger.NOTE and getattr(self.fcisolver, 'spin_square', None):
@@ -656,7 +656,7 @@ To enable the solvent model for CASCI, the following code needs to be called
         raise NotImplementedError
         from pyscf.grad import casci
         return casci.Gradients(self)
-    
+
 del(WITH_META_LOWDIN, LARGE_CI_TOL, PENALTY)
 
 if __name__ == '__main__':
@@ -675,7 +675,7 @@ if __name__ == '__main__':
 
     mf = scf.GHF(mol)
     mf.kernel()
-    
+
     ovlp = mf.get_ovlp()
     H0 = mf.energy_nuc()
     H1 = mf.get_hcore()
@@ -699,7 +699,7 @@ if __name__ == '__main__':
     ehf, rhoHF = scfsolver.GGHF(tol=1e-8, InitGuess=dm0)
 
     mf = scfsolver.mf
-    
+
     #ehf = mf.scf()
     mc = GCASCI(mf, 4, (4, 0))
     mc.fcisolver = fci.solver(mol)

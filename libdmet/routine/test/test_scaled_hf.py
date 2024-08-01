@@ -51,12 +51,12 @@ def test_scaled_hf():
 
     ncore = 4
     ncas = 6
-    nvirt = nao - ncore - ncas 
+    nvirt = nao - ncore - ncas
 
     print ("ncore", ncore)
     print ("ncas", ncas)
     print ("nvirt", nvirt)
-        
+
     # first construct a set of LOs that froze F 1s and F 2s.
     minao = 'sto3g'
     pmol = iao.reference_mol(mol, minao=minao)
@@ -96,11 +96,11 @@ def test_scaled_hf():
     C_ao_lo, C_ao_lo_val, C_ao_lo_virt, C_ao_lo_core = \
             make_basis.get_C_ao_lo_iao_mol(mf, minao=minao, orth_virt=True,
                                            full_virt=False, full_return=True,
-                                           pmol_val=pmol_val, 
+                                           pmol_val=pmol_val,
                                            pmol_core=pmol_core, tol=1e-10)
     C_ao_lo_xcore = make_basis.tile_C_ao_iao(C_ao_lo_val, C_virt=C_ao_lo_virt, C_core=None)
 
-    lo_labels_xcore, val_labels, virt_labels = lo.get_labels(mol, minao=minao, full_virt=False, 
+    lo_labels_xcore, val_labels, virt_labels = lo.get_labels(mol, minao=minao, full_virt=False,
                                                        B2_labels=val_labels,
                                                        core_labels=core_labels)
     lo_labels = core_labels + lo_labels_xcore
@@ -288,16 +288,16 @@ def test_scaled_rhf_ghf():
     mo_energy = mf.mo_energy
     mo_occ = mf.mo_occ
     mo_coeff = mf.mo_coeff
-    
+
     # O 1s 2s
     ncore = 4
     ncas = nao - ncore
-    nvirt = nao - ncore - ncas 
+    nvirt = nao - ncore - ncas
 
     print ("ncore", ncore)
     print ("ncas", ncas)
     print ("nvirt", nvirt)
-    
+
     # first construct a set of LOs that froze O 1s and O 2s.
     minao = 'sto3g'
     pmol = iao.reference_mol(mol, minao=minao)
@@ -337,11 +337,11 @@ def test_scaled_rhf_ghf():
     C_ao_lo, C_ao_lo_val, C_ao_lo_virt, C_ao_lo_core = \
             make_basis.get_C_ao_lo_iao_mol(mf, minao=minao, orth_virt=True,
                                            full_virt=False, full_return=True,
-                                           pmol_val=pmol_val, 
+                                           pmol_val=pmol_val,
                                            pmol_core=pmol_core, tol=1e-10)
     C_ao_lo_xcore = make_basis.tile_C_ao_iao(C_ao_lo_val, C_virt=C_ao_lo_virt, C_core=None)
 
-    lo_labels_xcore, val_labels, virt_labels = lo.get_labels(mol, minao=minao, full_virt=False, 
+    lo_labels_xcore, val_labels, virt_labels = lo.get_labels(mol, minao=minao, full_virt=False,
                                                              B2_labels=val_labels,
                                                              core_labels=core_labels)
     lo_labels = core_labels + lo_labels_xcore
@@ -354,13 +354,13 @@ def test_scaled_rhf_ghf():
     rdm1_core_lo = make_basis.transform_rdm1_to_lo_mol(rdm1_core, mo_core, ovlp)
     rdm1_xcore = rdm1 - rdm1_core
     rdm1_xcore_lo = make_basis.transform_rdm1_to_lo_mol(rdm1_xcore, mo_xcore, ovlp)
-    
+
     lattice.mulliken_lo_R0(mol, rdm1_xcore_lo, labels=lo_labels_xcore)
 
     veff_core = mf.get_veff(dm=rdm1_core)
     E_core =  np.einsum('pq, qp ->', hcore, rdm1_core) + \
               0.5 * np.einsum('pq, qp ->', veff_core, rdm1_core)
-    
+
     hcore_cas = mdot(mo_cas.T, hcore + veff_core, mo_cas)
     ovlp_cas = mdot(mo_cas.T, ovlp, mo_cas)
     rdm1_cas = make_basis.transform_rdm1_to_mo_mol(rdm1, mo_cas, ovlp)
@@ -369,7 +369,7 @@ def test_scaled_rhf_ghf():
 
     Ham = integral.Integral(ncas, restricted=True, bogoliubov=False,
                             H0=E_nuc+E_core, H1=hcore_cas[None], H2=eri_cas[None], ovlp=ovlp_cas)
-    
+
     solver = scf_solver.SCFSolver(ghf=False, restricted=True, tol=1e-7, max_cycle=200,
                                   scf_newton=False, alpha=1.0, beta=beta)
 
@@ -384,10 +384,10 @@ def test_scaled_rhf_ghf():
     print ("rdm1 diff: ", rdm1_diff)
     #assert rdm1_diff < 1e-10
     print ()
-    
+
     lattice.mulliken_lo_R0(mol, rdm1_re, labels=lo_labels_xcore)
 
-    # GHF case    
+    # GHF case
 
     ewocc, Mu = mfd.assignocc(mo_energy, nelec*0.5, beta=beta, mu0=0.0)[:2]
 
@@ -405,10 +405,10 @@ def test_scaled_rhf_ghf():
     #C_sao_slo = spinless.combine_mo_coeff(mo_coeff)
     C_sao_slo_core = spinless.combine_mo_coeff(mo_core)
     C_sao_slo_xcore = spinless.combine_mo_coeff(mo_xcore)
-    
+
     np.random.seed(10086)
     mat = np.eye(C_sao_slo_xcore.shape[-1])
-    mat += (np.random.random(mat.shape) - 0.5) * 0.1 
+    mat += (np.random.random(mat.shape) - 0.5) * 0.1
     Q = la.qr(mat, pivoting=True)[0]
     order = []
     for i in range(Q.shape[-1]):
@@ -429,9 +429,9 @@ def test_scaled_rhf_ghf():
     GV2_hf, GV1_hf, GV0_hf = spinless.transform_H2_local(eri, ovlp, compact=False)
     GV2, GV1, GV0 = spinless.transform_H2_local(eri, ovlp, compact=False, hyb=alpha)
     Grdm1 = spinless.transform_rdm1_local(rdm1*0.5, ovlp=ovlp, compact=False)
-    
+
     GH1 += GV1
-    
+
     dGV1 = GV1_hf - GV1
 
     E0 = E_nuc + GH0 + GV0
@@ -460,28 +460,28 @@ def test_scaled_rhf_ghf():
     # GV1_add for full HF in the active space
     rdm1_eye_xcore_lo = np.eye(C_ao_lo_xcore.shape[-1])
     rdm1_eye_xcore_ao = make_basis.transform_rdm1_to_ao_mol(rdm1_eye_xcore_lo, C_ao_lo_xcore)
-#    GV1_add = np.zeros((nso, nso)) 
+#    GV1_add = np.zeros((nso, nso))
 #    vj, vk = scf.hf.dot_eri_dm(eri, rdm1_eye_xcore_ao, hermi=1)
 #    vk *= (1.0 - alpha)
 #    GV1_add[nao:, nao:] = vk
-    GV1_add, GV0_add = spinless.transform_H2_local(eri, ovlp=None, 
+    GV1_add, GV0_add = spinless.transform_H2_local(eri, ovlp=None,
                                                    compact=False,
                                                    C_ao_lo=C_ao_lo_xcore,
                                                    hyb=(1.0-alpha),
                                                    hyb_j=0.0,
                                                    ao_repr=True)[1:]
     E0 += GV0_add
-    
+
     mf = solver.scfsolver.mf
     Gveff_core = mf.get_veff(dm=Grdm1_core)
     Ghcore = GH1 + Gveff_core + GV1_add
     GH0_core = np.einsum('pq, qp ->', GH1 + 0.5 * Gveff_core, Grdm1_core)
 
     GH1_lo = make_basis.transform_h1_to_lo_mol(Ghcore, C_sao_slo_xcore)
-    
+
     GV2_lo = ao2mo.kernel(GV2, C_sao_slo_xcore)
     Govlp_lo = make_basis.transform_h1_to_lo_mol(ovlp_ghf, C_sao_slo_xcore)
-    
+
     Grdm1_eye_xcore_ao = np.zeros((nso, nso))
     Grdm1_eye_xcore_ao[nao:, nao:] = rdm1_eye_xcore_ao
     Grdm1_eye_xcore_lo = \
@@ -492,16 +492,16 @@ def test_scaled_rhf_ghf():
     GV1_add_re = vk
     GV1_add_ref = make_basis.transform_h1_to_lo_mol(GV1_add, C_sao_slo_xcore)
     diff_GV1_add = max_abs(GV1_add_re - GV1_add_ref)
-    
+
     print (GV1_add_re)
-    
+
     print ("diff GV1_add: ", diff_GV1_add)
     assert diff_GV1_add < 1e-10
 
     Ham = integral.Integral(GH1_lo.shape[-1], restricted=True, bogoliubov=False,
                             H0=E0+GH0_core, H1=GH1_lo[None], H2=GV2_lo[None],
                             ovlp=Govlp_lo)
-    
+
     from libdmet.solver import impurity_solver
     #Mu = 0.0
     solver = scf_solver.SCFSolver(ghf=True, restricted=True, tol=1e-7, max_cycle=200,
@@ -511,7 +511,7 @@ def test_scaled_rhf_ghf():
                                                    dm0=Grdm1_xcore_lo,
                                                    Mu=Mu, fit_mu=False,
                                                    nelec_target=(mol.nelectron - ncore * 2))
-    
+
     rdm1_re_gso_froze = make_basis.transform_rdm1_to_ao_mol(rdm1_re_gso_froze, Q)
 
     E_diff = abs(E_re_gso_froze - E_rhf)
@@ -521,15 +521,15 @@ def test_scaled_rhf_ghf():
 
     rdm1_A, rdm1_B, rdm1_D = spinless.extract_rdm1(rdm1_re_gso_froze)
     lattice.mulliken_lo_R0(mol, (rdm1_A, rdm1_B), labels=lo_labels_xcore)
-    
+
     diff_E_rhf_ghf = abs(E_re_gso_froze - E_re)
     diff_rdm1_rhf_ghf = max_abs(rdm1_A - rdm1_re)
-    
+
     print ("E diff to rhf: ", diff_E_rhf_ghf)
     assert diff_E_rhf_ghf < 1e-10
     print ("rdm1 diff to rhf: ", diff_rdm1_rhf_ghf)
     assert diff_rdm1_rhf_ghf < 1e-10
-    
+
     # GCCSD
     solver = impurity_solver.CCSD(ghf=True, restricted=True, tol=1e-5,
             tol_normt=2e-5, max_cycle=200, scf_newton=False, diis_space=10,

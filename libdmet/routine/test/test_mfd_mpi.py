@@ -35,8 +35,8 @@ def test_ghf_mpi():
 
         np.set_printoptions(3, linewidth=1000, suppress=False)
         log.verbose = "DEBUG2"
-        
-        U = 6.0 
+
+        U = 6.0
         LatSize = [16, 16]
         ImpSize = [2, 2]
         Filling = 1.0 / 2
@@ -47,7 +47,7 @@ def test_ghf_mpi():
         Lat = dmet.SquareLattice(*(LatSize+ImpSize))
         nao = nscsites = Lat.supercell.nsites
         nso = nao * 2
-        
+
         Ham = dmet.Ham(Lat, U)
         Lat.setHam(Ham, use_hcore_as_emb_ham=False)
         H1 = Lat.getH1(kspace=True)
@@ -55,8 +55,8 @@ def test_ghf_mpi():
         Lat.fock_lo_k = np.asarray((H1, H1, np.zeros_like(H1)))
 
         vcor = dmet.AFInitGuess(ImpSize, U, Filling, rand=0.001)
-        
-        GRho, Mu, ires = dmet.GHartreeFock(Lat, vcor, None, mu0_elec=Mu, 
+
+        GRho, Mu, ires = dmet.GHartreeFock(Lat, vcor, None, mu0_elec=Mu,
                                            beta=beta, fix_mu=False, mu0=None, use_mpi=True,
                                            full_return=True)
     except ImportError:

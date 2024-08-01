@@ -100,9 +100,9 @@ class W90:
                 atom[0])).encode('utf-8') for atom in self.cell._atom])
         self.atoms_cart    = np.array(np.array([atom[1] for atom in
             self.cell._atom]).T, order='F') * param.BOHR
-        self.gamma_only    = int(gamma_only) 
+        self.gamma_only    = int(gamma_only)
         self.spinors       = int(spinors)
-        
+
         # output for setup function
         self.nntot = None
         self.nnlist = None
@@ -118,12 +118,12 @@ class W90:
         self.exclude_bands = None
         self.proj_s = None
         self.proj_s_qaxis = None
-        
+
         # input for run function
         self.M_matrix = None
         self.A_matrix = None
         self.eigenvalues = None
-        
+
         # output for run function
         self.U_matrix = None
         self.U_matrix_opt = None
@@ -131,7 +131,7 @@ class W90:
         self.wann_centres = None
         self.wann_spreads = None
         self.spread = None
-        
+
         self.band_included_list = None
         self.use_bloch_phases = False
         self.use_scdm = False
@@ -186,26 +186,26 @@ class W90:
         win_file.write('! Basic input\n\n')
         win_file.write('num_bands = %d\n' % (self.num_bands_tot))
         win_file.write('num_wann  = %d\n\n' % (self.num_wann))
-        
+
         # lattice
         win_file.write('Begin Unit_Cell_Cart\n')
         for vec in self.real_lattice:
             win_file.write('%25.20f  %25.20f  %25.20f\n' \
                     %(vec[0], vec[1], vec[2]))
         win_file.write('End Unit_Cell_Cart\n\n')
-        
+
         # atoms
-        win_file.write('Begin atoms_cart\n') 
+        win_file.write('Begin atoms_cart\n')
         for i, symbol in enumerate(self.atom_symbols):
             win_file.write('%s  %25.20f  %25.20f  %25.20f\n' \
                     %(symbol.decode(), self.atoms_cart[0, i], self.atoms_cart[1, i], \
                     self.atoms_cart[2, i]))
         win_file.write('End atoms_cart\n\n')
-        
+
         # kpts related
         win_file.write('mp_grid = %d %d %d\n' %(self.mp_grid[0], \
                 self.mp_grid[1], self.mp_grid[2]))
-        if self.gamma_only == 1: 
+        if self.gamma_only == 1:
             win_file.write('gamma_only : true\n')
         win_file.write('begin kpoints\n')
         for k in range(self.num_kpts):
@@ -213,18 +213,18 @@ class W90:
                     %(self.kpt_latt[0, k], self.kpt_latt[1, k], \
                       self.kpt_latt[2, k]))
         win_file.write('End Kpoints\n\n')
-        
+
         # additional
         if self.keywords != None:
             win_file.write('! Additional keywords\n')
             win_file.write(self.keywords)
             win_file.write("\n")
-        if self.use_bloch_phases: 
+        if self.use_bloch_phases:
             win_file.write('use_bloch_phases = T\n')
         if self.guiding_centres:
             win_file.write('guiding_centres = T\n')
         win_file.close()
-    
+
     def setup(self):
         """
         Execute the wannier90_setup functon.
@@ -275,9 +275,9 @@ class W90:
                             (3, num_bands_tot)
             proj_zona     : z/a value, 1D-F-real, (num_bands_tot)
             exclude_bands : exclude_bands, 1D-F-int32, (num_bands_tot)
-            proj_s        : 1 or -1, project to up or down spin states, 
+            proj_s        : 1 or -1, project to up or down spin states,
                             1D-F-int32, (num_bands_tot)
-            proj_s_qaxis  : spin quantisation axis in cart coords, 
+            proj_s_qaxis  : spin quantisation axis in cart coords,
                             2D-F-real, (3, num_bands_tot)
         """
         num_nnmax = self.num_nnmax
@@ -296,7 +296,7 @@ class W90:
         exclude_bands = np.zeros((num_bands_tot), dtype=np.int32, order='F')
         proj_s  = np.zeros((num_bands_tot), dtype=np.int32, order='F')
         proj_s_qaxis = np.zeros((num_bands_tot, 3), dtype=np.double, order='F')
-        
+
         """
         call setup
         """
@@ -324,7 +324,7 @@ class W90:
             proj_s_qaxis.ctypes.data_as(c_void_p), \
             c_long(STRING_LENGTH), c_long(STRING_LENGTH))
             # ZHC NOTE: the last two args are length of the string.
-        
+
         """
         post procecessing of output
         """
@@ -332,9 +332,9 @@ class W90:
         num_bands = num_bands.value
         num_wann = num_wann.value
         assert num_wann == self.num_wann
-        # save to self             
+        # save to self
         self.nntot = nntot
-        self.nnlist = nnlist 
+        self.nnlist = nnlist
         self.nncell = nncell
         self.num_bands = num_bands
         self.proj_site = proj_site
@@ -355,7 +355,7 @@ class W90:
         r"""
         Construct the ovelap matrix: M_{m,n}^{(\mathbf{k,b})}
         Eq. 25 in PRB, 56, 12847.
-        M_{mnbk} = <u_m k | u_n k+b>, 4D-F-complex 
+        M_{mnbk} = <u_m k | u_n k+b>, 4D-F-complex
             (num_bands, num_bands, nntot, num_kpts)
         k = kpt_latt[:, k_idx]
         k+b = kpt_latt[:, nnlist[k_idx, b_idx]-1] + nncell[:, k_idx, b_idx]
@@ -389,8 +389,8 @@ class W90:
         r"""
         Construct the projection matrix: A_{m,n}^{\mathbf{k}}
         Eq. 62 in PRB, 56, 12847 or Eq. 22 in PRB, 65, 035109.
-        Amn_k = <psi_{mk}| g_n>, 3D-F-(m, n, k) 
-        """ 
+        Amn_k = <psi_{mk}| g_n>, 3D-F-(m, n, k)
+        """
         log.debug(1, "Wannier90: A matrix start.")
         A_matrix = np.empty((self.num_bands, self.num_wann, self.num_kpts), \
                 dtype=np.complex128, order='F')
@@ -423,7 +423,7 @@ class W90:
             mo_coeff = np.asarray(self.mo_coeff)[:, :, self.band_included_list]
             A_matrix[:] = atomic_init_guess(self.kmf, mo_coeff, rand=rand)\
                     .transpose(1, 2, 0)
-        else:        
+        else:
             log.info("Wannier90: use projection guess.")
             from libdmet.lo.proj_wannier import g_r
             cell = self.cell
@@ -446,17 +446,17 @@ class W90:
                     l = self.proj_l[i]
                     mr = self.proj_m[i]
                     r = self.proj_radial[i]
-                    z_axis = self.proj_z[:, i] 
+                    z_axis = self.proj_z[:, i]
                     x_axis = self.proj_x[:, i]
                     zona = self.proj_zona[i]
                     gr = g_r(coords, abs_site, l, mr, r, zona, x_axis, z_axis,\
                             unit='B')
-                    mo_included = self.mo_coeff[k][:, self.band_included_list] 
+                    mo_included = self.mo_coeff[k][:, self.band_included_list]
                     A_matrix[:, i, k] = np.dot(mo_included.conj().T, \
                             np.dot(ao_g.conj().T, gr * weights))
         log.debug(1, "Wannier90: A matrix complete.")
         return A_matrix
-    
+
     def get_epsilon_mat(self):
         r"""
         Construct the eigenvalues matrix: \epsilon_{n}^(\mathbf{k})
@@ -464,7 +464,7 @@ class W90:
         """
         return np.asarray((np.asarray(self.mo_energy)[:, self.band_included_list]\
                 * HARTREE2EV).T, order='F')
-	
+
     def run(self):
         """
         Execute the wannier90 run.
@@ -509,7 +509,7 @@ class W90:
         M_matrix = self.M_matrix.ravel(order='F')
         A_matrix = self.A_matrix.ravel(order='F')
         eigenvalues = self.eigenvalues.ravel(order='F')
-        
+
         """
         output args:
             U_matrix     : U_k  3D-F-complex, (nwann, nwann, nkpts)
@@ -521,14 +521,14 @@ class W90:
             spread       : Omega, Omega_I, Omega_tilde, 1D-F-real, (3)
         """
         U_matrix = np.zeros((num_wann, num_wann, num_kpts), \
-                dtype=np.complex128, order='F')  
+                dtype=np.complex128, order='F')
         U_matrix_opt = np.zeros((num_bands, num_wann, num_kpts), \
                 dtype=np.complex128, order='F')
         lwindow = np.zeros((num_bands, num_kpts), dtype=np.int32, order='F')
         wann_centres = np.zeros((3, num_wann), dtype=np.double, order='F')
         wann_spreads = np.zeros((num_wann), dtype=np.double, order='F')
         spread = np.zeros((3), dtype=np.double, order='F')
-        
+
         """
         call run
         """
@@ -567,18 +567,18 @@ class W90:
 
     def export_AME(self):
         r"""
-        Export A_{m,n}^{\mathbf{k}} and M_{m,n}^{(\mathbf{k,b})} 
+        Export A_{m,n}^{\mathbf{k}} and M_{m,n}^{(\mathbf{k,b})}
         and \epsilon_{n}^(\mathbf{k})
-        """    
+        """
         if self.M_matrix is None or self.A_matrix is None:
             self.make_win()
             self.setup()
             self.M_matrix = self.get_M_mat()
-            self.A_matrix = self.get_A_mat() 
+            self.A_matrix = self.get_A_mat()
             self.eigenvalues = self.get_epsilon_mat()
-            
+
         with open('%s.mmn'%(self.seed_name.strip()), 'w') as f:
-            f.write('Generated by the pyWannier90\n') 
+            f.write('Generated by the pyWannier90\n')
             f.write('    %d    %d    %d\n' % (self.num_bands, \
                     self.num_kpts, self.nntot))
             for k_id in range(self.num_kpts):
@@ -593,9 +593,9 @@ class W90:
                             f.write('    %22.18f  %22.18f\n' \
                                     % (self.M_matrix[m, n, nn, k_id].real, \
                                        self.M_matrix[m, n, nn, k_id].imag))
-                    
+
         with open('%s.amn'%(self.seed_name.strip()), 'w') as f:
-            f.write('    %d\n' % (self.num_bands*self.num_kpts*self.num_wann)) 
+            f.write('    %d\n' % (self.num_bands*self.num_kpts*self.num_wann))
             f.write('    %d    %d    %d\n' \
                     % (self.num_bands, self.num_kpts, self.num_wann))
             for k_id in range(self.num_kpts):
@@ -605,18 +605,18 @@ class W90:
                                 % (band+1, ith_wann+1, k_id+1, \
                                 self.A_matrix[band, ith_wann, k_id].real, \
                                 self.A_matrix[band, ith_wann, k_id].imag))
-        
+
         with open('%s.eig'%(self.seed_name.strip()), 'w') as f:
             for k_id in range(self.num_kpts):
                 for band in range(self.num_bands):
                         f.write('    %d    %d    %22.18f\n' % (band+1, k_id+1,\
                                 self.eigenvalues[band, k_id]))
-    
+
     def export_unk(self, mesh=[50, 50, 50]):
         """
         Export the periodic part of BF in a real space grid,
         for plotting with wannier90.
-        """    
+        """
         from scipy.io import FortranFile
         coords, weights = get_grid_uniform_cell(self.cell, mesh=mesh, order='F')
         for k_id in range(self.num_kpts):
@@ -624,7 +624,7 @@ class W90:
                 spin = '.2'
             else:
                 spin = '.1'
-            kpt = self.cell.get_abs_kpts(self.kpt_latt[:, k_id]) 
+            kpt = self.cell.get_abs_kpts(self.kpt_latt[:, k_id])
             ao_g = pdft.numint.eval_ao(self.cell, coords, kpt=kpt)
             u_ao = np.exp(-1.0j * np.dot(coords, kpt))[:, None] * ao_g
             unk_file = FortranFile('UNK' + "%05d" % (k_id + 1) + spin, 'w')
@@ -634,7 +634,7 @@ class W90:
             u_mo = np.dot(u_ao, mo_included)
             for band in range(len(self.band_included_list)):
                 unk_file.write_record(np.asarray(u_mo[:, band], \
-                        dtype=np.complex128)) 
+                        dtype=np.complex128))
             unk_file.close()
 
 def get_A_mat_from_lo(C_ao_mo, S_ao_ao, C_ao_lo):
@@ -724,12 +724,12 @@ if __name__ == '__main__':
 
     kmesh = nk = [1, 1, 1]
     abs_kpts = cell.make_kpts(nk)
-    
+
     kmf = pscf.KRHF(cell, abs_kpts)
     kmf = kmf.density_fit()
     kmf.conv_tol = 1e-10
     ekpt = kmf.run()
-            
+
     #num_wann = 9
     #keywords = \
     #"""

@@ -121,12 +121,12 @@ def get_vxc(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                                 vhf_last=vhf_last, hermi=hermi, kpts=kpts,
                                 kpts_band=kpts_band, skip_jk=True)
     elif isinstance(ks, kuks.KUKS):
-        return get_vxc_kuks(ks, cell=cell, dm=dm, dm_last=dm_last, 
-                            vhf_last=vhf_last, hermi=hermi, kpts=kpts, 
+        return get_vxc_kuks(ks, cell=cell, dm=dm, dm_last=dm_last,
+                            vhf_last=vhf_last, hermi=hermi, kpts=kpts,
                             kpts_band=kpts_band)
     elif isinstance(ks, krks.KRKS):
-        return get_vxc_krks(ks, cell=cell, dm=dm, dm_last=dm_last, 
-                            vhf_last=vhf_last, hermi=hermi, kpts=kpts, 
+        return get_vxc_krks(ks, cell=cell, dm=dm, dm_last=dm_last,
+                            vhf_last=vhf_last, hermi=hermi, kpts=kpts,
                             kpts_band=kpts_band)
     else:
         raise ValueError
@@ -172,7 +172,7 @@ def get_veff_lo_krks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
 
     omega, alpha, hyb = ks._numint.rsh_and_hybrid_coeff(ks.xc, spin=cell.spin)
     hybrid = abs(hyb) > 1e-10 or abs(alpha) > 1e-10
-    
+
     # ZHC NOTE
     if getattr(ks, "C_ao_lo", None) is not None:
         dm_ao = make_basis.transform_rdm1_to_ao(dm, ks.C_ao_lo)
@@ -191,7 +191,7 @@ def get_veff_lo_krks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                                        with_j=True, return_j=False)
         logger.debug(ks, 'nelec by numeric integration = %s', n)
         t0 = logger.timer(ks, 'vxc', *t0)
-        
+
         # ZHC NOTE
         if getattr(ks, "C_ao_lo", None) is not None:
             vxc = make_basis.transform_h1_to_lo(vxc, ks.C_ao_lo)
@@ -275,7 +275,7 @@ def get_vxc_krks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     if dm is None: dm = ks.make_rdm1()
     if kpts is None: kpts = ks.kpts
     t0 = (logger.process_clock(), logger.perf_counter())
-    
+
     # ZHC NOTE
     if getattr(ks, "C_ao_lo", None) is not None:
         dm = make_basis.transform_rdm1_to_ao(dm, ks.C_ao_lo)
@@ -305,11 +305,11 @@ def get_vxc_krks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                                         kpts=kpts, kpts_band=kpts_band)
         logger.debug(ks, 'nelec by numeric integration = %s', n)
         t0 = logger.timer(ks, 'vxc', *t0)
-    
+
     # ZHC NOTE
     if getattr(ks, "C_ao_lo", None) is not None:
         vxc = make_basis.transform_h1_to_lo(vxc, ks.C_ao_lo)
-    
+
     vxc = lib.tag_array(vxc, ecoul=0.0, exc=exc, vj=None, vk=None)
     return vxc
 
@@ -317,14 +317,14 @@ class KRKS_LO(krks.KRKS):
     """
     RKS class adapted for PBCs with k-point sampling, in LO basis and allow frozen core.
     """
-    def __init__(self, cell, kpts=np.zeros((1,3)), xc='LDA,VWN', 
+    def __init__(self, cell, kpts=np.zeros((1,3)), xc='LDA,VWN',
                  C_ao_lo=None, dm_core_ao=None):
         krks.KRKS.__init__(self, cell, kpts=kpts)
         self.xc = xc
         if C_ao_lo is not None:
             C_ao_lo = np.asarray(C_ao_lo)
         self.C_ao_lo = C_ao_lo
-        
+
         if dm_core_ao is not None:
             self.dm_core_ao = np.asarray(dm_core_ao)
             ovlp = np.asarray(self.get_ovlp())
@@ -334,9 +334,9 @@ class KRKS_LO(krks.KRKS):
             self.nelec_core = 0
         logger.info(self, 'KRKS_LO: nelec_core %s', self.nelec_core)
         self._keys = self._keys.union(["dm_core_ao", "nelec_core", "C_ao_lo"])
-    
+
     get_veff = get_veff_lo_krks
-    
+
     get_vxc = get_vxc_krks
 
 # *********************************************************************
@@ -439,7 +439,7 @@ def get_vxc_kuks(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
         dm = make_basis.transform_rdm1_to_ao(dm, ks.C_ao_lo)
     if getattr(ks, "dm_core_ao", None) is not None:
         dm += ks.dm_core_ao
-    
+
     hybrid = False
     if not hybrid and isinstance(ks.with_df, multigrid.MultiGridFFTDF):
         raise NotImplementedError
@@ -470,14 +470,14 @@ class KUKS_LO(kuks.KUKS):
     """
     UKS class adapted for PBCs with k-point sampling, in LO basis and allow frozen core.
     """
-    def __init__(self, cell, kpts=np.zeros((1,3)), xc='LDA,VWN', 
+    def __init__(self, cell, kpts=np.zeros((1,3)), xc='LDA,VWN',
                  C_ao_lo=None, dm_core_ao=None):
         kuks.KUKS.__init__(self, cell, kpts=kpts)
         self.xc = xc
         if C_ao_lo is not None:
             C_ao_lo = np.asarray(C_ao_lo)
         self.C_ao_lo = C_ao_lo
-        
+
         if dm_core_ao is not None:
             self.dm_core_ao = np.asarray(dm_core_ao)
             ovlp = np.asarray(self.get_ovlp())
@@ -489,6 +489,6 @@ class KUKS_LO(kuks.KUKS):
         self._keys = self._keys.union(["dm_core_ao", "nelec_core", "C_ao_lo"])
 
     get_veff = get_veff_lo_kuks
-    
+
     get_vxc = get_vxc_kuks
 

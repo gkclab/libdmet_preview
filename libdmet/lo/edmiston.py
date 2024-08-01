@@ -3,7 +3,7 @@
 """
 Edmiston-Ruedenberg localization
 
-Jacobi rotations following the algorithm by 
+Jacobi rotations following the algorithm by
 Raffenetti et al. Theor Chim Acta 86, 149 (1992)
 
 Author:
@@ -101,7 +101,7 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
     """
     ER localization with CIAH newton minimizer.
     """
-    def __init__(self, mol=None, mo_coeff=None, eri=None, jk_func=None, 
+    def __init__(self, mol=None, mo_coeff=None, eri=None, jk_func=None,
                  ovlp=None):
         """
         Support customized eri and jk_func.
@@ -112,7 +112,7 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
         except ImportError or AttributeError:
             from pyscf.soscf.ciah import CIAHOptimizer as CIAHOptimizerMixin
         CIAHOptimizerMixin.__init__(self)
-        
+
         self.mo_coeff = np.array(mo_coeff, copy=True)
         nao, nmo = self.mo_coeff.shape
         if eri is None: # real mol
@@ -131,7 +131,7 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
             else:
                 mol.build(verbose=2, dump_input=False)
             self.mol = None
-            
+
             if ovlp is None:
                 ovlp = np.eye(nao)
             self.ovlp = ovlp
@@ -145,7 +145,7 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
                     'max_stepsize', 'ah_trust_region', 'ah_start_tol',
                     'ah_max_cycle', 'init_guess'))
         self._keys = set(self.__dict__.keys()).union(keys)
-    
+
     def get_jk(self, u):
         mo_coeff = np.dot(self.mo_coeff, u)
         nmo = mo_coeff.shape[-1]
@@ -157,13 +157,13 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
         vj = np.asarray([mdot(mo_coeff.T, v, mo_coeff) for v in vj])
         vk = np.asarray([mdot(mo_coeff.T, v, mo_coeff) for v in vk])
         return vj, vk
-    
+
     def get_init_guess(self, key='atomic', noise=0.0):
         '''Generate initial guess for localization.
 
         Kwargs:
             key : str or bool or np.ndarray
-                If key is 
+                If key is
                 'atomic': initial guess is based on the projected
                           atomic orbitals.
                 'scdm': initial guess is based on the projected
@@ -185,7 +185,7 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
             u0 = boys.atomic_init_guess(self.mol, self.mo_coeff)
         elif isinstance(key, str) and key.lower() == 'scdm':
             log.info("Using SCDM orbitals (mol) as ER initial guess.")
-            u0 = scdm.scdm_mol(self.mol, self.mo_coeff, 
+            u0 = scdm.scdm_mol(self.mol, self.mo_coeff,
                                return_C_mo_lo=True)[1][0]
         else:
             log.warn("Using identity as ER initial guess.")
@@ -196,18 +196,18 @@ class EdmistonRuedenberg(edmiston.EdmistonRuedenberg):
             u_noise = u0.dot(self.extract_rotation(dr))
             u0 = u0.dot(u_noise)
         if nmo > 2:
-            log.info("Init cost func: %.13f, |g|: %.5e", self.cost_function(u0), 
+            log.info("Init cost func: %.13f, |g|: %.5e", self.cost_function(u0),
                      la.norm(self.get_grad(u0)))
         else:
             log.info("Init cost func: %.13f, |g|: 0.0", self.cost_function(u0))
 
         return u0
-    
+
     kernel = kernel
 
 ER = Edmiston = EdmistonRuedenberg
 
-def ER_model(mo_coeff, eri, jk_func=None, num_rand=5, noise=1.0, guess=None, 
+def ER_model(mo_coeff, eri, jk_func=None, num_rand=5, noise=1.0, guess=None,
              conv_tol=1e-10):
     """
     ER localization wrapper for model Hamiltonian.
@@ -217,7 +217,7 @@ def ER_model(mo_coeff, eri, jk_func=None, num_rand=5, noise=1.0, guess=None,
     if jk_func is None:
         from libdmet.solver import scf as scf_hp
         jk_func = scf_hp._get_jk
-    
+
     localizer = ER(mo_coeff=mo_coeff, eri=eri, jk_func=jk_func)
     if guess is None:
         localizer.init_guess = 'scdm'
@@ -268,7 +268,7 @@ class Localizer(object):
             self.norbs = self.Int2e.shape[-1]
             self.eri_format = 's1'
         elif self.Int2e.ndim == 2:
-            self.norbs = int(np.sqrt(Int2e.shape[-1] * 2)) 
+            self.norbs = int(np.sqrt(Int2e.shape[-1] * 2))
             self.eri_format = 's4'
         else:
             self.norbs = int(np.sqrt(int(np.sqrt(Int2e.shape[-1] * 2)) * 2))
@@ -280,7 +280,7 @@ class Localizer(object):
 
     def transformInt(self, i, j, theta):
         r"""
-        Transform 2e integrals wrt Jacobi rotation 
+        Transform 2e integrals wrt Jacobi rotation
         J_ii = J_jj = cos\theta, J_ij = sin\theta, J_ji = -sin\theta
         restrict to i < j
         The scaling of this transformation is O(n^3)
@@ -289,7 +289,7 @@ class Localizer(object):
         delta = np.asarray([[cos(theta)-1, sin(theta)],[-sin(theta), cos(theta)-1]])
         # four index part O(1)
         g4 = self.Int2e[np.ix_([i, j],[i, j],[i, j],[i, j])]
-        g4 = np.einsum("pi, qj, rk, sl, ijkl -> pqrs", 
+        g4 = np.einsum("pi, qj, rk, sl, ijkl -> pqrs",
                        delta, delta, delta, delta, g4, optimize=True)
         # three index part O(n)
         g3_1 = self.Int2e[np.ix_(range(self.norbs), [i, j], [i, j], [i, j])]
@@ -365,7 +365,7 @@ class Localizer(object):
 
         def get_dL(theta):
             return 0.25 * ((cos(4 * theta) - 1) * (A - C) + sin(4 * theta) * B)
-        
+
         def get_theta():
             # solve dL/dtheta = 0, take theta that corresponds to maximum
             if abs(A - C) > 1e-8:
@@ -405,7 +405,7 @@ class Localizer(object):
             sweep.append((i, j) + self.predictor(i, j))
         sweep.sort(key = lambda x: x[3])
         i, j, theta, dL = sweep[-1]
-        log.debug(1, "%4d %12.6g %12.6g %3d %3d  %10.6g", 
+        log.debug(1, "%4d %12.6g %12.6g %3d %3d  %10.6g",
                   Iter, self.getL(), dL, i, j, theta/pi)
         while dL > thr and Iter < MaxIter:
             self.transformInt(i, j, theta)
@@ -416,13 +416,13 @@ class Localizer(object):
                 sweep.append((i, j) + self.predictor(i, j))
             sweep.sort(key = lambda x: x[3])
             i, j, theta, dL = sweep[-1]
-            log.debug(1, "%4d %12.6g %12.6g %3d %3d  %10.6g", 
+            log.debug(1, "%4d %12.6g %12.6g %3d %3d  %10.6g",
                       Iter, self.getL(), dL, i, j, theta/pi)
-        
+
         # mapping to original orbitals
 #        sorted_idx = mo_mapping.mo_1to1map(self.coefs.T)
 #        self.coefs = self.coefs[sorted_idx]
-        
+
         log.info("Localization converged after %4d iterations", Iter)
         log.info("Cost function: init %12.6g   final %12.6g", initL, self.getL())
 
@@ -439,7 +439,7 @@ if __name__ == '__main__':
     mol.basis = 'sto-3g'
     mol.build(verbose=4)
     mf = scf.RHF(mol).run()
-    
+
     eri = mf._eri
     jk_func = scf_hp._get_jk
 

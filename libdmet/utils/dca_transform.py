@@ -48,9 +48,9 @@ def rotate_term(rot1d, H):
     # rotate a single 1d Hamiltonian term
     nc, nsc = H.shape
     assert(rot1d.shape == (nc, nsc, nsc))
-    
+
     H1 = np.zeros_like(H, dtype = rot1d.dtype)
-    
+
     for i in range(nc):
         for l in range(nc):
             H1[i] += np.dot(rot1d[i-l % nc], H[l])
@@ -71,13 +71,13 @@ def transformHam(lattice, cell, H, sparse = True):
     r"""
     takes multi-dimensional Hamiltonian
     Hamiltonian is rewritten as
-    
+
         H = \sum_i outer(H_i^x, H_i^y)
-    
+
     therefore
-    
+
         H' = \sum_i outer(dot(rotX, H_i^x), dot(rotY, H_i^y))
-    
+
     gives a cheaper algorithm
 
     instead of doing
@@ -90,7 +90,7 @@ def transformHam(lattice, cell, H, sparse = True):
         Hsparse = to_sparse(H)
     else:
         Hsparse = H
-    
+
     nterms = len(Hsparse)
     vals = [v for (idx, v) in Hsparse]
     terms = [idx for (idx, v) in Hsparse]
@@ -99,14 +99,14 @@ def transformHam(lattice, cell, H, sparse = True):
     for d in range(dim):
         term_d = [idx[d::dim] for idx in terms]
         dca_terms_by_dim.append(transform_terms(lattice[d], cell[d], term_d))
-    
+
     if sparse:
         def comb_idx(indices):
             s = [None] * (dim * 2)
             for d in range(dim):
                 s[d::dim] = indices[d]
             return tuple(s)
-        
+
         nonzeros = []
         for i in range(nterms):
             v = vals[i]
@@ -152,6 +152,6 @@ if __name__ == "__main__":
     #H[-1, -1, -1, -1] = t1
 
     Hnew = transformHam(lattice, cell, H)
-    
+
     for idx, v in Hnew:
         print (idx, v)

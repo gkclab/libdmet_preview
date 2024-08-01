@@ -45,20 +45,20 @@ def test_uicasscf():
     h1e = [mdot(C[0].T, m.get_hcore(), C[0]), mdot(C[1].T, m.get_hcore(), C[1])]
     h1e = np.asarray(h1e)
     ovlp = mdot(C[0].T, m.get_ovlp(), C[0])
-    g2e = [ao2mo.kernel(m._eri, C[0]), ao2mo.kernel(m._eri, C[1]), 
+    g2e = [ao2mo.kernel(m._eri, C[0]), ao2mo.kernel(m._eri, C[1]),
            ao2mo.general(m._eri, (C[0], C[0], C[1], C[1]))]
     g2e = np.asarray(g2e)
     rdm1 = [np.diag(m.mo_occ[0]), np.diag(m.mo_occ[1])]
 
     from libdmet.solver.scf import SCF
-    
+
     myscf = SCF(newton_ah=False)
 
     # UHF
     myscf.set_system(mol.nelectron, mol.spin, False, False)
     myscf.set_integral(mol.nao_nr(), m.energy_nuc(), h1e, g2e)
     E, rhoHF = myscf.HF(MaxIter=100, tol=1e-8, InitGuess=rdm1)
-    
+
     print (E)
 
     mc = UCASSCF(myscf.mf, 4, (2,1))

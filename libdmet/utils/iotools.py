@@ -49,7 +49,7 @@ def __stat(lst):
 def sc2POSCAR(sc, fout, elements=None, vac=15.0):
     """
     supercell to POSCAR.
-    
+
     Args:
         sc: SuperCell object.
         fout: can be a file object or a string.
@@ -62,7 +62,7 @@ def sc2POSCAR(sc, fout, elements=None, vac=15.0):
         log.eassert(set(elements) == set(name_dict.keys()), "specified elements different from unitcell data")
     else:
         elements = name_dict.keys()
-    
+
     if isinstance(fout, str):
         fwrite = open(fout, 'w')
     else:
@@ -107,7 +107,7 @@ def sc2XYZ(sc, fout, elements=None):
             site[:sc.dim] = sites[s]
             fout.write("%4s%20.12f%20.12f%20.12f\n" % ((key,) + tuple(site)))
 
-def struct_dump(cellsize, scsize, atoms, fmt, frac=False, center=None, 
+def struct_dump(cellsize, scsize, atoms, fmt, frac=False, center=None,
                 filename=None, elements=None):
     import libdmet.system.lattice as lat
     uc = build_unitcell(cellsize, atoms, frac, center)
@@ -123,14 +123,14 @@ def struct_dump(cellsize, scsize, atoms, fmt, frac=False, center=None,
         sc2XYZ(sc, fout, elements = elements)
     else:
         log.error("Invalid dump format %s", fmt.upper())
-    
+
     if filename is not None:
         fout.close()
 
 def read_poscar(fname="POSCAR"):
     """
     Read cell structure from a VASP POSCAR file.
-    
+
     Args:
         fname: file name.
 
@@ -146,18 +146,18 @@ def read_poscar(fname="POSCAR"):
         line = lines[1].split()
         log.eassert(len(line) == 1, "POSCAR invalid scale factor %s", line)
         factor = float(line[0])
-        
-        # 2-4 line, lattice vector 
+
+        # 2-4 line, lattice vector
         a = np.array([np.fromstring(lines[i], dtype=np.double, sep=' ')
                      for i in range(2, 5)]) * factor
-        
+
         # 5, 6 line, species names and numbers
         sp_names = lines[5].split()
         if all([name.isdigit() for name in sp_names]):
             # 5th line can be number of atoms not names.
             sp_nums = np.fromstring(lines[5], dtype=int, sep=' ')
             sp_names = ["X" for i in range(len(sp_nums))]
-            line_no = 6 
+            line_no = 6
         else:
             sp_nums = np.fromstring(lines[6], dtype=int, sep=' ')
             line_no = 7
@@ -173,7 +173,7 @@ def read_poscar(fname="POSCAR"):
             line = lines[line_no].split()
         use_cart = line[0].startswith(('C', 'K', 'c', 'k'))
         line_no += 1
-        
+
         # 8-end, coords
         atom_col = []
         for sp_name, sp_num in zip(sp_names, sp_nums):
@@ -186,18 +186,18 @@ def read_poscar(fname="POSCAR"):
                     coord = Frac2Real(a, coord)
                 atom_col.append((sp_name, coord))
                 line_no += 1
-                 
+
         cell = gto.Cell()
         cell.a = a
         cell.atom = atom_col
         cell.unit = 'A'
         return cell
-        
+
 def write_poscar(cell, fname="POSCAR", species=True, cart=False, comment="name",
                  scaling=1.0):
     """
     Write cell structure to a VASP POSCAR file.
-    
+
     Args:
         cell: cell
         fname: file name
@@ -228,7 +228,7 @@ def write_poscar(cell, fname="POSCAR", species=True, cart=False, comment="name",
                     sp_dic[name].append(coord)
                 else:
                     sp_dic[name] = [coord]
-            
+
             # write
             for sp_name in sp_dic.keys():
                 f.write("%4s " %sp_name)
@@ -315,12 +315,12 @@ def change_cell_shape(cell, vec, origin=np.zeros(3), search_range=[2, 2, 2],
                       keep_order=True, theta=None, tol=1e-6):
     """
     Generate a new cell with new lattice vector and new origin.
-    
+
     Args:
         cell: old cell.
         vec: new lattice vector (unit in Angs.), shape (3, 3).
         origin: new origin (unit in Angs.), default zeros(3).
-        search_range: (nx, ny, nz), search new atoms within nearest 
+        search_range: (nx, ny, nz), search new atoms within nearest
                       [-nx, nx+1] x [-ny, ny+1] x [-nz, nz+1] cells.
         keep_order: keep the order of elements in the original cell.
         theta: angle to rotate the coordinate axis.
@@ -331,7 +331,7 @@ def change_cell_shape(cell, vec, origin=np.zeros(3), search_range=[2, 2, 2],
     """
     from pyscf.data.nist import BOHR
     from libdmet.system.lattice import Real2Frac, Frac2Real
-    
+
     vec = np.asarray(vec)
     origin = np.asarray(origin)
     log.eassert(vec.shape == (3, 3), "vec shape %s needs to be (3, 3)",
@@ -392,7 +392,7 @@ def change_cell_shape(cell, vec, origin=np.zeros(3), search_range=[2, 2, 2],
     assert natm == natm_new
     if abs(vol_ratio - natm / cell.natm) > tol:
         log.warn("volume change is not consistent with atom number change...")
-    
+
     # rotate the coordination axis, while keep the fractional coords unchanged
     if theta is not None:
         rot = np.array([[np.cos(theta), -np.sin(theta), 0.0],
@@ -403,7 +403,7 @@ def change_cell_shape(cell, vec, origin=np.zeros(3), search_range=[2, 2, 2],
         atoms_new = list(zip(names[idx], coords))
     else:
         atoms_new = list(zip(names[idx], coords[idx] * BOHR))
-    
+
     if order_dic is not None:
         # reorder the new atoms according to the order_dic
         atoms = [[] for i in range(len(order_dic))]
@@ -438,7 +438,7 @@ def match_lattice_orbitals(cell_old, cell_new, origin=np.zeros(3), tol=1e-6):
     log.eassert(nao == cell_new.nao, "old nao %s != new nao %s", nao,
                 cell_new.nao)
     assert max_abs(cell_old.lattice_vectors() - cell_new.lattice_vectors()) < tol
-    
+
     vec_bohr = cell_old.lattice_vectors() / BOHR
 
     atoms_old = cell_old._atom
@@ -452,14 +452,14 @@ def match_lattice_orbitals(cell_old, cell_new, origin=np.zeros(3), tol=1e-6):
     names_new, coords_new = np.asarray(names_new), np.asarray(coords_new) / BOHR
     coords_frac_new = Real2Frac(vec_bohr, coords_new)
     coords_frac_new_2 = round_to_FUC(coords_frac_new, tol=tol)
-    
+
     diff = la.norm(coords_frac_old_2 - coords_frac_new_2[:, None], axis=2)
     idx = np.where(abs(diff) < tol)[1]
     log.eassert(len(idx) == len(names_new), "number of idx %s != number of names_new %s",
                 len(idx), len(names_new))
-    
+
     for I, i in enumerate(idx):
-        log.info("%5s %5s (%.3f %.3f %.3f) -> %5s (%.3f %.3f %.3f)", 
+        log.info("%5s %5s (%.3f %.3f %.3f) -> %5s (%.3f %.3f %.3f)",
                  i, names_old[i], *coords_frac_old[i],
                  names_new[I], *coords_frac_new[I])
 

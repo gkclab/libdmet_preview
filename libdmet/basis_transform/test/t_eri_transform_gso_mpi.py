@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 """
-Test eri transform for generalized spin orbitals 
+Test eri transform for generalized spin orbitals
 with partial particle-hole transform. with MPI.
 """
 
@@ -27,7 +27,7 @@ def t_eri_trans_gso():
     from pyscf import lib, ao2mo
     from pyscf.pbc.lib import chkfile
     from pyscf.pbc import scf, gto, df, dft
-    
+
     np.set_printoptions(4, linewidth=1000, suppress=True)
     log.verbose = "DEBUG2"
 
@@ -117,11 +117,11 @@ def t_eri_trans_gso():
     H2_ref = smf.with_df.ao2mo(Cgamma, compact=False).reshape([nao*nkpts]*4)
     assert max_abs(H2_ref.imag) < 1e-10
     H2_ref = H2_ref.real
-    
+
     GRho_k = spinless.transform_rdm1_k(res["rho_k"])
     GRho = Lat.k2R(GRho_k)
     basis = spinless.embBasis(Lat, GRho, local=True)
-    
+
     # random to mimic the pairing part of bath
     basis[1:, :, nao*2:] += np.random.random(basis[1:, :, nao*2:].shape) * 0.1
 
@@ -130,20 +130,20 @@ def t_eri_trans_gso():
     basis_full = np.asarray((basis_Ra, basis_Rb)).reshape(nkpts*nso, nso*2)
     R_a, R_b = basis_Ra.reshape(nkpts*nao, nso*2), \
                basis_Rb.reshape(nkpts*nao, nso*2)
-    basis_k = Lat.R2k_basis(basis) 
+    basis_k = Lat.R2k_basis(basis)
     basis_ka, basis_kb = spinless.separate_basis(basis_k)
     basis_spin = np.asarray((basis_ka, basis_kb))
-    
+
     # supercell reference
     GH2_ref, _, _ = spinless.transform_H2_local(H2_ref)
     GH2_ref = spinless.combine_H2(GH2_ref)
     GH2_emb_ref = ao2mo.kernel(GH2_ref, basis_full, compact=False)
-    
+
     # using GDF fast transform
-    eri = eri_transform.get_emb_eri_gso(cell, gdf._cderi, gdf.kpts, C_ao_lo=C_ao_lo, 
+    eri = eri_transform.get_emb_eri_gso(cell, gdf._cderi, gdf.kpts, C_ao_lo=C_ao_lo,
                                         basis=basis, t_reversal_symm=True,
                                         symmetry=1)
-    
+
     diff_eri = max_abs(eri - GH2_emb_ref)
     print ("diff bewteen transformed and molecular ref: ", diff_eri)
     assert diff_eri < 1e-10

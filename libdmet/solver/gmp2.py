@@ -78,7 +78,7 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbos
 def _iterative_kernel(mp, eris, verbose=None, t2=None):
     cput1 = cput0 = (logger.process_clock(), logger.perf_counter())
     log = logger.new_logger(mp, verbose)
-    
+
     if t2 is None:
         emp2, t2 = mp.init_amps(eris=eris)
     else:
@@ -276,14 +276,14 @@ def make_rdm2(mp, t2=None, eris=None, ao_repr=False):
 
 class GGMP2(mp2.MP2):
     diis_space = getattr(__config__, 'mp_gmp2_GGMP2_diis_space', 8)
-    
+
     def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None):
         assert(isinstance(mf, scf.ghf.GHF))
         mp2.MP2.__init__(self, mf, frozen, mo_coeff, mo_occ)
-    
+
     def ao2mo(self, mo_coeff=None):
         return _make_eris(self, mo_coeff, verbose=self.verbose)
-    
+
     def kernel(self, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
                t2=None):
         '''
@@ -297,7 +297,7 @@ class GGMP2(mp2.MP2):
 
         if eris is None:
             eris = self.ao2mo(self.mo_coeff)
-        
+
         if hasattr(self, "get_e_hf"):
             # pyscf 2.1
             self.e_hf = self.get_e_hf(mo_coeff=mo_coeff)
@@ -310,7 +310,7 @@ class GGMP2(mp2.MP2):
             self.e_corr, self.t2 = self.init_amps(mo_energy, mo_coeff, eris, with_t2)
         else:
             self.converged, self.e_corr, self.t2 = _iterative_kernel(self, eris, t2=t2)
-        
+
         self.e_corr_ss = getattr(self.e_corr, 'e_corr_ss', 0)
         self.e_corr_os = getattr(self.e_corr, 'e_corr_os', 0)
         self.e_corr = float(self.e_corr)
@@ -337,7 +337,7 @@ class GGMP2(mp2.MP2):
     # For non-canonical MP2
     energy = energy
     update_amps = update_amps
-    
+
     def init_amps(self, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2):
         return kernel(self, mo_energy, mo_coeff, eris, with_t2)
 
@@ -349,7 +349,7 @@ def _make_eris(mp, mo_coeff=None, ao2mofn=None, verbose=None):
     eris = mp2._ChemistsERIs()
     eris._common_init_(mp, mo_coeff)
     mo_coeff = eris.mo_coeff
-    
+
     nao = mo_coeff.shape[-2]
     nocc = mp.nocc
     nmo = mp.nmo
@@ -367,7 +367,7 @@ def _make_eris(mp, mo_coeff=None, ao2mofn=None, verbose=None):
     if (mp.mol.incore_anyway or
         (mp._scf._eri is not None and mem_incore < max_memory)):
         log.debug('transform (ia|jb) incore')
-        
+
         if (nao == nmo) and (max_abs(eris.mo_coeff - np.eye(nmo)) < 1e-13):
             # ZHC NOTE special treatment for OOMP2,
             # where the ao2mo is not needed for identity mo_coeff.
@@ -418,35 +418,35 @@ if __name__ == '__main__':
     mol.verbose = 4
     mol.build()
     mf = scf.RHF(mol).run()
-    
+
     mf = scf.addons.convert_to_ghf(mf)
     dm0 = mf.make_rdm1()
     dm_guess = mf.get_init_guess()
     mf.kernel(dm0=dm0)
-    
+
     ovlp = mf.get_ovlp()
     H0 = mf.energy_nuc()
     H1 = mf.get_hcore()
     H2 = mf._eri
     H2 = ao2mo.restore(4, H2, mol.nao_nr())
-    
+
     H2 = tile_eri(H2, H2, H2)
     Ham = integral.Integral(H1.shape[-1], True, False, H0, {"cd": H1[None]},
                             {"ccdd": H2[None]}, ovlp=ovlp)
-    
+
     scfsolver = scf_hp.SCF(newton_ah=True)
     scfsolver.set_system(mol.nelectron, 0, False, True, max_memory=mol.max_memory)
     scfsolver.set_integral(Ham)
     ehf, rhoHF = scfsolver.GGHF(tol=1e-12, InitGuess=dm0)
     emp2_ref, rdm1_mp2_ref = scfsolver.GMP2()
-    
+
     emp2_ref2 = -0.204019967288338
 
     mf = scfsolver.mf
 
     pt = gmp2.GGMP2(mf)
     emp2, t2 = pt.kernel()
-    
+
     diff_1 = abs(emp2 - emp2_ref)
     print("diff to emp2_ref from pyscf")
     print (diff_1)
@@ -456,10 +456,10 @@ if __name__ == '__main__':
     print("diff to RMP2 from pyscf")
     print (diff_2)
     assert diff_2 < 1e-9
-    
+
     rdm1 = pt.make_rdm1(ao_repr=True)
     rdm2 = pt.make_rdm2(ao_repr=True)
-    
+
     E_re = np.einsum('pq, qp -> ', mf.get_hcore(), rdm1) + \
            np.einsum('pqrs, pqrs ->', ao2mo.restore(1, mf._eri, mol.nao_nr()*2), rdm2) * 0.5 + \
            mf.energy_nuc()
@@ -468,12 +468,12 @@ if __name__ == '__main__':
     print ("diff E from rdm12")
     print (diff_3)
     assert diff_3 < 1e-10
-    
+
     diff_rdm1 = np.linalg.norm(rdm1 - rdm1_mp2_ref)
     print ("diff rdm1")
     print (diff_rdm1)
     assert diff_rdm1 < 1e-10
-    
+
     # non canonical MP2
     mf = scf.RHF(mol).run(max_cycle=1)
     mf = scf.addons.convert_to_ghf(mf)

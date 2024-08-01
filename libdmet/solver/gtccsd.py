@@ -43,8 +43,8 @@ einsum = lib.einsum
 
 def get_cisd_vec_cas(mycc, vals, dets):
     ncas      = mycc.ncas
-    nocc_cas  = mycc.nocc_cas 
-    nvir_cas  = mycc.nvir_cas 
+    nocc_cas  = mycc.nocc_cas
+    nvir_cas  = mycc.nvir_cas
     nvir_cas2 = nvir_cas*(nvir_cas-1)//2
     nocc_cas2 = nocc_cas*(nocc_cas-1)//2
 
@@ -59,7 +59,7 @@ def get_cisd_vec_cas(mycc, vals, dets):
     c2aa = np.zeros((nocc_cas2*nvir_cas2))
 
     def convert_phase(h_a, val):
-        n_perm = 0 
+        n_perm = 0
         ranka = len(h_a)
         if ranka > 0:
             n_perm += ranka*nocc_cas - sum(h_a) - ranka*(ranka+1)//2
@@ -83,17 +83,17 @@ def get_cisd_vec_cas(mycc, vals, dets):
 
         assert len(h_a) == len(p_a)
         if   len(h_a) == 0:
-            c0[0] = val 
+            c0[0] = val
         elif len(h_a) == 1:
             idx_a = nvir_cas * h_a[0] + p_a[0]
             c1a[idx_a] = convert_phase(h_a, val)
         elif len(h_a) == 2:
-            h2 = h_a[1]*(h_a[1]-1)//2 + h_a[0] 
-            p2 = p_a[1]*(p_a[1]-1)//2 + p_a[0] 
+            h2 = h_a[1]*(h_a[1]-1)//2 + h_a[0]
+            p2 = p_a[1]*(p_a[1]-1)//2 + p_a[0]
             idx_a = nvir_cas2 * h2 + p2
             c2aa[idx_a] = convert_phase(h_a, val)
         else:
-            continue 
+            continue
 
     return c0, c1a, c2aa
 
@@ -104,7 +104,7 @@ def get_cas_amps(mycc, eris):
     Args:
         mycc: cc object.
         eris: eris.
-    
+
     Returns:
         t1_cas: cas space t1, shape (nocc_cas, nvir_cas)
         t2_cas: cas space t2, shape (nocc_cas, nocc_cas, nvir_cas, nvir_cas)
@@ -113,7 +113,7 @@ def get_cas_amps(mycc, eris):
     nocc = mycc.nocc
     nocc_cas = mycc.nocc_cas
     nvir_cas = mycc.nvir_cas
-    
+
     # CI solver
     if mycc.cisolver is None:
         cisolver = direct_spin1.FCI()
@@ -141,7 +141,7 @@ def get_cas_amps(mycc, eris):
         e_fci, fcivec = cisolver.kernel(h1, h2, ncas, (nocc_cas, 0),
                                         ecore=h0, **mycc.ci_args)
     logger.info(mycc, 'TCCSD CI energy: %25.15f', e_fci)
-    
+
     #C = mycc.mo_cas
     #rdm1 = mdot(C, cisolver.make_rdm1(fcivec, ncas, (nocc_cas, 0)), C.conj().T) + eris.rdm1_core
     #np.save("rdm1_eo.npy", rdm1)
@@ -158,14 +158,14 @@ def get_cas_amps(mycc, eris):
         cidet = np.load(cidetFile)
         idx = np.argsort(np.abs(civec))[::-1]
         max_id  = idx[0]
-        max_str = cidet[max_id] 
+        max_str = cidet[max_id]
         max_vec = civec[max_id]
     else:
         from pyscf.fci import cistring
         max_id = np.unravel_index(np.argmax(np.abs(fcivec)), fcivec.shape)
         max_str = bin(cistring.addr2str(ncas, nocc_cas, max_id[0]))
         max_vec = fcivec[max_id]
- 
+
     logger.info(mycc, "max fcivec det id: %s", max_id)
     logger.info(mycc, "string: %s", max_str)
     logger.info(mycc, "weight: %s", max_vec)
@@ -175,12 +175,12 @@ def get_cas_amps(mycc, eris):
     else:
         t1addrs, t1signs = tn_addrs_signs(ncas, nocc_cas, 1)
         t2addrs, t2signs = tn_addrs_signs(ncas, nocc_cas, 2)
-        
+
         c0 = fcivec[0, 0]
         logger.info(mycc, 'TCCSD CI reference weight c0: %25.15f', c0)
         cis_a = fcivec[t1addrs, 0] * t1signs
         #logger.info(mycc, "fcivec[t1addrs, 0]\n%s", cis_a)
-        
+
         cid_aa = fcivec[t2addrs, 0] * t2signs
 
         # ZHC NOTE
@@ -188,7 +188,7 @@ def get_cas_amps(mycc, eris):
         #idx2 = np.argsort(t2addrs, kind='mergesort')
         #cis_a = cis_a[idx1]
         #cid_aa = cid_aa[idx2]
- 
+
     cis_a /= c0
     cid_aa /= c0
 
@@ -235,7 +235,7 @@ def update_amps(mycc, t1, t2, eris):
     tmp = einsum('imab, mj -> ijab', t2, Ftmp)
     t2new -= tmp - tmp.transpose(1,0,2,3)
     t2new += np.asarray(eris.oovv).conj()
-    
+
     Woooo = imd.cc_Woooo(t1, t2, eris)
     t2new += einsum('mnab, mnij -> ijab', tau, Woooo * 0.5)
     Woooo = None
@@ -262,7 +262,7 @@ def update_amps(mycc, t1, t2, eris):
     t1new /= eia
     for i in range(nocc):
         t2new[i] /= lib.direct_sum('a, jb -> jab', eia[i], eia)
-    
+
     # TCC
     ncore = mycc.ncore
     nvir_cas = mycc.nvir_cas
@@ -279,7 +279,7 @@ class GGTCCSD(gccsd.GCCSD):
     conv_tol = getattr(__config__, 'cc_gccsd_GCCSD_conv_tol', 1e-7)
     conv_tol_normt = getattr(__config__, 'cc_gccsd_GCCSD_conv_tol_normt', 1e-6)
 
-    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, 
+    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None,
                  ncas=0, nelecas=0, nocc=None):
         """
         ncas: number of cas spin orbitals
@@ -287,10 +287,10 @@ class GGTCCSD(gccsd.GCCSD):
         """
         assert isinstance(mf, scf.ghf.GHF)
         ccsd.CCSD.__init__(self, mf, frozen, mo_coeff, mo_occ)
-        
+
         # initialize CAS space
         nmo = self.nmo
-        
+
         if nocc is None:
             nocc = self.nocc
         else:
@@ -300,7 +300,7 @@ class GGTCCSD(gccsd.GCCSD):
         nocc_cas = nelecas
         nvir_cas = ncas - nocc_cas
         nvir = nmo - nocc
-        
+
         self.ncas = ncas
         self.nelecas = nelecas
         self.ncore = ncore
@@ -312,28 +312,28 @@ class GGTCCSD(gccsd.GCCSD):
         assert 0 <= self.ncore <= self.nmo
         assert 0 <= self.nocc_cas <= self.ncas
         assert 0 <= self.nvir_cas <= self.ncas
-        
+
         self.mo_core = self.mo_coeff[:, :ncore]
         self.mo_cas = self.mo_coeff[:, ncore:ncore+ncas]
         self.mo_vir = self.mo_coeff[:, ncore+ncas:]
-        
+
         self.cisolver = None
         self.ci_args = {"ci0": None, "pspace_size": 1000}
         self.t1_cas = None
         self.t2_cas = None
-        
+
         self._keys = self._keys.union(["mo_core", "mo_cas", "mo_vir",
-                                       "cisolver", "ci_args", 
+                                       "cisolver", "ci_args",
                                        "t1_cas", "t2_cas",
                                        "ncas", "nelecas",
                                        "ncore", "nvir", "nocc_cas",
                                        "nvir_cas"])
-    
+
     def dump_flags(self, verbose=None):
         gccsd.GCCSD.dump_flags(self, verbose=verbose)
-        logger.info(self, 'TCCSD nocc     = %4d, nvir     = %4d, nmo  = %4d', 
+        logger.info(self, 'TCCSD nocc     = %4d, nvir     = %4d, nmo  = %4d',
                     self.nocc, self.nvir, self.nmo)
-        logger.info(self, 'TCCSD nocc_cas = %4d, nvir_cas = %4d, ncas = %4d', 
+        logger.info(self, 'TCCSD nocc_cas = %4d, nvir_cas = %4d, ncas = %4d',
                     self.nocc_cas, self.nvir_cas, self.ncas)
         return self
 
@@ -349,7 +349,7 @@ class GGTCCSD(gccsd.GCCSD):
         t1 = eris.fock[:nocc,nocc:] / eia
         eris_oovv = np.array(eris.oovv)
         t2 = eris_oovv / eijab
-         
+
         # TCC
         ncore = self.ncore
         nvir_cas = self.nvir_cas
@@ -363,7 +363,7 @@ class GGTCCSD(gccsd.GCCSD):
         return self.emp2, t1, t2
 
     update_amps = update_amps
-    
+
     get_cas_amps = get_cas_amps
 
     def ccsd(self, t1=None, t2=None, eris=None, mbpt2=False):
@@ -378,7 +378,7 @@ class GGTCCSD(gccsd.GCCSD):
             eris = self.ao2mo(self.mo_coeff)
         if self.t1_cas is None or self.t2_cas is None:
             self.t1_cas, self.t2_cas = self.get_cas_amps(eris=eris)
-        
+
         if (t1 is not None) or (t2 is not None):
             # ZHC NOTE
             # if t1, t2 are specified (from restart)
@@ -416,7 +416,7 @@ class GGTCCSD(gccsd.GCCSD):
         if l1 is None: l1 = self.l1
         if l2 is None: l2 = self.l2
 
-        if l1 is None: 
+        if l1 is None:
             l1, l2 = self.solve_lambda(t1, t2)
 
         return gccsd_rdm.make_rdm1(self, t1, t2, l1, l2, ao_repr=ao_repr)
@@ -433,9 +433,9 @@ class GGTCCSD(gccsd.GCCSD):
         if l1 is None: l1 = self.l1
         if l2 is None: l2 = self.l2
 
-        if l1 is None: 
+        if l1 is None:
             l1, l2 = self.solve_lambda(t1, t2)
-            
+
         return gccsd_rdm.make_rdm2(self, t1, t2, l1, l2, ao_repr=ao_repr)
 
     def ao2mo(self, mo_coeff=None):
@@ -450,7 +450,7 @@ class GGTCCSD(gccsd.GCCSD):
         else:
             raise NotImplementedError
             #return _make_eris_outcore(self, mo_coeff)
-    
+
     def solve_lambda(self, t1=None, t2=None, l1=None, l2=None,
                      eris=None, approx_l=True):
         if t1 is None: t1 = self.t1
@@ -458,7 +458,7 @@ class GGTCCSD(gccsd.GCCSD):
         if eris is None: eris = self.ao2mo(self.mo_coeff)
         nocc = self.nocc
         nvir = self.nmo - nocc
-        
+
         if approx_l:
             ncore = self.ncore
             nvir_cas = self.nvir_cas
@@ -476,7 +476,7 @@ class GGTCCSD(gccsd.GCCSD):
 
 def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
     """
-    Incore GGCC ERI ao2mo. 
+    Incore GGCC ERI ao2mo.
     Memory usage is optimized:
     required additional memory ~ vvvv + 1/8 * pppp (normal case is 2 * pppp)
     """
@@ -495,7 +495,7 @@ def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
             eri = mycc._scf._eri
         else:
             eri = ao2mo.kernel(mycc._scf._eri, eris.mo_coeff)
-        
+
     o = np.arange(0, nocc)
     v = np.arange(nocc, nmo)
 
@@ -510,7 +510,7 @@ def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
     tmp = take_eri(eri, o, v, o, v)
     eris.oovv = tmp.transpose(0, 2, 1, 3) - tmp.transpose(0, 2, 3, 1)
     tmp = None
-    
+
     tmp_oovv = take_eri(eri, o, o, v, v)
     tmp_ovvo = take_eri(eri, o, v, v, o)
     eris.ovov = tmp_oovv.transpose(0, 2, 1, 3) - tmp_ovvo.transpose(0, 2, 3, 1)
@@ -520,11 +520,11 @@ def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
     tmp = take_eri(eri, o, v, v, v)
     eris.ovvv = tmp.transpose(0, 2, 1, 3) - tmp.transpose(0, 2, 3, 1)
     tmp = None
-    
+
     tmp = take_eri(eri, v, v, v, v)
     eris.vvvv = tmp.transpose(0, 2, 1, 3) - tmp.transpose(0, 2, 3, 1)
     tmp = None
-    
+
     # cas hamiltonian in the MO space
     ncore = mycc.ncore
     ncas = mycc.ncas
@@ -549,7 +549,7 @@ def _make_eris_incore_ghf(mycc, mo_coeff=None, ao2mofn=None):
 if __name__ == '__main__':
     from pyscf import gto
     from pyscf import cc
-    
+
     mol = gto.Mole()
     mol.atom = [
         [8 , (0. , 0.     , 0.)],
@@ -564,69 +564,69 @@ if __name__ == '__main__':
     mf = scf.addons.convert_to_ghf(mf)
     rdm1_mf_ref = mf.make_rdm1()
     E_mf_ref = mf.e_tot
-    
+
     mycc = cc.GCCSD(mf)
     e_cc_ref, t1, t2 = mycc.kernel()
-    
+
     from libdmet.system import integral
     from libdmet.solver import scf as scf_hp
     from libdmet.solver import scf_solver
     from libdmet.utils import tile_eri
-    
+
     nelec = mol.nelectron
     nao = mol.nao_nr()
     nso = nao * 2
-    
-    # core 
+
+    # core
     # O 1s O 2s -> 2 core orbitals (4 spin orbitals), 4 core electrons
     # val
     # O 2p H 1s x 2 -> 5 val orbitals (10 spin orbitals), 6 val electrons
     # virt
-    # 34 spin orbitals 
-    
+    # 34 spin orbitals
+
     ncas = 10
     nelecas = 6
-    
+
     e_nuc = mf.energy_nuc()
     hcore = mf.get_hcore()
     ovlp = mf.get_ovlp()
     eri_ao = ao2mo.restore(4, mf._eri, nao)
     eri = tile_eri(eri_ao, eri_ao, eri_ao)
     eri_ao = None
-    
+
     print (hcore.shape)
     print (ovlp.shape)
     print (eri.shape)
 
     Ham = integral.Integral(hcore.shape[-1], True, False, e_nuc, {"cd": hcore[None]},
                             {"ccdd": eri[None]}, ovlp=ovlp)
-    
-    
+
+
     solver = scf_solver.SCFSolver(ghf=True, tol=1e-10, max_cycle=200,
                                   oomp2=False, tol_normt=1e-6, ci_conv_tol=1e-8,
                                   level_shift=0.1, restart=True, mc_conv_tol=1e-6)
-    
+
     rdm1_mf, E_mf = solver.run(Ham, nelec=mol.nelectron, dm0=rdm1_mf_ref)
-    
+
     diff_mf = abs(E_mf - E_mf_ref)
     print ("E_mf : ", E_mf)
     print ("diff to ref : ", diff_mf)
     assert diff_mf < 1e-8
-    
+
     mf = solver.scfsolver.mf
 
     mycc = GGTCCSD(mf, ncas=ncas, nelecas=nelecas)
     mycc.conv_tol   = 1e-12
     e_cc, t1, t2 = mycc.kernel()
-    
+
     print (e_cc)
-    e_cc_ref = -0.213484111125395 
+    e_cc_ref = -0.213484111125395
     diff_cc = abs(e_cc - e_cc_ref)
     print ("e_cc : ", e_cc)
     print ("diff to ref : ", diff_cc)
     assert diff_cc < 1e-8
 
-    from libdmet.solver import impurity_solver 
+    from libdmet.solver import impurity_solver
     solver = impurity_solver.Block2(nproc=1, nthread=1, nnode=1, TmpDir="./tmp", \
         SharedDir=None, reorder=True, minM=250, maxM=2000, tol=1e-12, \
         spinAdapted=False, bcs=False, use_general_spin=False, mem=1)
@@ -635,15 +635,15 @@ if __name__ == '__main__':
     mycc.conv_tol   = 1e-12
     mycc.cisolver   = solver
     e_cc_dmrg, t1, t2 = mycc.kernel()
-    
+
     print (e_cc_dmrg)
-    e_cc_ref = -0.213484111125395 
+    e_cc_ref = -0.213484111125395
     diff_cc = abs(e_cc_dmrg- e_cc_ref)
     print ("e_cc_dmrg : ", e_cc_dmrg)
     print ("diff to ref : ", diff_cc)
     assert diff_cc < 1e-8
 
-    from libdmet.solver import impurity_solver 
+    from libdmet.solver import impurity_solver
     solver = impurity_solver.Block2(nproc=1, nthread=1, nnode=1, TmpDir="./tmp", \
         SharedDir=None, reorder=True, minM=250, maxM=2000, tol=1e-12, \
         spinAdapted=False, bcs=False, use_general_spin=True, mem=1)
@@ -654,7 +654,7 @@ if __name__ == '__main__':
     e_cc_dmrg, t1, t2 = mycc.kernel()
 
     print (e_cc_dmrg)
-    e_cc_ref = -0.213484111125395 
+    e_cc_ref = -0.213484111125395
     diff_cc = abs(e_cc_dmrg- e_cc_ref)
     print ("e_cc_dmrg : ", e_cc_dmrg)
     print ("diff to ref : ", diff_cc)

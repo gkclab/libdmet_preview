@@ -38,11 +38,11 @@ def get_vsig_emb(fock, eri, nelec, beta=np.inf, ef=None, ovlp=None,
     cell.incore_anyway = True
     cell.build(dump_input=False)
     kpts = kpts=np.zeros((1, 3))
-    
+
     if spin == 1:
         fock = fock[0]
         eri = eri[0]
-        
+
         # first diagonalize fock
         ew, ev = la.eigh(fock, ovlp[0])
         ewocc, mu, _ = mfd.assignocc(ew, nelec * 0.5, beta)
@@ -66,7 +66,7 @@ def get_vsig_emb(fock, eri, nelec, beta=np.inf, ef=None, ovlp=None,
             ovlp = [ovlp[0], ovlp[0]]
         else:
             ovlp = ovlp[0]
-        
+
         if rdm1_emb is None:
             ew_a, ev_a = la.eigh(fock[0], ovlp[0])
             ew_b, ev_b = la.eigh(fock[1], ovlp[1])
@@ -102,7 +102,7 @@ def get_vsig_emb(fock, eri, nelec, beta=np.inf, ef=None, ovlp=None,
         Lpq = cholesky.get_cderi_uhf(eri, norb, tol=chol_tol)[None]
     else:
         raise ValueError
-    
+
     log.debug(1, "get_vsig_emb: qsgw kernel (naux = %d)", Lpq.shape[-3])
     gw.ac = 'pade'
     gw.mode = mode
@@ -119,7 +119,7 @@ def get_vsig_emb(fock, eri, nelec, beta=np.inf, ef=None, ovlp=None,
         vsig = gw.vsig[0]
     else:
         vsig = gw.vsig[:, 0]
-    
+
     vsig_imag = max_abs(vsig.imag)
     if vsig_imag > mfd.IMAG_DISCARD_TOL:
         log.warn("vsig has non-zero imaginary part %15.8g", vsig_imag)
@@ -140,10 +140,10 @@ def get_vsig_emb_2(kmf, C_mo_eo, eri, nelec, beta=np.inf, ef=None,
     if log.Level[log.verbose] > log.Level["DEBUG0"]:
         mol.verbose = 5
     mol.incore_anyway = True
-    
+
     spin, nkpts, nmo, neo = C_mo_eo.shape
     assert ef is not None
-    
+
     if spin == 1:
         raise NotImplementedError
         fock = fock[0]
@@ -162,10 +162,10 @@ def get_vsig_emb_2(kmf, C_mo_eo, eri, nelec, beta=np.inf, ef=None,
         gw.ef = ef
         gw.fullsigma = True
         omega = np.array([ef])
-        
+
         log.debug(1, "get_vsig_emb_2: prepare Lpq")
         Lpq = cholesky.get_cderi_uhf(eri, norb=neo, tol=chol_tol)
-        
+
         # first get sigmaI -> use QSGW AC
         log.debug(1, "get_vsig_emb_2: kernel")
         vsig = gw.kernel(Lpq=Lpq, omega=omega, kmf=kmf, C_mo_lo=C_mo_eo, nw=nw, nt=nt)
@@ -176,6 +176,6 @@ def get_vsig_emb_2(kmf, C_mo_eo, eri, nelec, beta=np.inf, ef=None,
     if vsig_imag > mfd.IMAG_DISCARD_TOL:
         log.warn("vsig has non-zero imaginary part %15.8g", vsig_imag)
     vsig = vsig.real
-    
-    return vsig 
- 
+
+    return vsig
+

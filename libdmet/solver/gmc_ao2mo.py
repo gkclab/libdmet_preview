@@ -29,7 +29,7 @@ def trans_e1_incore(eri_ao, mo, ncore, ncas):
 
     AAPP = AApp = APPA = IAPCV = APcv = None
     jC_PP = jC_pp = kC_PP = ICVCV = None
-    
+
     if ncore == 0 and nvir == 0:
         # ZHC NOTE special optimization for OO-MP2 and OO-CCD case.
         eria = ao2mo.kernel(eri_ao, mo, compact=True)
@@ -64,7 +64,7 @@ def _trans_aapp_(mo, ncore, ncas, fload, ao_loc=None):
     nmo = mo.shape[-1]
     nocc = ncore + ncas
     klshape = (0, nmo, 0, nmo)
-    
+
     aaPP = None
     apPA = None
     apCV = None
@@ -81,7 +81,7 @@ def _trans_aapp_(mo, ncore, ncas, fload, ao_loc=None):
         japcv[i] = ppp[:,:ncore,ncore:] * 2 \
                  - ppp[:ncore,:,ncore:].transpose(1,0,2) \
                  - ppp[ncore:,:ncore,:].transpose(2,1,0)
-        
+
     return aapp, aaPP, appa, apPA, japcv, apCV
 
 def _trans_cvcv_(mo, ncore, ncas, fload, ao_loc=None):
@@ -120,7 +120,7 @@ class _ERIS(object):
         mol = casscf.mol
         ncore = self.ncore = casscf.ncore
         ncas  = self.ncas  = casscf.ncas
-        
+
         ncore = ncore * 2
         ncas  = ncas * 2
 

@@ -73,18 +73,18 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
         eri_ao = mycc._scf._eri
     else:
         raise ValueError("Unknown ERI length %s"%(len(mycc._scf._eri)))
-    
+
     # aa
     o = np.arange(0, nocca)
     v = np.arange(nocca, nmoa)
-    
+
     # ZHC NOTE special treatment for OO-CCD,
     if (naoa == nmoa) and (max_abs(moa - np.eye(nmoa)) < 1e-13):
         eri_aa = ao2mo.restore(4, eri_ao[0], naoa)
     else:
         eri_aa = ao2mo.full(ao2mo.restore(4, eri_ao[0], naoa),
                             moa, compact=True)
-    
+
     eris.oooo = take_eri(eri_aa, o, o, o, o)
     eris.ovoo = take_eri(eri_aa, o, v, o, o)
     eris.ovov = take_eri(eri_aa, o, v, o, v)
@@ -94,10 +94,10 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
     idx1 = tril_take_idx(o, v, compact=False)
     idx2 = tril_take_idx(v, v, compact=True)
     eris.ovvv = eri_aa[np.ix_(idx1, idx2)].reshape(nocca, nvira, nvira*(nvira+1)//2)
-    
+
     eris.vvvv = take_eri(eri_aa, v, v, v, v, compact=True)
     eri_aa = None
-    
+
     # bb
     O = np.arange(0, noccb)
     V = np.arange(noccb, nmob)
@@ -117,7 +117,7 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
     idx1 = tril_take_idx(O, V, compact=False)
     idx2 = tril_take_idx(V, V, compact=True)
     eris.OVVV = eri_bb[np.ix_(idx1, idx2)].reshape(noccb, nvirb, nvirb*(nvirb+1)//2)
-    
+
     eris.VVVV = take_eri(eri_bb, V, V, V, V, compact=True)
     eri_bb = None
 
@@ -136,12 +136,12 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
     eris.ovOV = take_eri(eri_ab, o, v, O, V)
     eris.ooVV = take_eri(eri_ab, o, o, V, V)
     eris.ovVO = take_eri(eri_ab, o, v, V, O)
-    
+
     idx1 = tril_take_idx(o, v, compact=False)
     eris.ovVV = eri_ab[np.ix_(idx1, idx2)].reshape(nocca, nvira, nvirb*(nvirb+1)//2)
-    
+
     eris.vvVV = take_eri(eri_ab, v, v, V, V, compact=True)
-    
+
     # ba
     eri_ba = eri_ab.T
     eri_ab = None
@@ -149,13 +149,13 @@ def _make_eris_incore_uhf(mycc, mo_coeff=None, ao2mofn=None):
     eris.OVoo = take_eri(eri_ba, O, V, o, o)
     eris.OOvv = take_eri(eri_ba, O, O, v, v)
     eris.OVvo = take_eri(eri_ba, O, V, v, o)
-    
+
     idx1 = tril_take_idx(O, V, compact=False)
     idx2 = tril_take_idx(v, v, compact=True)
     eris.OVvv = eri_ba[np.ix_(idx1, idx2)].reshape(noccb, nvirb, nvira*(nvira+1)//2)
     eri_ba = None
     return eris
-    
+
 def ao2mo_uhf(mycc, mo_coeff=None):
     nmoa, nmob = mycc.get_nmo()
     nao = mycc.mo_coeff[0].shape[0]
@@ -177,7 +177,7 @@ def ao2mo_uhf(mycc, mo_coeff=None):
     else:
         raise NotImplementedError
         return _make_eris_outcore(mycc, mo_coeff)
-    
+
 def init_amps_uhf(mycc, eris=None):
     time0 = logger.process_clock(), logger.perf_counter()
     if eris is None:
@@ -192,7 +192,7 @@ def init_amps_uhf(mycc, eris=None):
     mo_eb_v = eris.mo_energy[1][noccb:] + mycc.level_shift
     eia_a = lib.direct_sum('i-a->ia', mo_ea_o, mo_ea_v)
     eia_b = lib.direct_sum('i-a->ia', mo_eb_o, mo_eb_v)
-    
+
     t1a = fova.conj() / eia_a
     t1b = fovb.conj() / eia_b
 
@@ -213,7 +213,7 @@ def init_amps_uhf(mycc, eris=None):
     logger.info(mycc, 'Init t2, MP2 energy = %.15g', mycc.emp2)
     logger.timer(mycc, 'init mp2', *time0)
     return mycc.emp2, (t1a,t1b), (t2aa,t2ab,t2bb)
-    
+
 def make_rdm2_uhf(mycc, t1=None, t2=None, l1=None, l2=None, ao_repr=False):
     from libdmet.solver import uccsd_rdm
     if t1 is None: t1 = mycc.t1
@@ -250,11 +250,11 @@ except ImportError:
 # ****************************************************************************
 
 class UTCCSD(object):
-    def __init__(self, nproc=1, nnode=1, TmpDir="./tmp", SharedDir=None, 
-                 restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-9, 
-                 tol_normt=1e-6, max_cycle=200, level_shift=0.0, frozen=0, 
+    def __init__(self, nproc=1, nnode=1, TmpDir="./tmp", SharedDir=None,
+                 restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-9,
+                 tol_normt=1e-6, max_cycle=200, level_shift=0.0, frozen=0,
                  max_memory=40000, compact_rdm2=False, scf_newton=True,
-                 diis_space=8, iterative_damping=1.0, linear=False, 
+                 diis_space=8, iterative_damping=1.0, linear=False,
                  approx_l=False, alpha=None, beta=np.inf, tcc=False,
                  ite=None):
         """
@@ -280,12 +280,12 @@ class UTCCSD(object):
         self.ite = ite
         self.approx_l = approx_l
         self.scfsolver = scf.SCF(newton_ah=scf_newton)
-        
+
         self.onepdm = None
         self.twopdm = None
 
         self.optimized = False
-    
+
     def run(self, Ham=None, nelec=None, guess=None, restart=False,
             dump_tl=False, fcc_name="fcc.h5", calc_rdm2=False, Mu=None,
             **kwargs):
@@ -299,7 +299,7 @@ class UTCCSD(object):
         log.info("CC solver: start")
         spin = Ham.H1["cd"].shape[0]
         if spin > 1:
-            log.eassert(not self.restricted, "CC solver: spin (%s) > 1 " 
+            log.eassert(not self.restricted, "CC solver: spin (%s) > 1 "
                         "requires unrestricted", spin)
         if nelec is None:
             if self.bcs:
@@ -310,17 +310,17 @@ class UTCCSD(object):
                 raise ValueError("CC solver: nelec cannot be None "
                                  "for RCC or UCC.")
         nelec_a, nelec_b = (nelec + self.Sz) // 2, (nelec - self.Sz) // 2
-        log.eassert(nelec_a >= 0 and nelec_b >=0, "CC solver: " 
+        log.eassert(nelec_a >= 0 and nelec_b >=0, "CC solver: "
                     "nelec_a (%s), nelec_b (%s) should >= 0", nelec_a, nelec_b)
-        log.eassert(nelec_a + nelec_b == nelec, "CC solver: " 
-                    "nelec_a (%s) + nelec_b (%s) should == nelec (%s)", 
+        log.eassert(nelec_a + nelec_b == nelec, "CC solver: "
+                    "nelec_a (%s) + nelec_b (%s) should == nelec (%s)",
                     nelec_a, nelec_b, nelec)
-        
+
         # *********************************************************************
         # 2. mean-field calculation
         # *********************************************************************
         log.debug(1, "CC solver: mean-field")
-        self.scfsolver.set_system(nelec, self.Sz, False, self.restricted, 
+        self.scfsolver.set_system(nelec, self.Sz, False, self.restricted,
                                   max_memory=self.max_memory)
         self.scfsolver.set_integral(Ham)
 
@@ -335,9 +335,9 @@ class UTCCSD(object):
             scf_max_cycle = 1 # need not to do scf
         else:
             bcc_restart = False
-        
+
         if self.ghf:
-            E_HF, rhoHF = self.scfsolver.GGHF(tol=min(self.conv_tol*0.1, 1e-10), 
+            E_HF, rhoHF = self.scfsolver.GGHF(tol=min(self.conv_tol*0.1, 1e-10),
                                               MaxIter=scf_max_cycle,
                                               InitGuess=dm0,
                                               Mu=Mu,
@@ -357,7 +357,7 @@ class UTCCSD(object):
             self.scfsolver.mf.mo_occ = np.round(self.scfsolver.mf.mo_occ)
             self.scfsolver.mf.sigma = 0.0
 
-        log.debug(1, "CC solver: mean-field converged: %s", 
+        log.debug(1, "CC solver: mean-field converged: %s",
                   self.scfsolver.mf.converged)
 
         if "mo_energy_custom" in kwargs:
@@ -368,11 +368,11 @@ class UTCCSD(object):
             log.info("Use customized MO as CC reference.")
             self.scfsolver.mf.mo_coeff = kwargs["mo_coeff_custom"]
             self.scfsolver.mf.e_tot = self.scfsolver.mf.energy_tot()
-        
-        log.debug(2, "CC solver: mean-field rdm1: \n%s", 
+
+        log.debug(2, "CC solver: mean-field rdm1: \n%s",
                   self.scfsolver.mf.make_rdm1())
-        
-        
+
+
         ncas = kwargs["ncas"]
         nelecas = kwargs["nelecas"]
         maxM = kwargs.get("maxM", 500)
@@ -381,19 +381,19 @@ class UTCCSD(object):
 
         from pyscf import mcscf
         import tccsd
-        
+
         print (nelec_a, nelec_b)
-        
+
         print (self.scfsolver.mf.nelec)
         print (self.scfsolver.mf.mol.nelectron)
         print (self.scfsolver.mf.mol.spin)
-        
+
 
 
         mc_dmrg = mcscf.UCASCI(self.scfsolver.mf, ncas, nelecas)
         mc_dmrg.fcisolver = tccsd.DMRGCI(self.scfsolver.mf)
         mc_dmrg.fcisolver.dmrg_args['maxM'] = maxM
-        mc_dmrg.fcisolver.dmrg_args['scratch'] = "./tmp" 
+        mc_dmrg.fcisolver.dmrg_args['scratch'] = "./tmp"
         mc_dmrg.fcisolver.dmrg_args['sweep_tol'] = sweep_tol
         mc_dmrg.fcisolver.dmrg_args['sample_tol'] = sample_tol
         mc_dmrg.kernel()
@@ -413,15 +413,15 @@ class UTCCSD(object):
         self.cisolver.verbose = self.verbose
 
         # *********************************************************************
-        # 4. solve t1, t2, restart can use the previously saved t1 and t2 
+        # 4. solve t1, t2, restart can use the previously saved t1 and t2
         # *********************************************************************
         eris = self.cisolver.ao2mo(self.cisolver.mo_coeff)
 
         if restart:
             log.eassert("basis" in kwargs, "restart requires basis passed in")
         if restart and self.optimized:
-            t1, t2, l1, l2 = self.load_t12_from_h5(fcc_name, kwargs["basis"], 
-                                                   self.scfsolver.mf.mo_coeff, 
+            t1, t2, l1, l2 = self.load_t12_from_h5(fcc_name, kwargs["basis"],
+                                                   self.scfsolver.mf.mo_coeff,
                                                    bcc_restart=bcc_restart)
         else:
             if isinstance(guess, str) and guess == 'cisd':
@@ -446,9 +446,9 @@ class UTCCSD(object):
 
         # solve t1, t2
         log.debug(1, "CC solver: solve t amplitudes")
-        
+
         E_corr, t1, t2 = self.cisolver.kernel(t1=t1, t2=t2, eris=eris)
-        
+
         # brueckner CC
         if bcc:
             log.info("Using Brueckner CC.")
@@ -462,7 +462,7 @@ class UTCCSD(object):
             self.scfsolver.mf.e_tot = self.cisolver._scf.e_tot
             t1, t2 = self.cisolver.t1, self.cisolver.t2
             eris = self.cisolver.ao2mo(self.cisolver.mo_coeff)
-            
+
             if l1 is not None and l2 is not None:
                 # transform l1, l2 to the new BCC basis
                 log.info("transform old l1, l2 to new BCC basis...")
@@ -479,7 +479,7 @@ class UTCCSD(object):
                                                 self.scfsolver.mf.get_ovlp()))
                     l1 = transform_l1_to_bo(l1, umat)
                     l2 = transform_l2_to_bo(l2, umat)
-        
+
         # *********************************************************************
         # 5. (T) and solve lambda
         # *********************************************************************
@@ -498,9 +498,9 @@ class UTCCSD(object):
 
             lambda_drv, rdm1_drv, rdm2_drv = self._get_ccsdt_drv(eris=eris)
             l1, l2 = self.cisolver.l1, self.cisolver.l2 = \
-                    lambda_drv(self.cisolver, eris=eris, t1=t1, t2=t2, 
-                               max_cycle=self.max_cycle, 
-                               tol=self.conv_tol_normt, 
+                    lambda_drv(self.cisolver, eris=eris, t1=t1, t2=t2,
+                               max_cycle=self.max_cycle,
+                               tol=self.conv_tol_normt,
                                verbose=self.verbose)[1:]
         else:
             if self.linear or self.approx_l:
@@ -511,7 +511,7 @@ class UTCCSD(object):
                                                     eris=eris)
             rdm1_drv = rdm2_drv = None
             e_t = 0.0
-        
+
         # *********************************************************************
         # 6. collect properties
         # *********************************************************************
@@ -526,12 +526,12 @@ class UTCCSD(object):
         # dump t1, t2, l1, l2, basis, mo_coeff
         if dump_tl or restart:
             self.save_t12_to_h5(fcc_name, kwargs["basis"], self.cisolver.mo_coeff)
-        
+
         if not self.cisolver.converged:
             log.warn("CC solver not converged...")
         self.optimized = True
         return self.onepdm, E
-    
+
     def _get_ccsdt_drv(self, eris=None):
         if self.ghf:
             from pyscf.cc.gccsd_t_lambda import kernel as lambda_drv
@@ -544,9 +544,9 @@ class UTCCSD(object):
             from pyscf.cc import uccsd_t_rdm as rdm_mod
         rdm1_drv = partial(rdm_mod.make_rdm1, mycc=self.cisolver, eris=eris)
         rdm2_drv = partial(rdm_mod.make_rdm2, mycc=self.cisolver, eris=eris)
-        return lambda_drv, rdm1_drv, rdm2_drv 
-    
-    def run_dmet_ham(self, Ham, last_aabb=True, save_dmet_ham=False, 
+        return lambda_drv, rdm1_drv, rdm2_drv
+
+    def run_dmet_ham(self, Ham, last_aabb=True, save_dmet_ham=False,
                      dmet_ham_fname='dmet_ham.h5', use_calculated_twopdm=False,
                      **kwargs):
         """
@@ -554,12 +554,12 @@ class UTCCSD(object):
         NOTE: the spin order for H2 is aa, bb, ab, the same as ImpHam.
         """
         if kwargs.get("ccsdt", False) or use_calculated_twopdm:
-            return self.run_dmet_ham_slow(Ham, last_aabb=last_aabb, 
+            return self.run_dmet_ham_slow(Ham, last_aabb=last_aabb,
                                           save_dmet_ham=save_dmet_ham,
-                                          dmet_ham_fname=dmet_ham_fname, 
+                                          dmet_ham_fname=dmet_ham_fname,
                                           use_calculated_twopdm=use_calculated_twopdm,
                                           **kwargs)
-        
+
         log.info("CC solver Run DMET Hamiltonian.")
         log.debug(0, "ao2mo for DMET Hamiltonian.")
         Ham = ao2mo_Ham(Ham, self.cisolver.mo_coeff, compact=True, in_place=True)
@@ -580,7 +580,7 @@ class UTCCSD(object):
             H2 = Ham.H2["ccdd"]
             H0 = Ham.H0
             E = exp_val_uccsd(self.cisolver, H1, H2, H0=H0)
-                  
+
         if save_dmet_ham:
             fdmet_ham = h5py.File(dmet_ham_fname, 'w')
             fdmet_ham['H0'] = Ham.H0
@@ -589,8 +589,8 @@ class UTCCSD(object):
             fdmet_ham['mo_coeff'] = self.cisolver.mo_coeff
             fdmet_ham.close()
         return E
-    
-    def run_dmet_ham_slow(self, Ham, last_aabb=True, save_dmet_ham=False, 
+
+    def run_dmet_ham_slow(self, Ham, last_aabb=True, save_dmet_ham=False,
                           dmet_ham_fname='dmet_ham.h5',
                           use_calculated_twopdm=False, **kwargs):
         """
@@ -621,7 +621,7 @@ class UTCCSD(object):
             r2 = self.twopdm
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = einsum('ij, ji', h1, r1)
             E2 = 0.5 * einsum('ijkl, ijkl', h2, r2)
         elif Ham.restricted:
@@ -631,7 +631,7 @@ class UTCCSD(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = 2.0 * einsum('ij, ji', h1[0], r1[0])
             E2 = 0.5 * einsum('ijkl, ijkl', h2[0], r2[0])
         else:
@@ -643,19 +643,19 @@ class UTCCSD(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             # energy
             E1 = einsum('sij, sji', h1, r1)
             E2_aa = 0.5 * einsum('ijkl, ijkl', h2[0], r2[0])
             E2_bb = 0.5 * einsum('ijkl, ijkl', h2[1], r2[1])
             E2_ab =       einsum('ijkl, ijkl', h2[2], r2[2])
             E2 = E2_aa + E2_bb + E2_ab
-        
+
         E = E1 + E2
         E += Ham.H0
-        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, " 
+        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, "
                 "E2 = %20.12f, E = %20.12f", Ham.H0, E1, E2, E)
-        
+
         if save_dmet_ham:
             fdmet_ham = h5py.File(dmet_ham_fname, 'w')
             fdmet_ham['H0'] = Ham.H0
@@ -664,12 +664,12 @@ class UTCCSD(object):
             fdmet_ham['mo_coeff'] = self.cisolver.mo_coeff
             fdmet_ham.close()
         return E
-    
+
     def make_rdm1(self, Ham=None, drv=None):
         log.debug(1, "CC solver: solve rdm1")
         if drv is None:
             drv = self.cisolver.make_rdm1
-        onepdm = drv(t1=self.cisolver.t1, t2=self.cisolver.t2, 
+        onepdm = drv(t1=self.cisolver.t1, t2=self.cisolver.t2,
                      l1=self.cisolver.l1, l2=self.cisolver.l2)
 
         if self.ghf: # GHF
@@ -681,7 +681,7 @@ class UTCCSD(object):
 
         # rotate back to the AO basis
         log.debug(1, "CC solver: rotate rdm1 to AO")
-        self.onepdm = transform_rdm1_to_ao_mol(self.onepdm_mo, 
+        self.onepdm = transform_rdm1_to_ao_mol(self.onepdm_mo,
                                                self.cisolver.mo_coeff)
         return self.onepdm
 
@@ -694,10 +694,10 @@ class UTCCSD(object):
         if drv is None:
             drv = self.cisolver.make_rdm2
         if with_dm1:
-            twopdm_mo = drv(t1=self.cisolver.t1, t2=self.cisolver.t2, 
+            twopdm_mo = drv(t1=self.cisolver.t1, t2=self.cisolver.t2,
                             l1=self.cisolver.l1, l2=self.cisolver.l2)
         else:
-            twopdm_mo = drv(t1=self.cisolver.t1, t2=self.cisolver.t2, 
+            twopdm_mo = drv(t1=self.cisolver.t1, t2=self.cisolver.t2,
                             l1=self.cisolver.l1, l2=self.cisolver.l2,
                             with_dm1=with_dm1)
 
@@ -714,12 +714,12 @@ class UTCCSD(object):
         # NOTE: the transform function use aa, ab, bb order.
         if ao_repr:
             log.debug(1, "CC solver: rotate rdm2 to AO")
-            self.twopdm = transform_rdm2_to_ao_mol(self.twopdm_mo, 
+            self.twopdm = transform_rdm2_to_ao_mol(self.twopdm_mo,
                                                    self.cisolver.mo_coeff)
             self.twopdm_mo = None
         else:
             self.twopdm = None
-            
+
         if not self.restricted and not self.ghf:
             if self.twopdm_mo is not None:
                 self.twopdm_mo = self.twopdm_mo[[0, 2, 1]]
@@ -754,10 +754,10 @@ class UTCCSD(object):
                 l1_old = [np.asarray(fcc['l1_%s'%s]) for s in range(spin)]
                 l2_old = [np.asarray(fcc['l2_%s'%s]) for s in range(spin*(spin+1)//2)]
         fcc.close()
-        
+
         mo_coeff_new = np.asarray(mo_coeff_new)
         if mo_coeff_new.shape != mo_coeff_old.shape:
-            log.warn("CC solver: mo_coeff shape changed (%s -> %s).", 
+            log.warn("CC solver: mo_coeff shape changed (%s -> %s).",
                      mo_coeff_old.shape, mo_coeff_new.shape)
             return None, None, None, None
         nao, nmo = mo_coeff_new.shape[-2:]
@@ -769,12 +769,12 @@ class UTCCSD(object):
             log.debug(2, "restart with the same basis.")
         else:
             log.debug(2, "restart with the different basis.")
-        
+
         try:
             if bcc_restart:
                 # ZHC NOTE
-                # restart for a bcc calculation, 
-                # new mo is estimated by maximizing the overlap 
+                # restart for a bcc calculation,
+                # new mo is estimated by maximizing the overlap
                 # w.r.t. last calculation
                 # self.scfsolver.mf.mo_coeff and
                 # self.cisolver.mo_coeff are overwritten
@@ -801,21 +801,21 @@ class UTCCSD(object):
                     l2 = l2_old
 
             else: # normal CCSD restart
-                if mo_coeff_new.ndim == 2: # RHF and GHF 
+                if mo_coeff_new.ndim == 2: # RHF and GHF
                     # umat maximally match the basis, C_old U ~ C_new
                     basis_cas_old = basis_old.reshape(-1, nmo).dot(mo_coeff_old[:, mo_idx])
                     basis_cas_new = basis_new.reshape(-1, nmo).dot(mo_coeff_new[:, mo_idx])
                     umat = find_closest_mo(basis_cas_old, basis_cas_new, return_rotmat=True)[1]
-                else: # UHF 
+                else: # UHF
                     umat = []
                     for s in range(2):
-                        basis_cas_old = np.dot(basis_old[s].reshape(-1, nmo), 
+                        basis_cas_old = np.dot(basis_old[s].reshape(-1, nmo),
                                                mo_coeff_old[s][:, mo_idx[s]])
-                        basis_cas_new = np.dot(basis_new[s].reshape(-1, nmo), 
+                        basis_cas_new = np.dot(basis_new[s].reshape(-1, nmo),
                                                mo_coeff_new[s][:, mo_idx[s]])
-                        umat.append(find_closest_mo(basis_cas_old, basis_cas_new, 
+                        umat.append(find_closest_mo(basis_cas_old, basis_cas_new,
                                                     return_rotmat=True)[1])
-                
+
                 t1 = transform_t1_to_bo(t1_old, umat)
                 t2 = transform_t2_to_bo(t2_old, umat)
                 if not (self.linear or self.approx_l):
@@ -827,12 +827,12 @@ class UTCCSD(object):
             t2 = None
             l1 = None
             l2 = None
-        
+
         if (self.linear or self.approx_l):
             l1 = t1
             l2 = t2
         return t1, t2, l1, l2
-    
+
     def save_t12_to_h5(self, fcc_name, basis_new, mo_coeff_new):
         """
         Save t1, t2, l1, l2, basis and mo_coeff.
@@ -842,7 +842,7 @@ class UTCCSD(object):
         fcc = h5py.File(fcc_name, 'w')
         fcc['mo_coeff'] = mo_coeff_new
         fcc['basis'] = np.asarray(basis_new)
-        if mo_coeff_new.ndim == 2: 
+        if mo_coeff_new.ndim == 2:
             fcc['t1'] = np.asarray(self.cisolver.t1)
             fcc['t2'] = np.asarray(self.cisolver.t2)
             if not (self.linear or self.approx_l):
@@ -866,22 +866,22 @@ class UTCCSD(object):
         frdm['rdm2'] = np.asarray(self.twopdm_mo)
         frdm["mo_coeff"] = np.asarray(self.cisolver.mo_coeff)
         frdm.close()
-    
+
     def load_rdm_mo(self, rdm_fname='rdm_mo_cc.h5'):
         frdm = h5py.File(rdm_fname, 'r')
         rdm1 = np.asarray(frdm["rdm1"])
         rdm2 = np.asarray(frdm["rdm2"])
         mo_coeff = np.asarray(frdm["mo_coeff"])
         frdm.close()
-        return rdm1, rdm2, mo_coeff 
-    
+        return rdm1, rdm2, mo_coeff
+
     def load_dmet_ham(self, dmet_ham_fname='dmet_ham.h5'):
         fdmet_ham = h5py.File(dmet_ham_fname, 'r')
         H1 = np.asarray(fdmet_ham["H1"])
         H2 = np.asarray(fdmet_ham["H2"])
         fdmet_ham.close()
-        return H1, H2 
-    
+        return H1, H2
+
     def onepdm(self):
         log.debug(1, "Compute 1pdm")
         return self.onepdm

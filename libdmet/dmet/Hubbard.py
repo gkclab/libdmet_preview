@@ -25,12 +25,12 @@ def HartreeFock(Lat, v, filling, mu0=None, beta=np.inf, ires=False, **kwargs):
     log.result("Chemical potential (mean-field) = %s", mu)
     log.result("Energy per cell (mean-field) = %20.12f", E)
     log.result("Gap (mean-field) = %s" % res["gap"])
-    
+
     # analyze the results:
     labels = kwargs.get("labels", None)
     if labels is not None:
         Lat.mulliken_lo_R0(rho[:, 0], labels=labels)
-    
+
     if ires or kwargs.get("full_return", False):
         return rho, mu, res
     else:
@@ -46,7 +46,7 @@ def transformResults(rhoEmb, E, basis, ImpHam, H1e=None, int_bath=False, **kwarg
     rhoImp, Efrag, nelec = slater.transformResults(rhoEmb, E, basis, ImpHam,
                                                    H1e, **kwargs)
     log.debug(1, "impurity density matrix:\n%s", rhoImp)
-    
+
     if Efrag is None:
         return nelec / nscsites
     else:
@@ -75,7 +75,7 @@ def transformResults_new(rhoEmb, E, lattice, basis, ImpHam, H1e, last_dmu,
     log.warn("transformResults_new is being deprecated.\n"
              "Use transformResults instead.")
     kwargs["lattice"] = lattice
-    kwargs["last_dmu"] = last_dmu 
+    kwargs["last_dmu"] = last_dmu
     return transformResults(rhoEmb, E, basis, ImpHam, H1e=H1e,
                             int_bath=int_bath, **kwargs)
 
@@ -87,12 +87,12 @@ def apply_dmu(lattice, ImpHam, basis, dmu, fit_ghf=False, **kwargs):
         dmu_idx = kwargs["dmu_idx"]
     else:
         dmu_idx = lattice.imp_idx
-    
+
     nao = lattice.nao
     mu_mat = np.zeros((nao, nao))
     mu_mat[dmu_idx, dmu_idx] = -dmu
-    
-    
+
+
     if ImpHam.restricted:
         ImpHam.H1["cd"][0] += transform_imp(basis[0], lattice, mu_mat)
     else:
@@ -121,13 +121,13 @@ class MuSolver(object):
         self.history = []
         self.first_run = True
 
-    def __call__(self, lattice, filling, ImpHam, basis, solver, 
-                 solver_args={}, delta=0.02, thrnelec=1e-5, step=0.05, 
-                 brentq_bound=None, brentq_value=None, nelec_sign=None, 
+    def __call__(self, lattice, filling, ImpHam, basis, solver,
+                 solver_args={}, delta=0.02, thrnelec=1e-5, step=0.05,
+                 brentq_bound=None, brentq_value=None, nelec_sign=None,
                  imp_idx=None, comm=None, fit_ghf=False, **kwargs):
         """
-        Given impurity problems, fit mu and return solution. 
-        
+        Given impurity problems, fit mu and return solution.
+
         Returns:
             rhoEmb, EnergyEmb, ImpHam, dmu.
         """
@@ -140,7 +140,7 @@ class MuSolver(object):
             solver  = [solver]
             solver_args = [solver_args]
             single_imp = True # only 1 impurity
-        if nelec_sign is None: 
+        if nelec_sign is None:
             # default is sum up
             nelec_sign = np.ones(len(lattice), dtype=int)
 
@@ -163,34 +163,34 @@ class MuSolver(object):
             for lattice_I, ImpHam_I, basis_I, solver_I, solver_args_I, imp_idx_I in \
                     zip(lattice, ImpHam, basis, solver, solver_args, imp_idx):
                 log.debug(0, "-" * 79)
-                log.debug(0, "Solve impurity %s, indices: %s", 
+                log.debug(0, "Solve impurity %s, indices: %s",
                           I, utils.format_idx(lattice_I.imp_idx))
                 rhoEmb_I, EnergyEmb_I = \
-                        SolveImpHam_with_dmu(lattice_I, ImpHam_I, basis_I, mu, 
+                        SolveImpHam_with_dmu(lattice_I, ImpHam_I, basis_I, mu,
                                              solver_I, solver_args_I,
                                              fit_ghf=fit_ghf, **kwargs)
                 rhoEmb_col.append(rhoEmb_I)
                 EnergyEmb_col.append(EnergyEmb_I)
-                nelec = transformResults(rhoEmb_I, None, basis_I, None, None, 
-                                         lattice=lattice_I, imp_idx=imp_idx_I, 
+                nelec = transformResults(rhoEmb_I, None, basis_I, None, None,
+                                         lattice=lattice_I, imp_idx=imp_idx_I,
                                          fit_ghf=fit_ghf, **kwargs)
                 nelec_tot += (nelec * nelec_sign[I])
                 I += 1
             log.debug(0, "-" * 79)
-            
+
             if comm is not None:
                 comm.Barrier()
                 nelec_tot = comm.allreduce(nelec_tot)
 
             return rhoEmb_col, EnergyEmb_col, nelec_tot
-                
+
         def apply_dmu_loop(dmu):
             """
             loop over all impurities and apply dmu.
             """
             ImpHam_col = []
             for lattice_I, ImpHam_I, basis_I in zip(lattice, ImpHam, basis):
-                ImpHam_col.append(apply_dmu(lattice_I, ImpHam_I, basis_I, 
+                ImpHam_col.append(apply_dmu(lattice_I, ImpHam_I, basis_I,
                                             dmu, fit_ghf=fit_ghf, **kwargs))
             return ImpHam_col
 
@@ -208,11 +208,11 @@ class MuSolver(object):
                         nelec = brentq_value[1]
                         log.info("mu : %s, dnelec : %s", mu, nelec-filling*2)
                         return nelec - filling * 2
-                
+
                 nelec, rhoEmb, EnergyEmb = solve_with_mu_loop(mu)
                 log.info("mu : %s, dnelec : %s", mu, nelec-filling*2)
                 return nelec - filling*2
-            
+
             delta = brentq(func, lbound, rbound, xtol=1e-5, rtol=1e-5,
                            maxiter=20, full_output=False, disp=True)
             res = [rhoEmb, EnergyEmb, ImpHam, delta]
@@ -269,8 +269,8 @@ class MuSolver(object):
                 rhoEmb2, EnergyEmb2, nelec2 = solve_with_mu_loop(delta1)
                 record.append((delta1, nelec2))
                 log.result("nelec = %20.12f (target is %20.12f)", nelec2, filling*2)
-                
-                if abs(nelec2/(filling*2) - 1.) < thrnelec:    
+
+                if abs(nelec2/(filling*2) - 1.) < thrnelec:
                     ImpHam = apply_dmu_loop(delta1)
                     self.history.append(record)
                     res = [rhoEmb2, EnergyEmb2, ImpHam, delta1]
@@ -282,8 +282,8 @@ class MuSolver(object):
                     rhoEmb3, EnergyEmb3, nelec3 = solve_with_mu_loop(delta2)
                     record.append((delta2, nelec3))
                     log.result("nelec = %20.12f (target is %20.12f)", nelec3, filling * 2.0)
-                    
-                    if abs(nelec3/(filling*2) - 1.) < thrnelec:    
+
+                    if abs(nelec3/(filling*2) - 1.) < thrnelec:
                         ImpHam = apply_dmu_loop(delta2)
                         self.history.append(record)
                         res = [rhoEmb3, EnergyEmb3, ImpHam, delta2]
@@ -295,7 +295,7 @@ class MuSolver(object):
                         rhoEmb4, EnergyEmb4, nelec4 = solve_with_mu_loop(delta3)
                         record.append((delta3, nelec4))
                         log.result("nelec = %20.12f (target is %20.12f)", nelec4, filling * 2.0)
-                        
+
                         ImpHam = apply_dmu_loop(delta3)
                         self.history.append(record)
                         res = [rhoEmb4, EnergyEmb4, ImpHam, delta3]
@@ -479,7 +479,7 @@ class MuSolver(object):
 
 SolveImpHam_with_fitting = MuSolver(adaptive=True)
 
-def AFInitGuess(ImpSize, U, Filling, polar=None, bogoliubov=False, rand=0.0, 
+def AFInitGuess(ImpSize, U, Filling, polar=None, bogoliubov=False, rand=0.0,
                 subA=None, subB=None, subP=None, bogo_res=False, d_wave=False,
                 trace_zero=False):
     """
@@ -493,11 +493,11 @@ def AFInitGuess(ImpSize, U, Filling, polar=None, bogoliubov=False, rand=0.0,
     shift = U * Filling
     if polar is None:
         polar = shift * Filling
-    
+
     init_v = np.eye(nscsites) * shift
     if trace_zero:
         init_v[:] = 0.0
-    
+
     #init_p = np.diag([polar if s in subA else -polar for s in range(nscsites)])
     init_p = np.zeros_like(init_v)
     for i in range(nscsites):
@@ -538,7 +538,7 @@ def PMInitGuess(ImpSize, U, Filling, bogoliubov=False, rand=0.0):
     init_v = np.eye(nscsites) * shift
     v = VcorLocal(True, bogoliubov, nscsites)
     if bogoliubov:
-        init_d = np.zeros((nscsites, nscsites)) 
+        init_d = np.zeros((nscsites, nscsites))
         v.assign(np.asarray([init_v, int_v, init_d]))
     else:
         v.assign(np.asarray([init_v, init_v]))
@@ -576,7 +576,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
             nV = len(v_idx)
         else:
             raise NotImplementedError
-    
+
     if d_idx is None:
         if bogoliubov and restricted:
             nD = nidx * (nidx + 1) // 2
@@ -615,7 +615,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
                         g[idx,1,i,j] = g[idx,1,j,i] = 1
                     self.grad = g
                 return self.grad
-            
+
             def diag_indices(self):
                 if self.diag_idx is None:
                     self.diag_idx = [utils.triu_diag_indices(len(idx_range))]
@@ -637,7 +637,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
                         g[idx,1,i,j] = g[idx,1,j,i] = 1
                     self.grad = g
                 return self.grad
-            
+
             diag_idx = [idx for idx, (i, j) in enumerate(v_idx) if i == j]
             def diag_indices(self):
                 return diag_idx
@@ -659,7 +659,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
                     g[idx+nV//2,1,i,j] = g[idx+nV//2,1,j,i] = 1
                 self.grad = g
             return self.grad
-        
+
         def diag_indices(self):
             if self.diag_idx is None:
                 idx = utils.triu_diag_indices(len(idx_range))
@@ -686,7 +686,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
                         g[idx+nV,2,i,j] = g[idx+nV,2,j,i] = 1
                     self.grad = g
                 return self.grad
-            
+
             def diag_indices(self):
                 if self.diag_idx is None:
                     self.diag_idx = [utils.triu_diag_indices(len(idx_range))]
@@ -710,7 +710,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
                         g[idx+nV,2,i,j] = g[idx+nV,2,j,i] = 1
                     self.grad = g
                 return self.grad
-            
+
             def diag_indices(self):
                 if self.diag_idx is None:
                     self.diag_idx = [utils.triu_diag_indices(len(idx_range))]
@@ -726,7 +726,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
                     V[1,i,j] = V[1,j,i] = self.param[idx+nV//2]
                     V[2,i,j] = V[2,j,i] = self.param[idx+nV]
                 return V
-            
+
             def gradient(self):
                 if self.grad is None:
                     g = np.zeros((nV+nD, 3, nscsites, nscsites))
@@ -746,7 +746,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
                 for idx, (i,j) in enumerate(it.product(idx_range, repeat = 2)):
                     V[2,i,j] = self.param[idx+nV]
                 return V
-            
+
             def gradient(self):
                 if self.grad is None:
                     g = np.zeros((nV+nD, 3, nscsites, nscsites))
@@ -757,13 +757,13 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
                         g[idx+nV,2,i,j] = 1
                     self.grad = g
                 return self.grad
-        
+
         def diag_indices(self):
             if self.diag_idx is None:
                 idx = utils.triu_diag_indices(len(idx_range))
                 self.diag_idx = [idx, np.asarray(idx) + nV // 2]
             return self.diag_idx
-    
+
     def show(self):
         vcor_mat = self.get()
         string = "vcor\n"
@@ -773,7 +773,7 @@ def VcorLocal(restricted, bogoliubov, nscsites, idx_range=None, bogo_res=False,
         string += str(vcor_mat[np.ix_(np.arange(vcor_mat.shape[0]), idx_range,
                                       idx_range)])
         return string
-    
+
     v.evaluate = types.MethodType(evaluate, v)
     v.gradient = types.MethodType(gradient, v)
     v.diag_indices = types.MethodType(diag_indices, v)
@@ -790,7 +790,7 @@ def VcorRestricted(restricted, bogoliubov, active_sites, core_sites,
     """
     Full correlation potential for active sites,
     diagonal potential for core sites.
-    
+
     Args:
         restricted: restricted on v.
         bogoliubov: whether include delta.
@@ -808,7 +808,7 @@ def VcorRestricted(restricted, bogoliubov, active_sites, core_sites,
         nscsites = nAct + nCor
     else:
         if nscsites != nAct + nCor:
-            log.warn("nscsites (%s) != nAct (%s) + nCor (%s)", nscsites, 
+            log.warn("nscsites (%s) != nAct (%s) + nCor (%s)", nscsites,
                      nAct, nCor)
 
     if restricted:
@@ -937,7 +937,7 @@ def VcorRestricted(restricted, bogoliubov, active_sites, core_sites,
     v.update(np.zeros(v.length()))
     return v
 
-def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None, 
+def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
              bogo_res=False):
     """
     Local correlation potential. Point group symmetry.
@@ -953,7 +953,7 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
         vcor: vcor object.
     """
     # param will be (nirep, spin, nV+nD)
-    
+
     if idx_range is None:
         idx_range = list(range(0, nscsites))
     idx_mesh = np.ix_(idx_range, idx_range)
@@ -964,7 +964,7 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
     nD_list   = []
     for C in C_symm:
         nidx = C.shape[-1]
-        
+
         if restricted:
             nV = nidx * (nidx + 1) // 2
         else:
@@ -983,7 +983,7 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
         norb_list.append(nidx)
         nV_list.append(nV)
         nD_list.append(nD)
-    
+
     assert np.sum(norb_list) == C_symm[0].shape[0]
     assert len(idx_range) == C_symm[0].shape[0]
     nparam_tot = np.sum(nV_list) + np.sum(nD_list)
@@ -1016,13 +1016,13 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
 
     elif not restricted and not bogoliubov:
         def evaluate(self):
-            log.eassert(self.param.shape == (nparam_tot,), 
+            log.eassert(self.param.shape == (nparam_tot,),
                         "wrong parameter shape, require %s", (nparam_tot,))
             V = np.zeros((2, nscsites, nscsites))
             stepi = 0
             for irep, C in enumerate(C_symm):
                 nstep = nV_list[irep] // 2
-                
+
                 stepf = stepi + nstep
                 V[0][idx_mesh] += mdot(C, lib.unpack_tril(self.param[stepi:stepf]), C.conj().T)
                 stepi = stepf
@@ -1039,7 +1039,7 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
                 for irep, C in enumerate(C_symm):
                     nstep = nV_list[irep] // 2
                     tmp = np.zeros((nstep,))
-                    
+
                     stepf = stepi + nstep
                     for i in range(nstep):
                         tmp[:] = 0.0
@@ -1055,7 +1055,7 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
                     stepi = stepf
                 self.grad = g
             return self.grad
-        
+
         def diag_indices(self):
             if self.diag_idx is None:
                 idx_a = []
@@ -1103,7 +1103,7 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
                     V[1,i,j] = V[1,j,i] = self.param[idx+nV//2]
                     V[2,i,j] = V[2,j,i] = self.param[idx+nV]
                 return V
-            
+
             def gradient(self):
                 if self.grad is None:
                     g = np.zeros((nV+nD, 3, nscsites, nscsites))
@@ -1123,7 +1123,7 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
                 for idx, (i,j) in enumerate(it.product(idx_range, repeat = 2)):
                     V[2,i,j] = self.param[idx+nV]
                 return V
-            
+
             def gradient(self):
                 if self.grad is None:
                     g = np.zeros((nV+nD, 3, nscsites, nscsites))
@@ -1143,7 +1143,7 @@ def VcorSymm(restricted, bogoliubov, nscsites, C_symm, idx_range=None,
     v.update(np.zeros(v.length()))
     return v
 
-def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None, 
+def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                  bogo_res=False):
     """
     Local correlation potential. Point group symmetry + spin symmetry.
@@ -1160,11 +1160,11 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
         vcor: vcor object.
     """
     # param will be (nirep, spin, nV+nD)
-    
+
     if idx_range is None:
         idx_range = list(range(0, nscsites))
     idx_mesh = np.ix_(idx_range, idx_range)
-    
+
     assert (not restricted)
     assert len(Ca) == len(Cb)
 
@@ -1174,7 +1174,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
     nD_list   = []
     for C in Ca:
         nidx = C.shape[-1]
-        
+
         nV = nidx * (nidx + 1) // 2
         if bogoliubov:
             if bogo_res:
@@ -1187,7 +1187,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
         norb_list.append(nidx)
         nV_list.append(nV)
         nD_list.append(nD)
-    
+
     assert np.sum(norb_list) == Ca[0].shape[0]
     assert len(idx_range) == Ca[0].shape[0]
     nparam_tot = np.sum(nV_list) + np.sum(nD_list)
@@ -1201,10 +1201,10 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
 
     if restricted and not bogoliubov:
         raise NotImplementedError
-    
+
     elif not restricted and not bogoliubov:
         def evaluate(self):
-            log.eassert(self.param.shape == (nparam_tot,), 
+            log.eassert(self.param.shape == (nparam_tot,),
                         "wrong parameter shape, require %s", (nparam_tot,))
             V = np.zeros((2, nscsites, nscsites))
             stepi = 0
@@ -1223,7 +1223,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                 for irep, (ca, cb) in enumerate(zip(Ca, Cb)):
                     nstep = nV_list[irep]
                     tmp = np.zeros((nstep,))
-                    
+
                     stepf = stepi + nstep
                     for i in range(nstep):
                         tmp[:] = 0.0
@@ -1234,7 +1234,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                     stepi = stepf
                 self.grad = g
             return self.grad
-        
+
         def diag_indices(self):
             return None
 
@@ -1244,7 +1244,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
     else: # not restricted and bogoliubov
         if bogo_res:
             def evaluate(self):
-                log.eassert(self.param.shape == (nparam_tot,), 
+                log.eassert(self.param.shape == (nparam_tot,),
                             "wrong parameter shape, require %s", (nparam_tot,))
                 V = np.zeros((3, nscsites, nscsites))
                 stepi = 0
@@ -1254,13 +1254,13 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                     V[0][idx_mesh] += mdot(ca, lib.unpack_tril(self.param[stepi:stepf]), ca.conj().T)
                     V[1][idx_mesh] -= mdot(cb, lib.unpack_tril(self.param[stepi:stepf]), cb.conj().T)
                     stepi = stepf
-                    
+
                     nstep = nD_list[irep]
                     stepf = stepi + nstep
                     V[2][idx_mesh] += mdot(ca, lib.unpack_tril(self.param[stepi:stepf]), ca.conj().T)
                     stepi = stepf
                 return V
-            
+
             # ZHC FIXME here does not always agree with numerical one.
             # might be a bug, or related to the change of particle number?
             def gradient(self):
@@ -1270,7 +1270,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                     for irep, (ca, cb) in enumerate(zip(Ca, Cb)):
                         nstep = nV_list[irep]
                         tmp = np.zeros((nstep,))
-                         
+
                         stepf = stepi + nstep
                         for i in range(nstep):
                             tmp[:] = 0.0
@@ -1289,12 +1289,12 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
 
                     self.grad = g
                 return self.grad
-            
+
             def diag_indices(self):
                 return None
         else: # not bogo res
             def evaluate(self):
-                log.eassert(self.param.shape == (nparam_tot,), 
+                log.eassert(self.param.shape == (nparam_tot,),
                             "wrong parameter shape, require %s", (nparam_tot,))
                 V = np.zeros((3, nscsites, nscsites))
                 stepi = 0
@@ -1304,7 +1304,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                     V[0][idx_mesh] += mdot(ca, lib.unpack_tril(self.param[stepi:stepf]), ca.conj().T)
                     V[1][idx_mesh] -= mdot(cb, lib.unpack_tril(self.param[stepi:stepf]), cb.conj().T)
                     stepi = stepf
-                    
+
                     nstep = nD_list[irep]
                     stepf = stepi + nstep
                     V[2][idx_mesh] += mdot(ca, self.param[stepi:stepf].reshape(ca.shape[-1], ca.shape[-1]),
@@ -1319,7 +1319,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                     for irep, (ca, cb) in enumerate(zip(Ca, Cb)):
                         nstep = nV_list[irep]
                         tmp = np.zeros((nstep,))
-                        
+
                         stepf = stepi + nstep
                         for i in range(nstep):
                             tmp[:] = 0.0
@@ -1339,7 +1339,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
 
                     self.grad = g
                 return self.grad
-            
+
             def diag_indices(self):
                 return None
 
@@ -1351,7 +1351,7 @@ def VcorSymmSpin(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
     v.update(np.zeros(v.length()))
     return v
 
-def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None, 
+def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                  bogo_res=False):
     """
     Local correlation potential. Point group symmetry + spin symmetry.
@@ -1369,11 +1369,11 @@ def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
         vcor: vcor object.
     """
     # param will be (nirep, spin, nV+nD)
-    
+
     if idx_range is None:
         idx_range = list(range(0, nscsites))
     idx_mesh = np.ix_(idx_range, idx_range)
-    
+
     assert bogoliubov
     assert (not restricted)
     assert len(Ca) == len(Cb)
@@ -1390,7 +1390,7 @@ def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
 
         norb_list.append(nidx)
         nD_list.append(nD)
-    
+
     assert np.sum(norb_list) == Ca[0].shape[0]
     assert len(idx_range) == Ca[0].shape[0]
     nparam_tot = np.sum(nD_list)
@@ -1404,7 +1404,7 @@ def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
 
     if restricted and not bogoliubov:
         raise NotImplementedError
-    
+
     elif not restricted and not bogoliubov:
         raise NotImplementedError
 
@@ -1414,7 +1414,7 @@ def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
     else: # not restricted and bogoliubov
         if bogo_res:
             def evaluate(self):
-                log.eassert(self.param.shape == (nparam_tot,), 
+                log.eassert(self.param.shape == (nparam_tot,),
                             "wrong parameter shape, require %s", (nparam_tot,))
                 V = np.zeros((3, nscsites, nscsites))
                 stepi = 0
@@ -1424,7 +1424,7 @@ def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
                     V[2][idx_mesh] += mdot(ca, lib.unpack_tril(self.param[stepi:stepf]), ca.conj().T)
                     stepi = stepf
                 return V
-            
+
             # ZHC FIXME here does not always agree with numerical one.
             # might be a bug, or related to the change of particle number?
             def gradient(self):
@@ -1443,12 +1443,12 @@ def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
 
                     self.grad = g
                 return self.grad
-            
+
             def diag_indices(self):
                 return None
         else: # not bogo res
             def evaluate(self):
-                log.eassert(self.param.shape == (nparam_tot,), 
+                log.eassert(self.param.shape == (nparam_tot,),
                             "wrong parameter shape, require %s", (nparam_tot,))
                 V = np.zeros((3, nscsites, nscsites))
                 stepi = 0
@@ -1476,7 +1476,7 @@ def VcorSymmBogo(restricted, bogoliubov, nscsites, Ca, Cb, idx_range=None,
 
                     self.grad = g
                 return self.grad
-            
+
             def diag_indices(self):
                 return None
 
@@ -1498,7 +1498,7 @@ VcorKpoints = vcor.VcorKpoints
 
 addDiag = slater.addDiag
 
-make_vcor_trace_unchanged = slater.make_vcor_trace_unchanged 
+make_vcor_trace_unchanged = slater.make_vcor_trace_unchanged
 
 FitVcor = slater.FitVcorTwoStep
 

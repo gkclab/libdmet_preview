@@ -25,7 +25,7 @@ def test_mfd():
 
     log.verbose = "DEBUG2"
     np.set_printoptions(3, linewidth=1000, suppress=True)
-    
+
     cell = gto.Cell()
     cell.a = ''' 10.0    0.0     0.0
                  0.0     10.0    0.0
@@ -140,7 +140,7 @@ def test_mfd():
     from libdmet.routine.slater_helper import get_rho_glob_R
     rho_glob = get_rho_glob_R(basis[0], Lat, rdm1_emb, symmetric=False)
     print ("rho_glob diff", max_abs(rho_glob - Lat.rdm1_lo_R))
-    
+
     from libdmet.routine.slater import get_H_dmet
     ImpHam_scaled = get_H_dmet(basis, Lat, ImpHam, 0.0, compact=False)
     h1_scaled = ImpHam_scaled.H1["cd"][0]
@@ -183,7 +183,7 @@ def test_mfd():
     nelecas = (Lat.ncore+Lat.nval)*2
     #ImpHam, _ = slater.get_emb_Ham(Lat, basis, vcor)
     #last_dmu = 0.0
- 
+
     fcisolver = FCI(restricted=True)
     solver = dmet.impurity_solver.CASCI(ncas=ncas, nelecas=nelecas, \
                 splitloc=False, cisolver=fcisolver, mom_reorder=False, tmpDir="./tmp")

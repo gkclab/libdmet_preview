@@ -14,7 +14,7 @@ def test_vca_all_elec():
     import libdmet.utils.logger as log
     log.verbose = "DEBUG1"
     np.set_printoptions(3, linewidth=1000, suppress=True)
-    
+
     pos = os.path.dirname(os.path.realpath(__file__)) + "/CCO.pos"
     pos_ghost = os.path.dirname(os.path.realpath(__file__)) + "/CCO-ghost.pos"
 
@@ -35,7 +35,7 @@ def test_vca_all_elec():
     cell.nelectron = (nelec0 * nkpts - nelec_dop) / nkpts
     charges_old = np.array(cell.atom_charges(), dtype=float)
     portion = nelec_dop / (n_Ca * charges_old[-1] * nkpts)
-    
+
     occ = 1.0 - (nelec_dop / (n_Ca * charges_old[-1] * nkpts))
     atom_idx = np.arange(len(charges_old) - n_Ca, len(charges_old))
 
@@ -92,7 +92,7 @@ def test_vca_pseudo():
     import libdmet.utils.logger as log
     log.verbose = "DEBUG1"
     np.set_printoptions(3, linewidth=1000, suppress=True)
-    
+
     pos = os.path.dirname(os.path.realpath(__file__)) + "/CCO.pos"
     pos_ghost = os.path.dirname(os.path.realpath(__file__)) + "/CCO-ghost.pos"
 
@@ -115,7 +115,7 @@ def test_vca_pseudo():
     cell.nelectron = (nelec0 * nkpts - nelec_dop) / nkpts
     charges_old = np.array(cell.atom_charges(), dtype=float)
     portion = nelec_dop / (n_Ca * charges_old[-1] * nkpts)
-    
+
     occ = 1.0 - (nelec_dop / (n_Ca * charges_old[-1] * nkpts))
     atom_idx = np.arange(len(charges_old) - n_Ca, len(charges_old))
 
@@ -130,7 +130,7 @@ def test_vca_pseudo():
     kmf = scf.KUHF(cell, kpts).density_fit()
     hcore_full = kmf.get_hcore()
     hcore_new = hcore_full + pbc_hp.get_veff_vca(gdf, atom_idx, occ, kpts_symm=None)
-    
+
     # ghost cell reference
     cell_ghost = read_poscar(fname=pos_ghost)
     cell_ghost.basis = cell.basis
@@ -142,7 +142,7 @@ def test_vca_pseudo():
 
     vnuc_Ca = np.asarray(gdf_ghost.get_pp(kpts))
     hcore_ref = hcore_full - vnuc_Ca * portion
-    
+
     diff = max_abs(hcore_ref - hcore_new)
     print ("diff to reference")
     print (diff)

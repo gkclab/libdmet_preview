@@ -31,11 +31,11 @@ einsum = partial(np.einsum, optimize=True)
 def separate_basis(basis, copy=False):
     """
     Separate the basis to alpha and beta spins.
-    
+
     Args:
         basis: (nkpts, nso, nbasis) [can be in R or k space]
         copy: whether to make new array.
-    
+
     Returns:
         basis_a: (nkpts, nao, nbasis)
         basis_b: (nkpts, nao, nbasis)
@@ -49,29 +49,29 @@ def transform_spinless_mol(h1, D, h2):
     """
     Transform a Hamiltonian with singlet pairing to spinless form.
     h1 + D c^d c^d + h2
-    
+
     Args:
         h1 (2, norb, norb), aa, bb, ab
         D  (norb, norb)
         h2 (3, norb, norb, norb, norb), aa, bb, ab
-    
+
     Returns:
         Ham
     """
     h1_a, h1_b = h1
     h2_aa, h2_bb, h2_ab = h2
     norb = h1_a.shape[-1]
-    
+
     H0 = 0.0
-    H1 = np.zeros((3, norb, norb)) 
+    H1 = np.zeros((3, norb, norb))
     H2 = np.zeros((3,) + (norb,)*4)
-    
+
     # transform h1_a, h1_b, D
     H0 += h1_b.trace()
     H1[0] =  h1_a
     H1[1] = -h1_b.T
     H1[2] = D
-    
+
     # transform h2_aa
     H2[0] = h2_aa
 
@@ -79,18 +79,18 @@ def transform_spinless_mol(h1, D, h2):
     H0 += 0.5 * (einsum('iikk->', h2_bb) - einsum('ijji->', h2_bb))
     H1[1] += (einsum('ijki -> jk', h2_bb) - einsum('ijkk -> ij', h2_bb))
     H2[1] = h2_bb
-    
+
     # transform h2_ab and h2_ba
     H1[0] += einsum('ijkk -> ij', h2_ab)
     H2[2] = -np.swapaxes(h2_ab, -1, -2)
 
-    return integral.Integral(norb, restricted=False, bogoliubov=False, 
+    return integral.Integral(norb, restricted=False, bogoliubov=False,
                              H0=H0, H1={"cd": H1}, H2={"ccdd": H2})
 
 def Ham_compact2full(Ham):
     """
     Convert the compact format of spinless Ham to full format.
-    
+
     full format:
         H1 has shape (nso, nso)
         H2 has shape (nso, nso, nso, nso)
@@ -105,16 +105,16 @@ def Ham_compact2full(Ham):
     if Ham.H1["cd"].shape[0] == 3:
         H1[:norb, norb:] = Ham.H1["cd"][2]
         H1[norb:, :norb] = Ham.H1["cd"][2].conj().T
-    
+
     H2 = misc.tile_eri(Ham.H2["ccdd"][0], Ham.H2["ccdd"][1], Ham.H2["ccdd"][2])
-    
-    return integral.Integral(nso, restricted=False, bogoliubov=False, 
+
+    return integral.Integral(nso, restricted=False, bogoliubov=False,
                              H0=H0, H1={"cd": H1[None]}, H2={"ccdd": H2[None]})
 
 def Ham_full2compact(Ham):
     """
     Convert the full format of spinless Ham to compact format.
-    
+
     compact format:
         H1 (3, norb, norb)
         H2 (3,) + (norb,)*4
@@ -122,15 +122,15 @@ def Ham_full2compact(Ham):
     nso = Ham.norb
     norb = nso // 2
     H0 = Ham.H0
-    
+
     H1 = np.zeros((3, norb, norb))
     H1[0] = Ham.H1["cd"][:norb, :norb]
     H1[1] = Ham.H1["cd"][norb:, norb:]
     H1[2] = Ham.H1["cd"][:norb, norb:]
-    
+
     H2 = np.asarray(misc.untile_eri(Ham.H2["ccdd"]))
 
-    return integral.Integral(norb, restricted=False, bogoliubov=False, 
+    return integral.Integral(norb, restricted=False, bogoliubov=False,
                              H0=H0, H1={"cd": H1}, H2={"ccdd": H2})
 
 def Ham_compact2uhf(Ham, eri_spin=1):
@@ -158,7 +158,7 @@ def Ham_compact2uhf(Ham, eri_spin=1):
     H2[0, :norb, :norb, norb:, norb:] = Ham.H2["ccdd"][2]
     H2[0, norb:, norb:, :norb, :norb] = \
             Ham.H2["ccdd"][2].transpose(3, 2, 1, 0).conj()
-    return integral.Integral(nso, restricted=False, bogoliubov=False, 
+    return integral.Integral(nso, restricted=False, bogoliubov=False,
                              H0=H0, H1={"cd": H1}, H2={"ccdd": H2})
 
 def Ham_uhf2compact(Ham):
@@ -168,18 +168,18 @@ def Ham_uhf2compact(Ham):
     nso = Ham.norb
     norb = nso // 2
     H0 = Ham.H0
-    
+
     H1 = np.zeros((3, norb, norb))
     H1[0] = Ham.H1["cd"][0, :norb, :norb]
     H1[1] = Ham.H1["cd"][0, norb:, norb:]
     H1[2] = Ham.H1["cd"][0, :norb, norb:]
-    
+
     H2 = np.zeros((3,) + (norb,)*4)
     H2[0] = Ham.H2["ccdd"][0, :norb, :norb, :norb, :norb]
     H2[1] = Ham.H2["ccdd"][0, norb:, norb:, norb:, norb:]
     H2[2] = Ham.H2["ccdd"][0, :norb, :norb, norb:, norb:]
 
-    return integral.Integral(norb, restricted=False, bogoliubov=False, 
+    return integral.Integral(norb, restricted=False, bogoliubov=False,
                              H0=H0, H1={"cd": H1}, H2={"ccdd": H2})
 
 def extract_rdm1(GRho):
@@ -191,7 +191,7 @@ def extract_rdm1(GRho):
         k_ba = -k_ab.T
     """
     norbs = GRho.shape[0] // 2
-    log.eassert(norbs * 2 == GRho.shape[0], 
+    log.eassert(norbs * 2 == GRho.shape[0],
                 "generalized density matrix dimension error")
     rhoA = np.array(GRho[:norbs, :norbs], copy=True)
     rhoB = np.eye(norbs) - GRho[norbs:, norbs:].T
@@ -202,7 +202,7 @@ extractRdm = extract_rdm1
 
 def extract_rdm12(GRdm1, GRdm2):
     """
-    Extract the rdm1 (in aa, bb, ab order) 
+    Extract the rdm1 (in aa, bb, ab order)
     and normal rdm2 (in aaaa, bbbb, aabb order)
     from the generalized GRdm1 and GRdm2.
 
@@ -219,16 +219,16 @@ def extract_rdm12(GRdm1, GRdm2):
     nso = GRdm2.shape[-1]
     nao = nso // 2
     I = np.eye(nao)
-    
+
     GRdm1_aa = GRdm1[:nao, :nao]
     GRdm1_bb = GRdm1[nao:, nao:]
     GRdm1_ab = GRdm1[:nao, nao:]
-    
+
     rdm1 = np.zeros((3, nao, nao))
     rdm1[0] = GRdm1_aa
     rdm1[1] = I - GRdm1_bb.T
     rdm1[2] = GRdm1_ab
-    
+
     rdm2 = np.zeros((3, nao, nao, nao, nao))
     rdm2[0] = GRdm2[:nao, :nao, :nao, :nao]
 
@@ -247,11 +247,11 @@ def extract_rdm12(GRdm1, GRdm2):
 def idx_ao2so(idx_list, nao):
     """
     Given index in atomic orbitals, return index in the spin orbitals.
-    
+
     Args:
         idx_list: index list.
         nao: number of AO.
-    
+
     Returns:
         idx_a
         idx_b
@@ -261,7 +261,7 @@ def idx_ao2so(idx_list, nao):
 def get_H2_mask(nao, neo):
     """
     Get mask for fill the impurity block of GH2 with unit H2.
-    
+
     Args:
         nao: number of AO.
         neo: number of EO.
@@ -303,8 +303,8 @@ def unit2emb(H2_unit, neo):
     spin_pair = H2_unit.shape[0]
     assert spin_pair == 3
     nao = int(np.sqrt(H2_unit.shape[-1] * 2))
-    mask_aa, mask_bb, mask_ab, mask_ba = get_H2_mask(nao, neo) 
-    
+    mask_aa, mask_bb, mask_ab, mask_ba = get_H2_mask(nao, neo)
+
     H2_emb = init_H2(neo, 4)
     H2_emb[mask_aa] = H2_unit[0]
     H2_emb[mask_bb] = H2_unit[1]
@@ -318,14 +318,14 @@ def unit2emb(H2_unit, neo):
 
 def transform_eri_local(basis_Ra, basis_Rb, H2, symm=4):
     """
-    Transform the spin local H2 to embedding space. 
+    Transform the spin local H2 to embedding space.
     Used for interacting bath formalism.
-    
+
     Args:
         basis_Ra: (ncells, nao, neo)
         basis_Rb: (ncells, nao, neo)
         H2: (3, nao, nao, nao, nao) or (3, nao_pair, nao_pair)
-    
+
     Returns:
         GH2_emb: (neo,)*4 or (neo_pair, neo_pair)
     """
@@ -335,11 +335,11 @@ def transform_eri_local(basis_Ra, basis_Rb, H2, symm=4):
 
     GH2_emb = np.zeros((neo_pair, neo_pair))
     for i in range(ncells):
-        GH2_emb += ao2mo.incore.general(H2[0], (basis_Ra[i], basis_Ra[i], 
+        GH2_emb += ao2mo.incore.general(H2[0], (basis_Ra[i], basis_Ra[i],
                                                 basis_Ra[i], basis_Ra[i]), compact=True)
-        GH2_emb += ao2mo.incore.general(H2[1], (basis_Rb[i], basis_Rb[i], 
+        GH2_emb += ao2mo.incore.general(H2[1], (basis_Rb[i], basis_Rb[i],
                                                 basis_Rb[i], basis_Rb[i]), compact=True)
-        tmp = ao2mo.incore.general(H2[2], (basis_Ra[i], basis_Ra[i], 
+        tmp = ao2mo.incore.general(H2[2], (basis_Ra[i], basis_Ra[i],
                                            basis_Rb[i], basis_Rb[i]), compact=True)
         GH2_emb += tmp
         GH2_emb += tmp.T
@@ -350,12 +350,12 @@ def transform_trans_inv_k(basis_ka, basis_kb, H_k):
     """
     Transform a translational invariant quantity from LO to EO,
     using k-basis and k-one-particle quantities.
-    
+
     Args:
         basis_ka: (nkpts, nao, nbasis)
         basis_kb: (nkpts, nao, nbasis)
         H_k: (2 or 3, nkpts, nao, nao)
-    
+
     Returns:
         GH_emb: (nbasis, nbasis)
     """
@@ -363,7 +363,7 @@ def transform_trans_inv_k(basis_ka, basis_kb, H_k):
     assert H_k.ndim == 4
     assert (H_k.shape[0] == 2) or (H_k.shape[0] == 3)
     nkpts, nao, nbasis = basis_ka.shape
-    
+
     GH_emb = np.zeros((nbasis, nbasis), dtype=np.complex128)
     # aa, bb contribution
     for k in range(nkpts):
@@ -382,15 +382,15 @@ def transform_trans_inv_k(basis_ka, basis_kb, H_k):
 
 def transform_local(basis_Ra, basis_Rb, H):
     """
-    Transform a local quantity from LO to EO. 
-    
+    Transform a local quantity from LO to EO.
+
     Args:
         basis_Ra: (ncells, nao, nbasis)
         basis_Rb: (ncells, nao, nbasis)
         H: (2 or 3, nao, nao)
-    
+
     Returns:
-        GH_emb: (nbasis, nbasis) 
+        GH_emb: (nbasis, nbasis)
     """
     H = np.asarray(H)
     assert (H.shape[0] == 2) or (H.shape[0] == 3)
@@ -410,16 +410,16 @@ def transform_local(basis_Ra, basis_Rb, H):
 
 def transform_imp(basis_Ra, basis_Rb, H):
     """
-    Transform a local quantity from LO to EO, 
-    only keep the impurity part. 
-    
+    Transform a local quantity from LO to EO,
+    only keep the impurity part.
+
     Args:
         basis_Ra: (ncells, nao, nbasis)
         basis_Rb: (ncells, nao, nbasis)
         H: (2 or 3, nao, nao)
-    
+
     Returns:
-        GH_emb: (nbasis, nbasis) 
+        GH_emb: (nbasis, nbasis)
     """
     H = np.asarray(H)
     assert (H.shape[0] == 2) or (H.shape[0] == 3)
@@ -439,20 +439,20 @@ def transform_imp(basis_Ra, basis_Rb, H):
 # global density matrix
 # *************************************************************************************************************
 
-def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True, 
+def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
                    sign=None):
     """
     Get rho_glob in site basis, in stripe shape.
     Use democratic partitioning.
     Average of the IJ blocks from I and from J impurity problem.
-    
+
     Args:
         basis: C_lo_eo, (ncells, nso, neo), or list of C_so_eo.
         lattice: lattice object, or list of lattices
         rho_emb: rdm1, (neo, neo), or list of rdm1.
 
     Returns:
-        rho_glob_R: global rdm1, 
+        rho_glob_R: global rdm1,
                     if compact (ncells, nso, nso)
                     else       (ncells*nso, ncells*nso).
     """
@@ -464,7 +464,7 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
         basis_col = basis
         lattice_col = lattice
         rho_emb_col = rho_emb
-    
+
     if sign is None:
         sign = np.ones(len(lattice_col), dtype=int)
     else:
@@ -474,14 +474,14 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
 
     rho_glob = 0.0
     I_idx = 0
-    
-    for basis_I, lattice_I, rho_emb_I, sign_I in zip(basis_col, lattice_col, 
+
+    for basis_I, lattice_I, rho_emb_I, sign_I in zip(basis_col, lattice_col,
                                                      rho_emb_col, sign):
-        log.debug(0, "Build rdm1_glob, impurity %s, indices: %s, sign: %s", 
+        log.debug(0, "Build rdm1_glob, impurity %s, indices: %s, sign: %s",
                   I_idx, format_idx(lattice_I.imp_idx), sign_I)
         basis_I = np.asarray(basis_I)
         ncells, nso, _ = basis_I.shape
-        
+
         if compact:
             rho_R = np.zeros((ncells * nso, nso))
             for R in range(ncells):
@@ -496,7 +496,7 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
                 imp_env = np.ix_(imp_idx, env_idx_0)
                 env_imp = np.ix_(env_idx, imp_idx_0)
                 env_env = np.ix_(env_idx, env_idx_0)
-                
+
                 log.debug(3, "rdm1_glob: R %s", R)
                 C_R = basis_other.reshape(-1, basis_other.shape[-1])
                 rdm1_R = mdot(C_R, rho_emb_I, C_R[:nso].conj().T)
@@ -516,7 +516,7 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
                 imp_env = np.ix_(imp_idx, env_idx)
                 env_imp = np.ix_(env_idx, imp_idx)
                 env_env = np.ix_(env_idx, env_idx)
-                
+
                 log.debug(3, "rdm1_glob: R %s", R)
                 C_R = basis_other.reshape(-1, basis_other.shape[-1])
                 rdm1_R = mdot(C_R, rho_emb_I, C_R.conj().T)
@@ -529,11 +529,11 @@ def get_rho_glob_R(basis, lattice, rho_emb, symmetric=True, compact=True,
         I_idx += 1
     return rho_glob
 
-def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True, 
+def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True,
                    sign=None):
     if sign is not None:
         compact = False
-    
+
     rho_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric,
                            compact=compact, sign=sign)
 
@@ -549,7 +549,7 @@ def get_rho_glob_k(basis, lattice, rho_emb, symmetric=True, compact=True,
             rho_k = lattice.R2k(lattice.extract_stripe(rho_R))
     return rho_k
 
-def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True, 
+def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True,
                       sign=None):
     """
     Get rho_glob in site basis, in full shape.
@@ -557,7 +557,7 @@ def get_rho_glob_full(basis, lattice, rho_emb, symmetric=True, compact=True,
     """
     if sign is not None:
         compact = False
-    rho_glob_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric, 
+    rho_glob_R = get_rho_glob_R(basis, lattice, rho_emb, symmetric=symmetric,
                                 compact=compact, sign=sign)
     if compact:
         if isinstance(lattice, Iterable):

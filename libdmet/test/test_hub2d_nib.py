@@ -10,8 +10,8 @@ def test_hub2d_nib():
 
     np.set_printoptions(4, linewidth=1000, suppress=True)
     log.verbose = "DEBUG2"
-    
-    U = 6.0 
+
+    U = 6.0
     LatSize = [40, 40]
     ImpSize = [2, 2]
     Filling = 1.0 / 2
@@ -52,7 +52,7 @@ def test_hub2d_nib():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -60,21 +60,21 @@ def test_hub2d_nib():
         rho, Mu, res = dmet.HartreeFock(Lat, vcor, Filling, Mu, ires=True)
         E_mf = res["E"] / nscsites
         log.result("Mean-field energy (per site): %s", E_mf)
-    
+
         log.section("\nconstructing impurity problem\n")
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=False, int_bath=int_bath)
-        ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu) 
+        ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
 
         log.section("\nsolving impurity problem\n")
         solver_args = {"nelec": (Lat.ncore+Lat.nval)*2, \
                 "dm0": dmet.foldRho_k(res["rho_k"], basis_k)}
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
                 dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
                 solver_args)
         dmet.SolveImpHam_with_fitting.save("./frecord")
-        
+
         last_dmu += dmu
         rhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
@@ -93,31 +93,31 @@ def test_hub2d_nib():
             ddiagV = np.average(np.diagonal(\
                     (vcor_new.get()-vcor.get())[:2], 0, 1, 2))
             vcor_new = dmet.addDiag(vcor_new, -ddiagV)
-        
+
         # DIIS
         if iter >= DiisStart:
             pvcor = adiis.update(np.hstack((vcor_new.param)))
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = np.hstack((vcor_new.param))
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
-        
+
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         log.info("trace of vcor: %s", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp], dtype = object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter)
-        
+
         if dVcor_per_ele < 1.0e-5 and abs(dE) < 1.0e-5 and iter > 3 :
             conv = True
             break
-    
+
     assert abs(EnergyImp - -0.652114179764) < 1e-4
 
     if conv:
@@ -132,8 +132,8 @@ def test_hub2d_nib_uccsd():
 
     np.set_printoptions(4, linewidth=1000, suppress=True)
     log.verbose = "DEBUG2"
-    
-    U = 6.0 
+
+    U = 6.0
     LatSize = [40, 40]
     ImpSize = [2, 2]
     Filling = 1.0 / 2
@@ -164,7 +164,7 @@ def test_hub2d_nib_uccsd():
     vcor = dmet.AFInitGuess(ImpSize, U, Filling)
 
     cisolver = dmet.impurity_solver.CCSD(restricted=restricted)
-    solver = cisolver 
+    solver = cisolver
 
     E_old = 0.0
     conv = False
@@ -174,7 +174,7 @@ def test_hub2d_nib_uccsd():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -186,18 +186,18 @@ def test_hub2d_nib_uccsd():
 
         log.section("\nconstructing impurity problem\n")
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=False, int_bath=int_bath)
-        ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu) 
+        ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
 
         log.section("\nsolving impurity problem\n")
         solver_args = {"nelec": (Lat.ncore+Lat.nval)*2, \
                 "dm0": dmet.foldRho_k(res["rho_k"], basis_k)}
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
                 dmet.SolveImpHam_with_fitting(Lat, Filling, ImpHam, basis, solver, \
                 solver_args)
         dmet.SolveImpHam_with_fitting.save("./frecord")
-        
+
         last_dmu += dmu
         rhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
@@ -216,27 +216,27 @@ def test_hub2d_nib_uccsd():
             ddiagV = np.average(np.diagonal(\
                     (vcor_new.get()-vcor.get())[:2], 0, 1, 2))
             vcor_new = dmet.addDiag(vcor_new, -ddiagV)
-        
+
         # DIIS
         if iter >= DiisStart:
             pvcor = adiis.update(np.hstack((vcor_new.param)))
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = np.hstack((vcor_new.param))
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
-        
+
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         log.info("trace of vcor: %s", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp], dtype = object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter)
-        
+
         if dVcor_per_ele < 1.0e-5 and abs(dE) < 1.0e-5 and iter > 3 :
             conv = True
             break
@@ -244,7 +244,7 @@ def test_hub2d_nib_uccsd():
         log.result("DMET converged")
     else:
         log.result("DMET cannot converge")
-    
+
     assert abs(EnergyImp - -0.650255236756) < 1e-4
 
 if __name__ == "__main__":

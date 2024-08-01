@@ -11,12 +11,12 @@ from pyscf.fci import direct_spin1, direct_uhf, cistring
 import pyscf.lib.logger as pyscflogger
 from libdmet.solver import scf
 from libdmet.solver.scf import ao2mo_Ham, restore_Ham
-from libdmet.basis_transform.make_basis import transform_rdm1_to_ao_mol, transform_rdm2_to_ao_mol 
+from libdmet.basis_transform.make_basis import transform_rdm1_to_ao_mol, transform_rdm2_to_ao_mol
 from libdmet.utils.misc import mdot
 
 def make_rdm1_ghf(fcivec, norb, nelec, link_index=None):
     """
-    rdm1 for ghf type FCI. 
+    rdm1 for ghf type FCI.
     """
     if link_index is None:
         neleca, nelecb = direct_spin1._unpack_nelec(nelec)
@@ -31,8 +31,8 @@ def make_rdm2_ghf(fcivec, norb, nelec, link_index=None, reorder=True):
     """
     rdm2 for ghf type FCI.
     """
-    dm1a, dm2aa = direct_spin1.rdm.make_rdm12_spin1('FCIrdm12kern_a', fcivec, 
-                                                    fcivec, norb, nelec, 
+    dm1a, dm2aa = direct_spin1.rdm.make_rdm12_spin1('FCIrdm12kern_a', fcivec,
+                                                    fcivec, norb, nelec,
                                                     link_index, 1)
     if reorder:
         dm1a, dm2aa = direct_spin1.rdm.reorder_rdm(dm1a, dm2aa, inplace=True)
@@ -54,12 +54,12 @@ class FCI(object):
         self.beta = beta
         self.conv_tol = tol
         self.max_memory = max_memory
-        
+
         if (not self.restricted) and (not self.ghf):
             self.cisolver = direct_uhf.FCI()
         else: # RHF and GHF
             self.cisolver = direct_spin1.FCI()
-        
+
         self.cisolver.max_memory = self.max_memory
         self.cisolver.max_cycle = max_cycle
         self.cisolver.conv_tol = self.conv_tol
@@ -68,13 +68,13 @@ class FCI(object):
         else:
             self.cisolver.verbose = 5
         self.scfsolver = scf.SCF(newton_ah=scf_newton)
-        
+
         self.fcivec = None
         self.onepdm = None
         self.twopdm = None
         self.compact_rdm2 = compact_rdm2 # consider symm of rdm2
         self.optimized = False
-    
+
     def run(self, Ham, nelec=None, guess=None, calc_rdm2=False,
             pspace_size=800, Mu=None, **kwargs):
         """
@@ -107,7 +107,7 @@ class FCI(object):
 
         if self.ghf:
             log.eassert(nelec_b == 0, "GHF FCI need all particle alpha spin.")
-            self.scfsolver.set_system(nelec, 0, False, False, 
+            self.scfsolver.set_system(nelec, 0, False, False,
                                       max_memory=self.max_memory)
             self.scfsolver.set_integral(Ham)
             E_HF, rhoHF = self.scfsolver.GGHF(tol=min(1e-10, self.conv_tol*0.1),
@@ -121,13 +121,13 @@ class FCI(object):
             self.scfsolver.set_integral(Ham)
             E_HF, rhoHF = self.scfsolver.HF(tol=min(1e-10, self.conv_tol*0.1),
                                             MaxIter=scf_max_cycle,
-                                            InitGuess=dm0, Mu=Mu, 
+                                            InitGuess=dm0, Mu=Mu,
                                             alpha=self.alpha,
                                             beta=self.beta)
 
         log.debug(1, "FCI solver: mean-field converged: %s",
                   self.scfsolver.mf.converged)
-        
+
         if "mo_energy_custom" in kwargs:
             self.scfsolver.mf.mo_energy = kwargs["mo_energy_custom"]
         if "mo_occ_custom" in kwargs:
@@ -136,7 +136,7 @@ class FCI(object):
             log.info("Use customized MO as reference.")
             self.scfsolver.mf.mo_coeff = kwargs["mo_coeff_custom"]
             self.scfsolver.mf.e_tot = self.scfsolver.mf.energy_tot()
-        
+
         log.debug(2, "FCI solver: mean-field rdm1: \n%s",
                   self.scfsolver.mf.make_rdm1())
 
@@ -170,10 +170,10 @@ class FCI(object):
                 mo_coeff = self.scfsolver.mf.mo_coeff[0]
                 Mu_mat = mdot(mo_coeff.conj().T, Mu_mat, mo_coeff)
                 h1[0] += Mu_mat
-                
+
             # always convert to the convention of pyscf: aaaa, aabb, bbbb
             h2 = Ham.H2["ccdd"][[0, 2, 1]] # ZHC NOTE order
-        
+
         # guess
         if guess == "random":
             na = cistring.num_strings(Ham.norb, nelec_a)
@@ -182,7 +182,7 @@ class FCI(object):
             ci0 /= la.norm(ci0)
         else:
             ci0 = None
-        
+
         # run
         E, self.fcivec = self.cisolver.kernel(h1, h2, Ham.norb, self.nelec,
                                               ci0=ci0, ecore=Ham.H0,
@@ -196,13 +196,13 @@ class FCI(object):
                 E -= np.einsum('pq, qp', Mu_mat, self.onepdm_mo[0])
         if calc_rdm2:
             self.make_rdm2(Ham)
-        
+
         self.optimized = True
         self.E = E
         log.info("FCI solver converged: %s", self.cisolver.converged)
         log.info("FCI total energy: %s", self.E)
         return self.onepdm, E
-    
+
     def run_dmet_ham(self, Ham, last_aabb=True, **kwargs):
         """
         Run scaled DMET Hamiltonian.
@@ -212,7 +212,7 @@ class FCI(object):
         Ham = ao2mo_Ham(Ham, self.scfsolver.mf.mo_coeff, compact=True,
                         in_place=True)
         Ham = restore_Ham(Ham, 1, in_place=True)
-        
+
         # calculate rdm2 in aa, bb, ab order
         self.make_rdm2(Ham)
         if self.ghf:
@@ -222,7 +222,7 @@ class FCI(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('pq, qp', h1, r1)
             E2 = np.einsum('pqrs, pqrs', h2, r2) * 0.5
         elif Ham.restricted:
@@ -232,7 +232,7 @@ class FCI(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('pq, qp', h1[0], r1[0]) * 2.0
             E2 = np.einsum('pqrs, pqrs', h2[0], r2[0]) * 0.5
         else:
@@ -244,20 +244,20 @@ class FCI(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('spq, sqp', h1, r1)
-            
+
             E2_aa = 0.5 * np.einsum('pqrs, pqrs', h2[0], r2[0])
             E2_bb = 0.5 * np.einsum('pqrs, pqrs', h2[1], r2[1])
             E2_ab = np.einsum('pqrs, pqrs', h2[2], r2[2])
             E2 = E2_aa + E2_bb + E2_ab
-        
+
         E = E1 + E2
         E += Ham.H0
-        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, " 
+        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, "
                   "E2 = %20.12f, E = %20.12f", Ham.H0, E1, E2, E)
         return E
-    
+
     def make_rdm1(self, Ham):
         log.debug(1, "FCI solver: solve rdm1")
         if self.ghf: # GHF
@@ -272,12 +272,12 @@ class FCI(object):
             onepdm = self.cisolver.make_rdm1s(self.fcivec, Ham.norb,
                                               self.nelec)
             self.onepdm_mo = np.asarray(onepdm)
-        
+
         # rotate back to the AO basis
         log.debug(1, "FCI solver: rotate rdm1 to AO")
-        self.onepdm = transform_rdm1_to_ao_mol(self.onepdm_mo, 
+        self.onepdm = transform_rdm1_to_ao_mol(self.onepdm_mo,
                                                self.scfsolver.mf.mo_coeff)
-    
+
     def make_rdm2(self, Ham, ao_repr=False):
         log.debug(1, "FCI solver: solve rdm2")
         if self.ghf:
@@ -288,14 +288,14 @@ class FCI(object):
         else:
             self.twopdm_mo = np.asarray(self.cisolver.make_rdm12s(self.fcivec,
                                         Ham.norb, self.nelec)[1])
-        
+
         if ao_repr:
             log.debug(1, "FCI solver: rotate rdm2 to AO")
-            self.twopdm = transform_rdm2_to_ao_mol(self.twopdm_mo, 
+            self.twopdm = transform_rdm2_to_ao_mol(self.twopdm_mo,
                                                    self.scfsolver.mf.mo_coeff)
         else:
             self.twopdm = None
-        
+
         # ZHC NOTE change to aa, bb, ab
         if not Ham.restricted and not self.ghf:
             self.twopdm_mo = self.twopdm_mo[[0, 2, 1]]
@@ -356,7 +356,7 @@ class FCI_AO(object):
             h1 = Ham.H1["cd"]
             # always convert to the convention of pyscf: aaaa, aabb, bbbb
             h2 = Ham.H2["ccdd"][order] # ZHC NOTE order
-        
+
         # guess
         if guess == "random":
             na = cistring.num_strings(Ham.norb, nelec//2)
@@ -376,22 +376,22 @@ class FCI_AO(object):
         else:
             onepdm, twopdm = self.cisolver.make_rdm12s(self.fcivec, Ham.norb, nelec)
             self.onepdm = np.asarray(onepdm)
-            # ZHC NOTE order should be consistent with H2 
-            self.twopdm = np.asarray(twopdm)[order] 
+            # ZHC NOTE order should be consistent with H2
+            self.twopdm = np.asarray(twopdm)[order]
         E += Ham.H0
         return self.onepdm, E
-    
+
     def run_dmet_ham(self, Ham, last_aabb=True, **kwargs):
         """
         Run scaled DMET Hamiltonian.
         """
-        
+
         Ham = restore_Ham(Ham, 1, in_place=True)
         if last_aabb: # last is aabb, move it to middle
             order = [0, 2, 1]
         else:
             order = [0, 1, 2]
-        
+
         if self.ghf:
             h1 = Ham.H1["cd"][0]
             h2 = Ham.H2["ccdd"][0]
@@ -417,7 +417,7 @@ class FCI_AO(object):
             E2_a = 0.5 * np.tensordot(r2[0], h2[0], axes=((0,1,2,3), (0,1,2,3)))
             E2_ab = np.tensordot(r2[1], h2[1], axes=((0,1,2,3), (0,1,2,3)))
             E2_b = 0.5 * np.tensordot(r2[2], h2[2], axes=((0,1,2,3), (0,1,2,3)))
-            E = E1 + E2_a + E2_b + E2_ab 
+            E = E1 + E2_a + E2_b + E2_ab
         E += Ham.H0
         return E
 

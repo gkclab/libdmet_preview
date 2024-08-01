@@ -331,7 +331,7 @@ def update_amps_ite(cc, t1, t2, eris):
 #    u2aa /= lib.direct_sum('ia+jb->ijab', eia_a, eia_a)
 #    u2ab /= lib.direct_sum('ia+jb->ijab', eia_a, eia_b)
 #    u2bb /= lib.direct_sum('ia+jb->ijab', eia_b, eia_b)
-    
+
     # ZHC NOTE imaginary time evolution
     dt = cc.dt
     eia_a = lib.direct_sum('i-a->ia', mo_ea_o, mo_ea_v)
@@ -341,7 +341,7 @@ def update_amps_ite(cc, t1, t2, eris):
     u1a += t1a * (1.0 + dt * eia_a)
     u1b *= (-dt)
     u1b += t1b * (1.0 + dt * eia_b)
-    
+
     #t2new  = t2 - dt * (t2new - eijab * t2)
     eijab_aa = lib.direct_sum('ia, jb -> ijab', eia_a, eia_a)
     u2aa *= (-dt)
@@ -349,14 +349,14 @@ def update_amps_ite(cc, t1, t2, eris):
     eijab_aa += 1.0
     u2aa += t2aa * eijab_aa
     t2aa = eijab_aa = None
-    
+
     eijab_ab = lib.direct_sum('ia, jb -> ijab', eia_a, eia_b)
     u2ab *= (-dt)
     eijab_ab *= dt
     eijab_ab += 1.0
     u2ab += t2ab * eijab_ab
     t2ab = eijab_ab = None
-    
+
     eijab_bb = lib.direct_sum('ia, jb -> ijab', eia_b, eia_b)
     u2bb *= (-dt)
     eijab_bb *= dt
@@ -415,7 +415,7 @@ if __name__ == '__main__':
     mycc.direct = True
     ecc, t1, t2 = mycc.kernel()
     print(ecc - -0.2133432712431435)
-    
+
     print(mycc.ccsd_t() - -0.003060021865720902)
 
     e,v = mycc.ipccsd(nroots=8)

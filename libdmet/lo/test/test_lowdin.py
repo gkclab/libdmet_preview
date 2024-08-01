@@ -17,7 +17,7 @@ def test_lowdin():
     from pyscf.pbc import scf, gto, df, dft
     from libdmet.system import lattice
     from libdmet.lo import lowdin
-    
+
     cell = gto.Cell()
     cell.a = ''' 10.0    0.0     0.0
                  0.0     10.0    0.0
@@ -61,59 +61,59 @@ def test_lowdin():
         kmf.max_cycle = 300
         kmf.chkfile = chkfname
         kmf.kernel()
-    
+
     # 1. restricted test
     mo_energy = np.asarray(kmf.mo_energy)
     mo_coeff = np.asarray(kmf.mo_coeff)
     ovlp = np.asarray(kmf.get_ovlp())
     # MOs should be orthogonal at each k point
     assert lowdin.check_orthonormal(mo_coeff, ovlp)
-    
+
     # occupied should be orthogornal to virtual
     assert lowdin.check_orthogonal(mo_coeff[:, :, :2], mo_coeff[:, :, 2:], \
             ovlp)
     # definitely not span the same space
     assert not lowdin.check_span_same_space(mo_coeff[:, :, :2], \
             mo_coeff[:, :, 2:], ovlp)
-    
+
     # first should be orthogonal to others
     assert lowdin.check_orthogonal(mo_coeff[:, :, :1], mo_coeff[:, :, 3:], \
             ovlp)
-     
+
     # Lowdin orbitals should span the same space
     C_ao_lo = lowdin.lowdin_k(kmf)
     assert lowdin.check_span_same_space(mo_coeff, C_ao_lo, ovlp)
-    
+
     # check postive definite
-    assert lowdin.check_positive_definite(ovlp) 
-    
+    assert lowdin.check_positive_definite(ovlp)
+
     # get_labels, should be just ao_labels
     labels = lowdin.give_labels_to_lo(kmf, C_ao_lo)
     ao_labels = np.asarray(cell.ao_labels())
     assert (ao_labels == labels).all()
 
     # 2. unrestricted test
-    kmf = scf.addons.convert_to_uhf(kmf) 
+    kmf = scf.addons.convert_to_uhf(kmf)
     mo_energy = np.asarray(kmf.mo_energy)
     mo_coeff = np.asarray(kmf.mo_coeff)
     ovlp = np.asarray(kmf.get_ovlp())
     # MOs should be orthogonal at each k point
     assert lowdin.check_orthonormal(mo_coeff, ovlp)
-    
+
     # occupied should be orthogornal to virtual
     assert lowdin.check_orthogonal(mo_coeff[:, :, :, :2], mo_coeff[:, :, :, 2:], \
             ovlp)
     # definitely not span the same space
     assert not lowdin.check_span_same_space(mo_coeff[:, :, :, :2], \
             mo_coeff[:, :, :, 2:], ovlp)
-    
+
     # first should be orthogonal to others
     assert lowdin.check_orthogonal(mo_coeff[:, :, :, :1], mo_coeff[:, :, :, 3:], \
             ovlp)
-    
+
     # check postive definite
     assert lowdin.check_positive_definite(np.array((ovlp, ovlp)))
-     
+
     # Lowdin orbitals should span the same space
     C_ao_lo = lowdin.lowdin_k(kmf)
     assert lowdin.check_span_same_space(mo_coeff, C_ao_lo, ovlp)
@@ -134,14 +134,14 @@ def test_lowdin_mol():
         basis = 'ccpvdz')
     myhf = mol.HF()
     myhf.kernel()
-    
+
     # 1. restricted test
     mo_energy = np.asarray(myhf.mo_energy)
     mo_coeff = np.asarray(myhf.mo_coeff)
     ovlp = np.asarray(myhf.get_ovlp())
     # MOs should be orthogonal
     assert lowdin.check_orthonormal(mo_coeff, ovlp)
-    
+
     # occupied should be orthogornal to others
     assert lowdin.check_orthogonal(mo_coeff[:, :2], mo_coeff[:, 2:], \
             ovlp)
@@ -151,37 +151,37 @@ def test_lowdin_mol():
     # first should be orthogonal to others
     assert lowdin.check_orthogonal(mo_coeff[:, :1], mo_coeff[:, 3:], \
             ovlp)
-     
+
     # Lowdin orbitals should span the same space
     C_ao_lo = lowdin.lowdin(myhf)
     assert lowdin.check_span_same_space(mo_coeff, C_ao_lo, ovlp)
-    
+
     # check postive definite
-    assert lowdin.check_positive_definite(ovlp) 
-    
+    assert lowdin.check_positive_definite(ovlp)
+
     # 2. unrestricted test
-    myhf = scf.addons.convert_to_uhf(myhf) 
+    myhf = scf.addons.convert_to_uhf(myhf)
     mo_energy = np.asarray(myhf.mo_energy)
     mo_coeff = np.asarray(myhf.mo_coeff)
     ovlp = np.asarray(myhf.get_ovlp())
     # MOs should be orthogonal at each k point
     assert lowdin.check_orthonormal(mo_coeff, ovlp)
-    
+
     # occupied should be orthogornal to virtual
     assert lowdin.check_orthogonal(mo_coeff[:, :, :2], mo_coeff[:, :, -2:], \
             ovlp)
     # definitely not span the same space
     assert not lowdin.check_span_same_space(mo_coeff[:, :, :2], \
             mo_coeff[:, :, -2:], ovlp)
-    
+
     # first should be orthogonal to others
     assert lowdin.check_orthogonal(mo_coeff[:, :, :1], mo_coeff[:, :, 3:], \
             ovlp)
-     
+
     # Lowdin orbitals should span the same space
     C_ao_lo = lowdin.lowdin_k(myhf)
     assert lowdin.check_span_same_space(mo_coeff, C_ao_lo, ovlp)
-    
+
     # check postive definite
     assert lowdin.check_positive_definite(np.array((ovlp, ovlp)))
 
@@ -191,7 +191,7 @@ def test_lowdin_2():
     a = -np.eye(4)
     assert not lowdin.check_positive_definite(a)
     assert not lowdin.check_positive_definite(a[None])
-    
+
     a_orth = lowdin.vec_lowdin(a[None], np.eye(4))
     assert lowdin.check_orthonormal(a, np.eye(4))
 

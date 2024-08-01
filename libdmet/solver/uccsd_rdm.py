@@ -20,7 +20,7 @@
 
 import numpy as np
 from pyscf import lib
-from pyscf.cc.uccsd_rdm import (_gamma1_intermediates, make_rdm1, 
+from pyscf.cc.uccsd_rdm import (_gamma1_intermediates, make_rdm1,
                                 _make_rdm1, _dm2ab_mo2ao)
 
 einsum = lib.einsum
@@ -31,7 +31,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     t2aa, t2ab, t2bb = t2
     l1a, l1b = l1
     l2aa, l2ab, l2bb = l2
-    
+
     tauaa  = np.einsum('ia, jb -> ijab', t1a * 2.0, t1a)
     tauaa += t2aa
     tauab  = np.einsum('ia, jb -> ijab', t1a, t1b)
@@ -41,7 +41,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
 
     miajb  = einsum('ikac, kjcb -> iajb', l2aa, t2aa)
     miajb += einsum('ikac, jkbc -> iajb', l2ab, t2ab)
-    
+
     miaJB  = einsum('ikac, kjcb -> iajb', l2aa, t2ab)
     miaJB += einsum('ikac, kjcb -> iajb', l2ab, t2bb)
 
@@ -52,9 +52,9 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     mIAJB += einsum('kica, kjcb -> iajb', l2ab, t2ab)
 
     miAjB = einsum('ikca, jkcb -> iajb', l2ab, t2ab)
-    
+
     mIaJb = einsum('kiac, kjbc -> iajb', l2ab, t2ab)
-    
+
     # oovv
     goovv = (l2aa.conj() + tauaa) * 0.25
     goOvV = (l2ab.conj() + tauab) * 0.5
@@ -113,22 +113,22 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     tmpaa = einsum('klcd,ijcd->ijkl', l2aa, tauaa) * .25**2
     goovv += einsum('ijkl,klab->ijab', tmpaa, tauaa)
     tmpaa = None
-    
+
     tmpabab = einsum('kLcD,iJcD->iJkL', l2ab, tauab) * .5
     goOvV += einsum('ijkl,klab->ijab', tmpabab, tauab)
     tmpabab = None
-    
+
     tmpbb = einsum('klcd,ijcd->ijkl', l2bb, taubb) * .25**2
     gOOVV += einsum('ijkl,klab->ijab', tmpbb, taubb)
     tmpbb = None
-    
+
     # ovov, OVOV, ovOV
     goovv = goovv.conj()
     dovov = goovv.transpose(0,2,1,3) - goovv.transpose(0,3,1,2)
     dovov =(dovov + dovov.transpose(2,3,0,1)) * .5
     h5fobj['dovov'] = dovov
     dovov = goovv = None
-    
+
     gOOVV = gOOVV.conj()
     dOVOV = gOOVV.transpose(0,2,1,3) - gOOVV.transpose(0,3,1,2)
     dOVOV =(dOVOV + dOVOV.transpose(2,3,0,1)) * .5
@@ -138,7 +138,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     goOvV = goOvV.conj()
     h5fobj['dovOV'] = goOvV.transpose(0,2,1,3)
     goOvV = None
-    
+
     dOVov = None
 
     # vvvv
@@ -147,13 +147,13 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     dvvvv = dvvvv + dvvvv.transpose(1,0,3,2).conj()
     h5fobj['dvvvv'] = dvvvv
     dvvvv = None
-    
+
     # ovvv
     tmpa  = np.einsum('kakb->ab', miajb) * .25
     tmpa += np.einsum('kakb->ab', mIaJb) * .25
     tmpb  = np.einsum('kakb->ab', mIAJB) * .25
     tmpb += np.einsum('kakb->ab', miAjB) * .25
-    
+
     govvv = einsum('ja,ijcb->iacb', .25 * l1a, tauaa)
     govvv += einsum('bcad,id->iabc', gvvvv, t1a)
     gvvvv = None
@@ -173,7 +173,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     h5fobj['dvvVV'] = dvvVV
     dvvVV = None
 
-    # ovVV  
+    # ovVV
     goVvV = einsum('ja,ijcb->iacb', .5  * l1b, tauab)
     goVvV -= einsum('bcda,id->iabc', gvVvV, t1a * 2.0)
     goVvV += einsum('ab,ic->iacb', tmpb, t1a)
@@ -191,10 +191,10 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     h5fobj['dVVVV'] = dVVVV
     dVVVV = None
 
-    # OVVV 
+    # OVVV
     gOVVV = einsum('ja,ijcb->iacb', .25 * l1b, taubb)
     gOVVV += einsum('bcad,id->iabc', gVVVV, t1b)
-    gVVVV = None 
+    gVVVV = None
     gOVVV += einsum('ab,ic->iacb', tmpb, t1b)
     gOVVV += einsum('kaib,kc->iabc', mIAJB, .5 * t1b)
     gOVVV = gOVVV.conj()
@@ -203,8 +203,8 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     gOVVV = None
     h5fobj['dOVVV'] = dOVVV
     dOVVV = None
-    
-    # OVvv 
+
+    # OVvv
     gOvVv = einsum('ja,jibc->iacb', .5  * l1a, tauab)
     gOvVv -= einsum('cbad,id->iabc', gvVvV, t1b * 2.0)
     gOvVv += einsum('ab,ic->iacb', tmpa, t1b)
@@ -216,14 +216,14 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     gOvVv = None
     h5fobj['dOVvv'] = dOVvv
     dOVvv = None
-    
+
     # oooo
     goooo = einsum('ijab,klab->ijkl', l2aa, tauaa) * .125
     doooo = goooo.transpose(0,2,1,3) - goooo.transpose(0,3,1,2)
     doooo = doooo + doooo.transpose(1,0,3,2).conj()
     h5fobj['doooo'] = doooo
     doooo = None
-    
+
     # ooov
     tmpa  = np.einsum('icjc->ij', miajb) * .25
     tmpa += np.einsum('icjc->ij', miAjB) * .25
@@ -240,14 +240,14 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     dooov = gooov.transpose(0,2,1,3) - gooov.transpose(1,2,0,3)
     h5fobj['dooov'] = dooov
     dooov = None
-    
+
     # ooOO
     goOoO = einsum('ijab,klab->ijkl', l2ab, tauab) * .25
     dooOO = goOoO.transpose(0,2,1,3) * 2
     dooOO = dooOO + dooOO.transpose(1,0,3,2).conj()
     h5fobj['dooOO'] = dooOO
     dooOO = None
-    
+
     # ooOV
     goOoV = einsum('jkba,ib->jkia', tauab, -0.5  * l1a)
     goOoV += einsum('iljk,la->jkia', goOoO, t1b * 2.0)
@@ -272,14 +272,14 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     dOOov = gOoOv.transpose(0,2,1,3)
     h5fobj['dOOov'] = dOOov
     dOOov = gOoOv = None
-    
+
     # OOOO
     gOOOO = einsum('ijab,klab->ijkl', l2bb, taubb) * .125
     dOOOO = gOOOO.transpose(0,2,1,3) - gOOOO.transpose(0,3,1,2)
     dOOOO = dOOOO + dOOOO.transpose(1,0,3,2).conj()
     h5fobj['dOOOO'] = dOOOO
     dOOOO = None
-    
+
     # OOOV
     gOOOV = einsum('jkba,ib->jkia', taubb, -0.25 * l1b)
     gOOOV += einsum('iljk,la->jkia', gOOOO, t1b)
@@ -292,7 +292,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     gOOOV = None
     h5fobj['dOOOV'] = dOOOV
     dOOOV = None
-    
+
     # ovvo
     # iajb -> ibaj, miajb
     govvo  = miajb.transpose(0, 3, 1, 2)
@@ -305,7 +305,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     h5fobj['doovv'] = doovv
     doovv = dovvo = None
     dvvov = None
-    
+
     # ovVO, OVvo
     # iajb->ibaj, miaJB
     goVvO  = miaJB.transpose(0, 3, 1, 2)
@@ -339,7 +339,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     gOVVO = None
     dOVVO = None
     dOOVV = None
-    
+
     # ooVV
     # iajb->ibja, miAjB
     goVoV  = miAjB.transpose(0, 3, 2, 1)
@@ -348,7 +348,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
     dooVV = (dooVV + dooVV.transpose(1,0,3,2).conj()) * (-0.5)
     h5fobj['dooVV'] = dooVV
     dooVV = goVoV = None
-    
+
     # OOvv
     # iajb->ibja, mIaJb
     gOvOv  = mIaJb.transpose(0, 3, 2, 1)
@@ -378,7 +378,7 @@ def _gamma2_outcore(cc, t1, t2, l1, l2, h5fobj, compress_vvvv=False):
 def _gamma2_intermediates(mycc, t1, t2, l1, l2, compress_vvvv=False):
     f = lib.H5TmpFile()
     _gamma2_outcore(mycc, t1, t2, l1, l2, f, compress_vvvv)
-    
+
     d2 = ((f['dovov'][:], f['dovOV'][:], None, f['dOVOV'][:]),
           (f['dvvvv'][:], f['dvvVV'][:], None, f['dVVVV'][:]),
           (f['doooo'][:], f['dooOO'][:], None, f['dOOOO'][:]),

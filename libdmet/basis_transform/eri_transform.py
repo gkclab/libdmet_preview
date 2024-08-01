@@ -42,13 +42,13 @@ def _ifftn_wrapper(a):
 # External API
 # *****************************************************************************
 
-def get_emb_eri(cell, mydf, C_ao_lo=None, basis=None, unit_eri=False, 
-                symmetry=4, t_reversal_symm=True, max_memory=None, swap_idx=None, 
-                feri=None, kscaled_center=None, kconserv_tol=KPT_DIFF_TOL, 
+def get_emb_eri(cell, mydf, C_ao_lo=None, basis=None, unit_eri=False,
+                symmetry=4, t_reversal_symm=True, max_memory=None, swap_idx=None,
+                feri=None, kscaled_center=None, kconserv_tol=KPT_DIFF_TOL,
                 incore=True, fout="H2.h5", **kwargs):
     """
     Get embedding ERIs with density fitting.
-    
+
     Args:
         cell: cell object.
         mydf: density fitting object, can be: gdf, fft, aft, mdf.
@@ -62,7 +62,7 @@ def get_emb_eri(cell, mydf, C_ao_lo=None, basis=None, unit_eri=False,
         feri: eri file name, will be depricate.
         kscaled_center: kpoint center shift.
         kconserv_tol: tolerance for k point conservation.
-    
+
     Returns:
         eri: embedding ERI.
     """
@@ -75,10 +75,10 @@ def get_emb_eri(cell, mydf, C_ao_lo=None, basis=None, unit_eri=False,
                 feri = mydf._cderi
             driver = eri_transform_mpi.get_emb_eri_fast_gdf
             return driver(mydf.cell, feri, kpts=mydf.kpts, C_ao_lo=C_ao_lo,
-                          basis=basis, feri=feri, 
-                          kscaled_center=kscaled_center, symmetry=symmetry, 
-                          max_memory=max_memory, kconserv_tol=kconserv_tol, 
-                          unit_eri=unit_eri, swap_idx=swap_idx, 
+                          basis=basis, feri=feri,
+                          kscaled_center=kscaled_center, symmetry=symmetry,
+                          max_memory=max_memory, kconserv_tol=kconserv_tol,
+                          unit_eri=unit_eri, swap_idx=swap_idx,
                           t_reversal_symm=t_reversal_symm, incore=incore, fout=fout)
         else:
             driver = get_emb_eri_fast_gdf
@@ -88,28 +88,28 @@ def get_emb_eri(cell, mydf, C_ao_lo=None, basis=None, unit_eri=False,
         driver = get_emb_eri_fast_aft
     else:
         raise ValueError("Unknown DF type for embedding ERI construction.")
-    return driver(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri, 
-                  kscaled_center=kscaled_center, symmetry=symmetry, 
-                  max_memory=max_memory, kconserv_tol=kconserv_tol, 
-                  unit_eri=unit_eri, swap_idx=swap_idx, 
+    return driver(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri,
+                  kscaled_center=kscaled_center, symmetry=symmetry,
+                  max_memory=max_memory, kconserv_tol=kconserv_tol,
+                  unit_eri=unit_eri, swap_idx=swap_idx,
                   t_reversal_symm=t_reversal_symm, incore=incore, fout=fout)
 
-def get_unit_eri(cell, mydf, C_ao_lo=None, symmetry=4, t_reversal_symm=True, 
-                 max_memory=None, swap_idx=None, feri=None, kscaled_center=None, 
+def get_unit_eri(cell, mydf, C_ao_lo=None, symmetry=4, t_reversal_symm=True,
+                 max_memory=None, swap_idx=None, feri=None, kscaled_center=None,
                  kconserv_tol=KPT_DIFF_TOL, incore=True, fout="H2.h5", **kwargs):
     """
     Get unit ERIs.
-    
+
     See get_emb_eri for details.
     """
     C_ao_lo = np.asarray(C_ao_lo)
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
     basis = np.empty_like(C_ao_lo)
-    return get_emb_eri(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri, 
-                       kscaled_center=kscaled_center, symmetry=symmetry, 
-                       max_memory=max_memory, kconserv_tol=kconserv_tol, unit_eri=True, 
-                       swap_idx=swap_idx, t_reversal_symm=t_reversal_symm, 
+    return get_emb_eri(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri,
+                       kscaled_center=kscaled_center, symmetry=symmetry,
+                       max_memory=max_memory, kconserv_tol=kconserv_tol, unit_eri=True,
+                       swap_idx=swap_idx, t_reversal_symm=t_reversal_symm,
                        incore=incore, fout=fout, **kwargs)
 
 # *****************************************************************************
@@ -190,7 +190,7 @@ def get_naoaux(gdf):
         log.warn("aux basis drop may happened.")
     return naux
 
-def sr_loop(gdf, kpti_kptj=np.zeros((2, 3)), max_memory=2000, compact=True, 
+def sr_loop(gdf, kpti_kptj=np.zeros((2, 3)), max_memory=2000, compact=True,
             blksize=None):
     if gdf._cderi is None:
         gdf.build()
@@ -228,9 +228,9 @@ def sr_loop(gdf, kpti_kptj=np.zeros((2, 3)), max_memory=2000, compact=True,
 # GDF ERI construction
 # *****************************************************************************
 
-def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None, 
-                         kscaled_center=None, symmetry=4, max_memory=None, 
-                         kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None, 
+def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
+                         kscaled_center=None, symmetry=4, max_memory=None,
+                         kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None,
                          t_reversal_symm=True, incore=True, fout="H2.h5"):
     """
     Fast routine to compute embedding space ERI on the fly.
@@ -241,7 +241,7 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         symmetry: embedding ERI symmetry
         max_memory: maximum memory
         t_reversal_symm: whether to use time reversal symmetry
-    
+
     Returns:
         eri: embedding ERI.
     """
@@ -256,21 +256,21 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
             mydf._cderi = feri
     # treat the possible drop of aux-basis at some kpts.
     naux = get_naoaux(mydf)
-    
+
     # If C_ao_lo and basis not given, this routine is k2gamma AO transformation
     if C_ao_lo is None:
         C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
         C_ao_lo[:, range(nao), range(nao)] = 1.0 # identity matrix for each k
-    
+
     # add spin dimension for restricted C_ao_lo
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
-    
+
     # possible kpts shift
     kscaled = cell.get_scaled_kpts(kpts)
     if kscaled_center is not None:
         kscaled -= kscaled_center
-    
+
     # basis related
     if basis is None:
         basis = np.eye(nkpts * nao).reshape(1, nkpts, nao, nkpts * nao)
@@ -278,7 +278,7 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         basis = add_spin_dim(basis, C_ao_lo.shape[0])
     if C_ao_lo.shape[0] < basis.shape[0]:
         C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
-    
+
     if unit_eri: # unit ERI for DMFT
         C_ao_emb = C_ao_lo / (nkpts**0.75)
     else:
@@ -287,7 +287,7 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     spin, _, _, nemb = C_ao_emb.shape
     nemb_pair = nemb * (nemb+1) // 2
     res_shape = (spin * (spin+1) // 2, nemb_pair, nemb_pair)
-    
+
     # ERI construction
     # ZHC NOTE outcore ERI is aa, bb, ab order.
     if t_reversal_symm:
@@ -318,7 +318,7 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     blksize = max(16, min(int(blksize), mydf.blockdim))
     Lij_s4 = np.empty((spin, naux, nemb_pair), dtype=np.complex128)
     buf = np.empty((spin * blksize * nemb_pair,), dtype=np.complex128)
-    
+
     nL_acc = 0
     for kL in range(nkpts):
         if weights[kL] <= 0:
@@ -334,18 +334,18 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
                 kconserv = -kscaled[i] + kscaled[j] + kscaled[kL]
                 if max_abs(np.round(kconserv) - kconserv) > kconserv_tol:
                     continue
-                log.debug(2, "kL: %4s [%6.3f %6.3f %6.3f], " 
-                             "ki: %4s [%6.3f %6.3f %6.3f], " 
-                             "kj: %4s [%6.3f %6.3f %6.3f] ", 
+                log.debug(2, "kL: %4s [%6.3f %6.3f %6.3f], "
+                             "ki: %4s [%6.3f %6.3f %6.3f], "
+                             "kj: %4s [%6.3f %6.3f %6.3f] ",
                           kL, *kscaled[kL], i, *kscaled[i], j, *kscaled[j])
 
                 if t_reversal_symm:
                     jm = kpt_member(-kscaled[j], kscaled)
                     assert len(jm) == 1
                     jm = jm[0]
-                
+
                 step0, step1 = 0, 0
-                for Lpq in sr_loop(mydf, [kpti, kptj], max_memory=max_memory, 
+                for Lpq in sr_loop(mydf, [kpti, kptj], max_memory=max_memory,
                                    compact=False, blksize=blksize):
                     lchunk = Lpq.shape[0]
                     step0, step1 = step1, step1 + lchunk
@@ -354,29 +354,29 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
                               Lpq_beta=Lpq_beta).reshape(-1, nemb, nemb)
 
                     if t_reversal_symm and (not i_visited[jm]):
-                        lib.hermi_sum(Lij_loc, axes=(0, 2, 1), 
+                        lib.hermi_sum(Lij_loc, axes=(0, 2, 1),
                                       hermi=lib.SYMMETRIC, inplace=True)
 
                     lib.pack_tril(Lij_loc, out=buf)
                     Lij_s4[:, step0:step1] += buf[:(spin * lchunk * \
                                               nemb_pair)].reshape(spin, \
                                               lchunk, nemb_pair)
-                    
+
                 Lpq = Lpq_beta = Lij_loc = None
                 if t_reversal_symm:
                     i_visited[jm] = True
-        
+
         log.debug(1, "ERI contraction for kL: %5s / %-5s ", nL_acc, nibz)
-        _Lij_s4_to_eri(Lij_s4, eri, weight=weights[kL], 
+        _Lij_s4_to_eri(Lij_s4, eri, weight=weights[kL],
                        t_reversal_symm=t_reversal_symm)
     Lij_s4 = buf = None
-    
+
     if isinstance(eri, np.ndarray):
         if not t_reversal_symm:
             eri_imag_norm = max_abs(eri.imag)
             log.info('ERI imaginary = %s', eri_imag_norm)
             if eri_imag_norm > ERI_IMAG_TOL:
-                log.warn("ERI has imaginary part > %s (%s)", ERI_IMAG_TOL, 
+                log.warn("ERI has imaginary part > %s (%s)", ERI_IMAG_TOL,
                          eri_imag_norm)
             eri = eri.real
         log.debug(1, "ERI restore")
@@ -387,8 +387,8 @@ get_emb_eri_fast = get_emb_eri_fast_gdf
 
 def transform_ao_to_emb(Lpq, basis, kp, kq, Lpq_beta=None):
     """
-    Give Lpq (in AO basis) of shape (nL, nao*nao), 
-    embedding basis after Fourier transform, kp, kq, 
+    Give Lpq (in AO basis) of shape (nL, nao*nao),
+    embedding basis after Fourier transform, kp, kq,
     return Lij in embedding basis.
 
     Args:
@@ -410,7 +410,7 @@ def transform_ao_to_emb(Lpq, basis, kp, kq, Lpq_beta=None):
         Lpq = [Lpq, Lpq_beta]
     nL = Lpq[0].shape[0]
     Lij = np.empty((spin, nL, nemb*nemb), dtype=np.complex128)
-    
+
     tao = []
     ao_loc = None
     for s in range(spin):
@@ -420,7 +420,7 @@ def transform_ao_to_emb(Lpq, basis, kp, kq, Lpq_beta=None):
 
 def _Lij_s4_to_eri(Lij_s4, eri, weight=1, t_reversal_symm=False):
     """
-    Contract 3-index tensor (L|ij) to 4-index tensor (ij|kl) 
+    Contract 3-index tensor (L|ij) to 4-index tensor (ij|kl)
     and accumulate it to eri.
 
     Args:
@@ -454,10 +454,10 @@ def _Lij_s4_to_eri(Lij_s4, eri, weight=1, t_reversal_symm=False):
                     lib.dot(Lij_loc_a.T, Lij_loc_a, 2.0, eri[0], 1)
                     lib.dot(Lij_loc_a.T, Lij_loc_b, 2.0, eri[1], 1)
                     lib.dot(Lij_loc_b.T, Lij_loc_b, 2.0, eri[2], 1)
-                    
+
                     Lij_loc_a, Lij_loc_b = np.asarray(Lij_s4.imag, order='C')
                     lib.dot(Lij_loc_a.T, Lij_loc_a, 2.0, eri[0], 1)
-                    lib.dot(Lij_loc_a.T, Lij_loc_b, 2.0, eri[1], 1) 
+                    lib.dot(Lij_loc_a.T, Lij_loc_b, 2.0, eri[1], 1)
                     lib.dot(Lij_loc_b.T, Lij_loc_b, 2.0, eri[2], 1)
                 else:
                     raise ValueError
@@ -465,9 +465,9 @@ def _Lij_s4_to_eri(Lij_s4, eri, weight=1, t_reversal_symm=False):
             if spin == 1:
                 lib.dot(Lij_s4[0].conj().T, Lij_s4[0], 1, eri[0], 1)
             else:
-                lib.dot(Lij_s4[0].conj().T, Lij_s4[0], 1, eri[0], 1) 
-                lib.dot(Lij_s4[0].conj().T, Lij_s4[1], 1, eri[1], 1) 
-                lib.dot(Lij_s4[1].conj().T, Lij_s4[1], 1, eri[2], 1) 
+                lib.dot(Lij_s4[0].conj().T, Lij_s4[0], 1, eri[0], 1)
+                lib.dot(Lij_s4[0].conj().T, Lij_s4[1], 1, eri[1], 1)
+                lib.dot(Lij_s4[1].conj().T, Lij_s4[1], 1, eri[2], 1)
     else: # outcore
         assert t_reversal_symm
         heri = eri["ccdd"]
@@ -496,7 +496,7 @@ def _Lij_s4_to_eri(Lij_s4, eri, weight=1, t_reversal_symm=False):
                     heri[0, p0:p1] += lib.dot(Lij_loc_a[:, p0:p1].T, Lij_loc_a, 2.0)
                     heri[1, p0:p1] += lib.dot(Lij_loc_b[:, p0:p1].T, Lij_loc_b, 2.0)
                     heri[2, p0:p1] += lib.dot(Lij_loc_a[:, p0:p1].T, Lij_loc_b, 2.0)
-                
+
                 Lij_loc_a, Lij_loc_b = np.asarray(Lij_s4.imag, order='C')
                 for p0, p1 in lib.prange(0, nemb_pair, ERI_SLICE):
                     heri[0, p0:p1] += lib.dot(Lij_loc_a[:, p0:p1].T, Lij_loc_a, 2.0)
@@ -528,18 +528,18 @@ def eri_restore(eri, symmetry, nemb):
             eri_res[s] = ao2mo.restore(symmetry, eri[s].real, nemb)
     return eri_res
 
-def get_unit_eri_fast_gdf(cell, mydf, C_ao_lo, feri=None, 
-                          kscaled_center=None, symmetry=4, max_memory=None, 
-                          kconserv_tol=KPT_DIFF_TOL, swap_idx=None, t_reversal_symm=True, 
+def get_unit_eri_fast_gdf(cell, mydf, C_ao_lo, feri=None,
+                          kscaled_center=None, symmetry=4, max_memory=None,
+                          kconserv_tol=KPT_DIFF_TOL, swap_idx=None, t_reversal_symm=True,
                           incore=True, fout="H2.h5"):
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
     basis = np.empty_like(C_ao_lo)
-    return get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri, 
-                                kscaled_center=kscaled_center, symmetry=symmetry, 
-                                max_memory=max_memory, kconserv_tol=kconserv_tol, 
-                                unit_eri=True, swap_idx=swap_idx, 
-                                t_reversal_symm=t_reversal_symm, incore=incore, 
+    return get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri,
+                                kscaled_center=kscaled_center, symmetry=symmetry,
+                                max_memory=max_memory, kconserv_tol=kconserv_tol,
+                                unit_eri=True, swap_idx=swap_idx,
+                                t_reversal_symm=t_reversal_symm, incore=incore,
                                 fout=fout)
 
 get_unit_eri_fast = get_unit_eri_fast_gdf
@@ -548,9 +548,9 @@ get_unit_eri_fast = get_unit_eri_fast_gdf
 # AFTDF ERI construction
 # *****************************************************************************
 
-def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None, 
-                         kscaled_center=None, symmetry=4, max_memory=None, 
-                         kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None, 
+def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
+                         kscaled_center=None, symmetry=4, max_memory=None,
+                         kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None,
                          t_reversal_symm=True, incore=True, fout="H2.h5"):
     """
     Fast routine to compute embedding space ERI on the fly, by AFTDF
@@ -563,21 +563,21 @@ def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     nao = cell.nao_nr()
     kpts = mydf.kpts
     nkpts = len(kpts)
-    
+
     # If C_ao_lo and basis not given, this routine is k2gamma AO transformation
     if C_ao_lo is None:
         C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
         C_ao_lo[:, range(nao), range(nao)] = 1.0 # identity matrix for each k
-    
+
     # add spin dimension for restricted C_ao_lo
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
-    
+
     # possible kpts shift
     kscaled = cell.get_scaled_kpts(kpts)
     if kscaled_center is not None:
         kscaled -= kscaled_center
-    
+
     # basis related
     if basis is None:
         basis = np.eye(nao*nkpts).reshape(1, nkpts, nao, nao*nkpts)
@@ -585,7 +585,7 @@ def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         basis = add_spin_dim(basis, C_ao_lo.shape[0])
     if C_ao_lo.shape[0] < basis.shape[0]:
         C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
-    
+
     if unit_eri:
         C_ao_emb = C_ao_lo / (nkpts**0.75)
     else:
@@ -596,7 +596,7 @@ def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
 
     # ERI construction
     eri = np.zeros((spin*(spin+1)//2, nemb_pair, nemb_pair), dtype=np.complex128) # 4-fold symmetry
-   
+
     # AFT variables
     kptij_lst = np.array([(ki, kj) for ki in kpts for kj in kpts])
     kptis_lst = kptij_lst[:,0]
@@ -605,7 +605,7 @@ def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     uniq_kpts, uniq_index, uniq_inverse = unique(kpt_ji)
     ngrids = np.prod(mydf.mesh)
     kconserv = kpts_helper.get_kconserv(cell, kpts)
-    
+
     if max_memory is None:
         max_memory = max(2000, (mydf.max_memory-lib.current_memory()[0]) * 0.9)
 
@@ -617,7 +617,7 @@ def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         coulG = mydf.weighted_coulG(q, False, mydf.mesh)
         #coulG *= factor
 
-        # IJ part 
+        # IJ part
         log.debug(2, "Calculate zij")
         zij_R = np.zeros((spin, ngrids, nemb*nemb), dtype=np.complex128)
         moij_list = []
@@ -628,22 +628,22 @@ def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
             moij, ijslice = zip(*[_conc_mos(C_ao_emb[s][ki], C_ao_emb[s][kj])[2:] for s in range(spin)])
             moij_list.append(moij)
             ijslice_list.append(ijslice)
-        
+
         # ZHC FIXME TODO: coulG should be able to separate
         for aoaoks, p0, p1 in mydf.ft_loop(mydf.mesh, q, kptjs, max_memory=max_memory):
             for ji, aoao in enumerate(aoaoks):
                 ki = adapted_ji_idx[ji] // nkpts
                 kj = adapted_ji_idx[ji] %  nkpts
-                
+
                 buf = aoao.transpose(1,2,0).reshape(nao**2, p1-p0)
                 zij = transform_ao_to_emb_aft(lib.transpose(buf), C_ao_emb, \
                         moij_list[ji], ijslice_list[ji])
                 zij *= coulG[p0:p1,None]
                 zij_R[:, p0:p1] += zij
-        
+
         coulG = buf = aoao = zij = None
         zij_R = _pack_tril(zij_R.reshape(spin, -1, nemb, nemb))
-        
+
         # KL part
         log.debug(2, "Calculate zkl")
         zkl_R = np.zeros((spin, ngrids, nemb*nemb), dtype=np.complex128)
@@ -667,12 +667,12 @@ def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
 
         buf = aoao = zkl = None
         zkl_R = _pack_tril(zkl_R.reshape(spin, -1, nemb, nemb))
-        
+
         log.debug(1, "Contract ERI")
         _Lij_s4_to_eri_aft(zij_R, zkl_R, eri)
-    
+
     zij_R = zkl_R = None
-        
+
     eri_imag_norm = max_abs(eri.imag)
     log.info('ERI imaginary = %s', eri_imag_norm)
     if eri_imag_norm > ERI_IMAG_TOL:
@@ -683,21 +683,21 @@ def get_emb_eri_fast_aft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     eri = eri_restore(eri, symmetry, nemb)
     return eri
 
-def get_unit_eri_fast_aft(cell, mydf, C_ao_lo, feri=None, kscaled_center=None, 
-                          symmetry=4, max_memory=None, kconserv_tol=KPT_DIFF_TOL, 
+def get_unit_eri_fast_aft(cell, mydf, C_ao_lo, feri=None, kscaled_center=None,
+                          symmetry=4, max_memory=None, kconserv_tol=KPT_DIFF_TOL,
                           swap_idx=None, t_reversal_symm=True, incore=True, fout="H2.h5"):
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
     basis = np.empty_like(C_ao_lo)
-    return get_emb_eri_fast_aft(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri, 
-                                kscaled_center=kscaled_center, symmetry=symmetry, 
-                                max_memory=max_memory, kconserv_tol=kconserv_tol, 
-                                unit_eri=True, swap_idx=swap_idx, 
+    return get_emb_eri_fast_aft(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri,
+                                kscaled_center=kscaled_center, symmetry=symmetry,
+                                max_memory=max_memory, kconserv_tol=kconserv_tol,
+                                unit_eri=True, swap_idx=swap_idx,
                                 t_reversal_symm=t_reversal_symm, incore=incore, fout=fout)
 
 def transform_ao_to_emb_aft(Lij, basis, moij, ijslice):
     """
-    Give Lij (in AO basis) of shape (nL, nao*nao), embedding basis after FT, ki, kj, 
+    Give Lij (in AO basis) of shape (nL, nao*nao), embedding basis after FT, ki, kj,
     return Lmn in embedding basis.
     Lmn is of shape (spin, nL, nemb*nemb)
     """
@@ -707,7 +707,7 @@ def transform_ao_to_emb_aft(Lij, basis, moij, ijslice):
     spin, ncells, nlo, nemb = basis.shape
     nL = Lij.shape[-2]
     Lmn = np.empty((spin, nL, nemb*nemb), dtype=np.complex128)
-    
+
     tao = []
     ao_loc = None
     for s in range(spin):
@@ -721,7 +721,7 @@ def _Lij_s4_to_eri_aft(Lij_s4, Lkl_s4, eri):
     if Lij_s4.ndim == 2:
         Lij_s4 = Lij_s4[np.newaxis]
     spin, nL, nemb_pair = Lij_s4.shape
-    
+
     if Lkl_s4.ndim == 2:
         Lkl_s4 = Lkl_s4[np.newaxis]
 
@@ -736,9 +736,9 @@ def _Lij_s4_to_eri_aft(Lij_s4, Lkl_s4, eri):
 # MDF ERI construction
 # *****************************************************************************
 
-def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None, 
-                         kscaled_center=None, symmetry=4, max_memory=None, 
-                         kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None, 
+def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
+                         kscaled_center=None, symmetry=4, max_memory=None,
+                         kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None,
                          t_reversal_symm=True, incore=True, fout="H2.h5"):
     """
     Fast routine to compute embedding space ERI on the fly, by MDF
@@ -752,21 +752,21 @@ def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     kpts = mydf.kpts
     nkpts = len(kpts)
     naux = get_naoaux(mydf)
-    
+
     # If C_ao_lo and basis not given, this routine is k2gamma AO transformation
     if C_ao_lo is None:
         C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
         C_ao_lo[:, range(nao), range(nao)] = 1.0 # identity matrix for each k
-    
+
     # add spin dimension for restricted C_ao_lo
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
-    
+
     # possible kpts shift
     kscaled = cell.get_scaled_kpts(kpts)
     if kscaled_center is not None:
         kscaled -= kscaled_center
-    
+
     # basis related
     if basis is None:
         basis = np.eye(nao*nkpts).reshape(1, nkpts, nao, nao*nkpts)
@@ -774,7 +774,7 @@ def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         basis = add_spin_dim(basis, C_ao_lo.shape[0])
     if C_ao_lo.shape[0] < basis.shape[0]:
         C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
-    
+
     if unit_eri:
         C_ao_emb = C_ao_lo / (nkpts**0.75)
     else:
@@ -785,43 +785,43 @@ def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
 
     # ERI construction
     eri = np.zeros((spin*(spin+1)//2, nemb_pair, nemb_pair), dtype=np.complex128) # 4-fold symmetry
-    
+
     if max_memory is None:
         max_memory = max(2000, (mydf.max_memory-lib.current_memory()[0]) * 0.9)
-    
+
     blksize = max_memory * 1e6 / 16 / (nao**2 * 2)
     blksize = max(16, min(int(blksize), mydf.blockdim))
     Lij_s4 = np.empty((spin, naux, nemb_pair), dtype=np.complex128)
     buf = np.empty((spin * blksize * nemb_pair,), dtype=np.complex128)
-    
+
     # GDF part
     for kL in range(nkpts):
         Lij_s4[:] = 0.0
         for i, kpti in enumerate(kpts):
             for j, kptj in enumerate(kpts):
                 kconserv = -kscaled[i] + kscaled[j] + kscaled[kL]
-                is_kconserv = max_abs(np.round(kconserv) - kconserv) < kconserv_tol 
+                is_kconserv = max_abs(np.round(kconserv) - kconserv) < kconserv_tol
                 if is_kconserv:
                     log.debug(2, "kL: %s / %s, ki: %s, kj: %s", kL + 1, nkpts, i, j)
                     step0, step1 = 0, 0
-                    for Lpq in sr_loop(mydf, [kpti, kptj], max_memory=max_memory, 
+                    for Lpq in sr_loop(mydf, [kpti, kptj], max_memory=max_memory,
                                        compact=False, blksize=blksize):
                         lchunk = Lpq.shape[0]
                         step0, step1 = step1, step1 + lchunk
-                        
+
                         Lpq_beta = None
                         Lij_loc = transform_ao_to_emb(Lpq, C_ao_emb, i, j,\
                                 Lpq_beta=Lpq_beta)
                         lib.pack_tril(Lij_loc.reshape(-1, nemb, nemb), out=buf)
                         Lij_s4[:, step0:step1] += buf[:(spin * lchunk * \
                                 nemb_pair)].reshape(spin, lchunk, nemb_pair)
-                        
+
                     Lpq = Lpq_beta = Lij_loc = None
         log.debug(1, "ERI contraction for kL: %5s / %-5s ", kL + 1, nkpts)
         _Lij_s4_to_eri(Lij_s4, eri)
 
     Lij_s4 = buf = None
-    
+
     # AFT part
     kptij_lst = np.array([(ki, kj) for ki in kpts for kj in kpts])
     kptis_lst = kptij_lst[:,0]
@@ -839,7 +839,7 @@ def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         coulG = mydf.weighted_coulG(q, False, mydf.mesh)
         #coulG *= factor
 
-        # IJ part 
+        # IJ part
         log.debug(2, "Calculate zij")
         zij_R = np.zeros((spin, ngrids, nemb*nemb), dtype=np.complex128)
         moij_list = []
@@ -850,21 +850,21 @@ def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
             moij, ijslice = zip(*[_conc_mos(C_ao_emb[s][ki], C_ao_emb[s][kj])[2:] for s in range(spin)])
             moij_list.append(moij)
             ijslice_list.append(ijslice)
-        
+
         for aoaoks, p0, p1 in mydf.ft_loop(mydf.mesh, q, kptjs, max_memory=max_memory):
             for ji, aoao in enumerate(aoaoks):
                 ki = adapted_ji_idx[ji] // nkpts
                 kj = adapted_ji_idx[ji] %  nkpts
-                
+
                 buf = aoao.transpose(1,2,0).reshape(nao**2, p1-p0)
                 zij = transform_ao_to_emb_aft(lib.transpose(buf), C_ao_emb, \
                         moij_list[ji], ijslice_list[ji])
                 zij *= coulG[p0:p1,None]
                 zij_R[:, p0:p1] += zij
-        
+
         coulG = buf = aoao = zij = None
         zij_R = _pack_tril(zij_R.reshape(spin, -1, nemb, nemb))
-        
+
         # KL part
         log.debug(2, "Calculate zkl")
         zkl_R = np.zeros((spin, ngrids, nemb*nemb), dtype=np.complex128)
@@ -885,15 +885,15 @@ def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
                 zkl = transform_ao_to_emb_aft(lib.transpose(buf), C_ao_emb, \
                         mokl_list[kk], klslice_list[kk])
                 zkl_R[:, p0:p1] += zkl
-        
+
         buf = aoao = zkl = None
         zkl_R = _pack_tril(zkl_R.reshape(spin, -1, nemb, nemb))
 
         log.debug(1, "Contract ERI")
         _Lij_s4_to_eri_aft(zij_R, zkl_R, eri)
-    
+
     zij_R = zkl_R = None
-        
+
     eri_imag_norm = max_abs(eri.imag)
     log.info('ERI imaginary = %s', eri_imag_norm)
     if eri_imag_norm > ERI_IMAG_TOL:
@@ -904,16 +904,16 @@ def get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     eri = eri_restore(eri, symmetry, nemb)
     return eri
 
-def get_unit_eri_fast_mdf(cell, mydf, C_ao_lo, feri=None, kscaled_center=None, 
-                          symmetry=4, max_memory=None, kconserv_tol=KPT_DIFF_TOL, 
+def get_unit_eri_fast_mdf(cell, mydf, C_ao_lo, feri=None, kscaled_center=None,
+                          symmetry=4, max_memory=None, kconserv_tol=KPT_DIFF_TOL,
                           swap_idx=None, t_reversal_symm=True, incore=True, fout="H5.h5"):
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
     basis = np.empty_like(C_ao_lo)
-    return get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri, 
-                                kscaled_center=kscaled_center, symmetry=symmetry, 
-                                max_memory=max_memory, kconserv_tol=kconserv_tol, 
-                                unit_eri=True, swap_idx=swap_idx, 
+    return get_emb_eri_fast_mdf(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri,
+                                kscaled_center=kscaled_center, symmetry=symmetry,
+                                max_memory=max_memory, kconserv_tol=kconserv_tol,
+                                unit_eri=True, swap_idx=swap_idx,
                                 t_reversal_symm=t_reversal_symm, incore=incore, fout=fout)
 
 # *****************************************************************************
@@ -946,9 +946,9 @@ def ifft(g, mesh):
     else:
         return f3d.reshape(-1, ngrids)
 
-def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None, 
-                         kscaled_center=None, symmetry=4, max_memory=None, 
-                         kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None, 
+def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
+                         kscaled_center=None, symmetry=4, max_memory=None,
+                         kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None,
                          t_reversal_symm=True, incore=True, fout="H2.h5"):
     """
     Fast routine to compute embedding space ERI on the fly, by FFTDF
@@ -961,21 +961,21 @@ def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     nao = cell.nao_nr()
     kpts = mydf.kpts
     nkpts = len(kpts)
-    
+
     # If C_ao_lo and basis not given, this routine is k2gamma AO transformation
     if C_ao_lo is None:
         C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
         C_ao_lo[:, range(nao), range(nao)] = 1.0 # identity matrix for each k
-    
+
     # add spin dimension for restricted C_ao_lo
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
-    
+
     # possible kpts shift
     kscaled = cell.get_scaled_kpts(kpts)
     if kscaled_center is not None:
         kscaled -= kscaled_center
-    
+
     # basis related
     if basis is None:
         basis = np.eye(nao*nkpts).reshape(1, nkpts, nao, nao*nkpts)
@@ -983,7 +983,7 @@ def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         basis = add_spin_dim(basis, C_ao_lo.shape[0])
     if C_ao_lo.shape[0] < basis.shape[0]:
         C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
-    
+
     if unit_eri:
         C_ao_emb = C_ao_lo / (nkpts**0.75)
     else:
@@ -991,7 +991,7 @@ def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**0.75) # AO to embedding basis
     spin, _, _, nemb = C_ao_emb.shape
     nemb_pair = nemb*(nemb+1) // 2
-    
+
     # C_ao_emb in real grids, shape (spin, nkpts, nemb, ngrids)
     coords = cell.gen_uniform_grids(mydf.mesh)
     aos = np.asarray(mydf._numint.eval_ao(cell, coords, kpts))
@@ -1002,7 +1002,7 @@ def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
 
     # ERI construction
     eri = np.zeros((spin*(spin+1)//2, nemb_pair, nemb_pair), dtype=np.complex128) # 4-fold symmetry
-   
+
     # FFT variables
     kptij_lst = np.array([(ki, kj) for ki in kpts for kj in kpts])
     kptis_lst = kptij_lst[:,0]
@@ -1020,7 +1020,7 @@ def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         coulG = tools.get_coulG(cell, q, mesh=mydf.mesh)
         coulG *= (cell.vol/ngrids)
         phase = np.exp(1j * np.dot(coords, q))
-        
+
         log.debug(2, "Calculate zij")
         zij_R = 0.0
         for ji_idx in adapted_ji_idx:
@@ -1032,7 +1032,7 @@ def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         zij_R = ifft(zij_R.reshape(-1,ngrids), mydf.mesh) * phase
         zij_R = _pack_tril(zij_R.reshape(spin, nemb, nemb, ngrids).transpose(0, 3, 1, 2))
         coulG = phase = None
-        
+
         log.debug(2, "Calculate zkl")
         ki = adapted_ji_idx[0] // nkpts
         kj = adapted_ji_idx[0] % nkpts
@@ -1040,14 +1040,14 @@ def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         for kk in range(nkpts):
             kl = kconserv[ki, kj, kk]
             zkl_R += get_mo_pairs(moT, kk, kl, phase=None)
-        
+
         zkl_R = _pack_tril(zkl_R.transpose(0, 3, 1, 2))
-        
+
         log.debug(1, "Contract ERI")
         _Lij_s4_to_eri_aft(zij_R, zkl_R, eri)
-    
+
     zij_R = zkl_R = None
-        
+
     eri_imag_norm = max_abs(eri.imag)
     log.info('ERI imaginary = %s', eri_imag_norm)
     if eri_imag_norm > ERI_IMAG_TOL:
@@ -1058,16 +1058,16 @@ def get_emb_eri_fast_fft(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     eri = eri_restore(eri, symmetry, nemb)
     return eri
 
-def get_unit_eri_fast_fft(cell, mydf, C_ao_lo, feri=None, kscaled_center=None, 
-                          symmetry=4, max_memory=None, kconserv_tol=KPT_DIFF_TOL, 
+def get_unit_eri_fast_fft(cell, mydf, C_ao_lo, feri=None, kscaled_center=None,
+                          symmetry=4, max_memory=None, kconserv_tol=KPT_DIFF_TOL,
                           swap_idx=None, t_reversal_symm=True, incore=True, fout="H2.h5"):
     if C_ao_lo.ndim == 3:
         C_ao_lo = C_ao_lo[np.newaxis]
     basis = np.empty_like(C_ao_lo)
-    return get_emb_eri_fast_fft(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri, 
-                                kscaled_center=kscaled_center, symmetry=symmetry, 
-                                max_memory=max_memory, kconserv_tol=kconserv_tol, 
-                                unit_eri=True, swap_idx=swap_idx, 
+    return get_emb_eri_fast_fft(cell, mydf, C_ao_lo=C_ao_lo, basis=basis, feri=feri,
+                                kscaled_center=kscaled_center, symmetry=symmetry,
+                                max_memory=max_memory, kconserv_tol=kconserv_tol,
+                                unit_eri=True, swap_idx=swap_idx,
                                 t_reversal_symm=t_reversal_symm, incore=incore, fout=fout)
 
 def get_mo_pairs(moT, kk, kl, phase=None):
@@ -1086,9 +1086,9 @@ def get_mo_pairs(moT, kk, kl, phase=None):
 # Test functions:
 # *****************************************************************************
 
-def get_emb_eri_gso(cell, mydf, C_ao_lo=None, basis=None, feri=None, 
-                    kscaled_center=None, symmetry=4, max_memory=None, 
-                    kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None, 
+def get_emb_eri_gso(cell, mydf, C_ao_lo=None, basis=None, feri=None,
+                    kscaled_center=None, symmetry=4, max_memory=None,
+                    kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None,
                     t_reversal_symm=True, basis_k=None, incore=True, fout="H2.h5"):
     """
     Fast routine to compute embedding space ERI with partial p-h transform.
@@ -1099,7 +1099,7 @@ def get_emb_eri_gso(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         symmetry: embedding ERI symmetry
         max_memory: maximum memory
         t_reversal_symm: whether to use time reversal symmetry
-    
+
     Returns:
         eri: embedding ERI.
     """
@@ -1113,16 +1113,16 @@ def get_emb_eri_gso(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         if feri is not None:
             mydf._cderi = feri
     naux = get_naoaux(mydf)
-    
+
     # add spin dimension for restricted C_ao_lo
     # here should always have 2 spin flavors
     C_ao_lo = add_spin_dim(C_ao_lo, 2)
-    
+
     # possible kpts shift
     kscaled = cell.get_scaled_kpts(kpts)
     if kscaled_center is not None:
         kscaled -= kscaled_center
-    
+
     # basis related
     if basis_k is None:
         assert basis is not None and basis.ndim == 3
@@ -1136,11 +1136,11 @@ def get_emb_eri_gso(cell, mydf, C_ao_lo=None, basis=None, feri=None,
         C_ao_emb = C_ao_lo / (nkpts**0.75)
     else:
         # AO to embedding basis
-        C_ao_emb = multiply_basis(C_ao_lo, basis_k) / (nkpts**(0.75)) 
+        C_ao_emb = multiply_basis(C_ao_lo, basis_k) / (nkpts**(0.75))
     spin, _, _, nemb = C_ao_emb.shape
     nemb_pair = nemb * (nemb+1) // 2
     res_shape = (1, nemb_pair, nemb_pair)
-    
+
     if t_reversal_symm:
         weights = get_weights_t_reversal(cell, kpts)
         log.debug(2, "time reversal symm used, weights of kpts:\n%s", weights)
@@ -1156,20 +1156,20 @@ def get_emb_eri_gso(cell, mydf, C_ao_lo=None, basis=None, feri=None,
             eri["ccdd"][:] = 0.0
     else:
         weights = np.ones((nkpts,), dtype=int)
-        log.debug(2, "time reversal symm not used.") 
+        log.debug(2, "time reversal symm not used.")
         if incore:
             eri = np.zeros(res_shape, dtype=np.complex128) # 4-fold symmetry
         else:
             raise NotImplementedError
     nibz = np.sum(weights != 0)
-    
+
     if max_memory is None:
         max_memory = max(2000, (mydf.max_memory-lib.current_memory()[0]) * 0.9)
     blksize = max_memory * 1e6 / 16 / (nao**2 * 2)
     blksize = max(16, min(int(blksize), mydf.blockdim))
     Lij_s4 = np.empty((spin, naux, nemb_pair), dtype=np.complex128)
     buf = np.empty((spin * blksize * nemb_pair,), dtype=np.complex128)
-    
+
     nL_acc = 0
     for kL in range(nkpts):
         if weights[kL] <= 0:
@@ -1185,43 +1185,43 @@ def get_emb_eri_gso(cell, mydf, C_ao_lo=None, basis=None, feri=None,
                 kconserv = -kscaled[i] + kscaled[j] + kscaled[kL]
                 if max_abs(np.round(kconserv) - kconserv) > kconserv_tol:
                     continue
-                log.debug(2, "kL: %4s [%6.3f %6.3f %6.3f], " 
-                             "ki: %4s [%6.3f %6.3f %6.3f], " 
-                             "kj: %4s [%6.3f %6.3f %6.3f] ", 
+                log.debug(2, "kL: %4s [%6.3f %6.3f %6.3f], "
+                             "ki: %4s [%6.3f %6.3f %6.3f], "
+                             "kj: %4s [%6.3f %6.3f %6.3f] ",
                           kL, *kscaled[kL], i, *kscaled[i], j, *kscaled[j])
-                
+
                 if t_reversal_symm:
                     jm = kpt_member(-kscaled[j], kscaled)
                     assert len(jm) == 1
                     jm = jm[0]
 
                 step0, step1 = 0, 0
-                for Lpq in sr_loop(mydf, [kpti, kptj], max_memory=max_memory, 
+                for Lpq in sr_loop(mydf, [kpti, kptj], max_memory=max_memory,
                                    compact=False, blksize=blksize):
                     lchunk = Lpq.shape[0]
                     step0, step1 = step1, step1 + lchunk
-                    Lpq_beta = None 
-                    Lij_loc = transform_ao_to_emb(Lpq, C_ao_emb, i, j, 
+                    Lpq_beta = None
+                    Lij_loc = transform_ao_to_emb(Lpq, C_ao_emb, i, j,
                               Lpq_beta=Lpq_beta).reshape(-1, nemb, nemb)
-                    
+
                     if t_reversal_symm and (not i_visited[jm]):
-                        lib.hermi_sum(Lij_loc, axes=(0, 2, 1), 
+                        lib.hermi_sum(Lij_loc, axes=(0, 2, 1),
                                       hermi=lib.SYMMETRIC, inplace=True)
-                    
+
                     lib.pack_tril(Lij_loc, out=buf)
                     Lij_s4[:, step0:step1] += buf[:(spin * lchunk * \
                                               nemb_pair)].reshape(spin, \
                                               lchunk, nemb_pair)
-                    
+
                 Lpq = Lpq_beta = Lij_loc = None
                 if t_reversal_symm:
                     i_visited[jm] = True
-        
+
         log.debug(1, "ERI contraction for kL: %5s / %-5s ", nL_acc, nibz)
-        _Lij_s4_to_eri_gso(Lij_s4, eri, weight=weights[kL], 
+        _Lij_s4_to_eri_gso(Lij_s4, eri, weight=weights[kL],
                            t_reversal_symm=t_reversal_symm)
     Lij_s4 = buf = None
-    
+
     if isinstance(eri, np.ndarray):
         if not t_reversal_symm:
             eri_imag_norm = max_abs(eri.imag)
@@ -1236,7 +1236,7 @@ def get_emb_eri_gso(cell, mydf, C_ao_lo=None, basis=None, feri=None,
 
 def _Lij_s4_to_eri_gso(Lij_s4, eri, weight=1, t_reversal_symm=False):
     """
-    Contract 3-index tensor (L|ij) to 4-index tensor (ij|kl) 
+    Contract 3-index tensor (L|ij) to 4-index tensor (ij|kl)
     and accumulate it to eri.
     used for GSO type transformation.
     """
@@ -1253,7 +1253,7 @@ def _Lij_s4_to_eri_gso(Lij_s4, eri, weight=1, t_reversal_symm=False):
                 lib.dot(Lij_loc_b.T, Lij_loc_b,  2.0, eri[0], 1)
                 lib.dot(Lij_loc_a.T, Lij_loc_b, -2.0, eri[0], 1)
                 lib.dot(Lij_loc_b.T, Lij_loc_a, -2.0, eri[0], 1)
-                
+
                 Lij_loc_a, Lij_loc_b = np.asarray(Lij_s4.imag, order='C')
                 lib.dot(Lij_loc_a.T, Lij_loc_a,  2.0, eri[0], 1)
                 lib.dot(Lij_loc_b.T, Lij_loc_b,  2.0, eri[0], 1)
@@ -1284,7 +1284,7 @@ def _Lij_s4_to_eri_gso(Lij_s4, eri, weight=1, t_reversal_symm=False):
                 heri[0, p0:p1] += lib.dot(Lij_loc_b[:, p0:p1].T, Lij_loc_b,  2.0)
                 heri[0, p0:p1] += lib.dot(Lij_loc_a[:, p0:p1].T, Lij_loc_b, -2.0)
                 heri[0, p0:p1] += lib.dot(Lij_loc_b[:, p0:p1].T, Lij_loc_a, -2.0)
-            
+
             Lij_loc_a, Lij_loc_b = np.asarray(Lij_s4.imag, order='C')
             for p0, p1 in lib.prange(0, nemb_pair, ERI_SLICE):
                 heri[0, p0:p1] += lib.dot(Lij_loc_a[:, p0:p1].T, Lij_loc_a,  2.0)
@@ -1297,7 +1297,7 @@ def _Lij_s4_to_eri_gso(Lij_s4, eri, weight=1, t_reversal_symm=False):
 def transform_gdf_to_lo(mydf, C_ao_lo, fname="gdf_ints_lo.h5", t_reversal_symm=True):
     """
     Transform the gdf integral to LO basis.
-    
+
     Args:
         mydf: gdf object.
         C_ao_lo: LO coefficients, shape (nkpts, nao, nlo).
@@ -1311,16 +1311,16 @@ def transform_gdf_to_lo(mydf, C_ao_lo, fname="gdf_ints_lo.h5", t_reversal_symm=T
     cell = mydf.cell
     kpts = mydf.kpts
     max_memory = mydf.max_memory
-    nkpts, nao, nlo = C_ao_lo.shape 
+    nkpts, nao, nlo = C_ao_lo.shape
     assert nkpts == len(kpts)
     assert nao == cell.nao_nr()
     assert mydf._cderi is not None
     naux = get_naoaux(mydf)
-    
+
     dataname = 'j3c'
     feri = h5py.File(mydf._cderi, 'r')
     feri_lo = h5py.File(fname, 'w')
-    
+
     if (dataname + '-kptij') in feri:
         kptij_lst = np.asarray(feri[dataname + '-kptij'])
     else:
@@ -1341,7 +1341,7 @@ def transform_gdf_to_lo(mydf, C_ao_lo, fname="gdf_ints_lo.h5", t_reversal_symm=T
             kptij_lst.extend([(ki, kj) for ki in kband_uniq for kj in kpts])
             kptij_lst.extend([(ki, ki) for ki in kband_uniq])
             kptij_lst = np.asarray(kptij_lst)
-    
+
     nkptij = len(kptij_lst)
     feri_lo[dataname + '-kptij'] = kptij_lst
 
@@ -1349,9 +1349,9 @@ def transform_gdf_to_lo(mydf, C_ao_lo, fname="gdf_ints_lo.h5", t_reversal_symm=T
         mask = get_mask_kptij_lst(cell, kptij_lst, tol=KPT_DIFF_TOL)
     else:
         mask = -np.ones(len(kptij_lst), dtype=int)
-    
+
     Lij = np.empty((naux, nlo * nlo), dtype=np.complex128)
-    
+
     # ZHC TODO: slice the LO indices, not L.
     for k in range(nkptij):
         log.debug(2, "kpt pair: %5s / %-5s", k, nkptij)
@@ -1368,7 +1368,7 @@ def transform_gdf_to_lo(mydf, C_ao_lo, fname="gdf_ints_lo.h5", t_reversal_symm=T
             for Lpq in sr_loop(mydf, [kpti, kptj], max_memory=max_memory, compact=False):
                 step0, step1 = step1, step1 + Lpq.shape[0]
                 Lij[step0:step1] = transform_ao_to_emb(Lpq, C_ao_lo, i, j)[0]
-            
+
             if is_real:
                 assert max_abs(Lij.imag) < ERI_IMAG_TOL
                 Lij_s4 = lib.pack_tril(Lij.real.reshape(-1, nlo, nlo))
@@ -1411,11 +1411,11 @@ def get_mask_kptij_lst(cell, kptij_lst, tol=KPT_DIFF_TOL):
                     break
     return mask
 
-def get_emb_eri_mol(mol, C_ao_lo=None, basis=None, unit_eri=False, symmetry=1, 
+def get_emb_eri_mol(mol, C_ao_lo=None, basis=None, unit_eri=False, symmetry=1,
                     max_memory=None, incore=True, fout="H2.h5", **kwargs):
     """
     Get embedding ERIs with density fitting. Molecular version.
-    
+
     Args:
         mol: mol object.
         C_ao_lo: (spin, nkpts, nao, nlo), AO to LO basis in k.
@@ -1423,7 +1423,7 @@ def get_emb_eri_mol(mol, C_ao_lo=None, basis=None, unit_eri=False, symmetry=1,
         unit_eri: only compute the unit ERI.
         symmetry: embedding ERI permutation symmetry.
         max_memory: maximum memory.
-    
+
     Returns:
         eri: embedding ERI.
     """
@@ -1468,13 +1468,13 @@ def get_emb_eri_mol(mol, C_ao_lo=None, basis=None, unit_eri=False, symmetry=1,
 def convert_eri_to_gdf(eri, norb, fname=None, tol=1e-8):
     """
     Convert a molecular ERI to Gamma point GDF.
-    
+
     Args:
         eri: molecular vesrion ERI.
         norb: number of orbitals.
         fname: file name of GDF. If None, will return a dictionary.
         tol: cholesky tolerance.
-    
+
     Returns:
         gdf: fname if fname is not None,
              else a dictionary.
@@ -1486,7 +1486,7 @@ def convert_eri_to_gdf(eri, norb, fname=None, tol=1e-8):
         eri = eri[0]
     else:
         assert spin_dim == 0 or spin_dim == 3
-    
+
     if spin_dim == 3:
         eri = [ao2mo.restore(4, eri[0], norb),
                ao2mo.restore(4, eri[1], norb),
@@ -1497,13 +1497,13 @@ def convert_eri_to_gdf(eri, norb, fname=None, tol=1e-8):
         eri = ao2mo.restore(4, eri, norb)
         cderi = cholesky.get_cderi_rhf(eri, norb, tol=tol)
         eri = None
-    
+
     kpts = np.zeros((1, 3))
     uniq_idx = unique(kpts)[1]
     kpts = np.asarray(kpts)[uniq_idx]
     kptij_lst = [(ki, kpts[j]) for i, ki in enumerate(kpts) for j in range(i+1)]
     kptij_lst = np.asarray(kptij_lst)
-    
+
     dataname = 'j3c'
     if fname is None:
         feri = {}
@@ -1513,7 +1513,7 @@ def convert_eri_to_gdf(eri, norb, fname=None, tol=1e-8):
         feri['%s/%d/%d' % (dataname, 0, 0)] = cderi
 
     feri[dataname + '-kptij'] = kptij_lst
-    
+
     if fname is not None:
         feri.close()
         feri = fname
@@ -1541,9 +1541,9 @@ if __name__ == '__main__':
     cell.verbose = 4
     cell.precision = 1e-12
     cell.build(unit='Angstrom')
-    
+
     # Latice class
-    nk = kmesh = [1, 1, 3]  
+    nk = kmesh = [1, 1, 3]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts_abs = Lat.kpts_abs

@@ -24,7 +24,7 @@ def test_kpt_member():
     kpt = np.array([-0.25, -0.50, 0.0])
     idx = kpt_member(kpt, kpts_scaled)[0]
     assert idx == 14
-    
+
     # boundary of BZ
     kpt = np.array([-0.0, 0.50, 0.0])
     idx = kpt_member(kpt, kpts_scaled)
@@ -35,7 +35,7 @@ def test_kpt_member():
     idx = kpt_member(kpt, kpts_scaled)
     assert len(idx) == 1
     assert idx[0] == 11
-    
+
     kpt = np.array([0.01, -0.25, 0.0])
     idx = kpt_member(kpt, kpts_scaled)
     assert len(idx) == 0
@@ -51,15 +51,15 @@ def test_k2R():
     from libdmet.utils.misc import max_abs
     from libdmet.routine.mfd import get_eri_7d, get_j_from_eri_7d, \
             get_k_from_eri_7d
-    
+
     cell = lattice.HChain()
     cell.basis = 'sto3g'
     cell.verbose = 4
     cell.precision = 1e-12
     cell.build(unit='Angstrom')
-   
+
     # lattice class
-    kmesh = [1, 1, 3]  
+    kmesh = [1, 1, 3]
     Lat = lattice.Lattice(cell, kmesh)
     nscsites = Lat.nscsites
     kpts = Lat.kpts_abs
@@ -89,16 +89,16 @@ def test_k2R():
         kmf.conv_tol = 1e-12
         kmf.chkfile = chkfname
         kmf.kernel()
-    
+
     C_ao_lo = make_basis.get_C_ao_lo_iao(Lat, kmf, minao='minao', full_return=False)
-    
+
     # check the lo
     Lat.check_lo(C_ao_lo, ovlp=kmf.get_ovlp())
     C_ao_lo_symm_first_real = Lat.symmetrize_lo(C_ao_lo, real_first=True)
     C_ao_lo_symm_after_real = Lat.symmetrize_lo(C_ao_lo, real_first=False)
     assert max_abs(C_ao_lo_symm_first_real - C_ao_lo) < 1e-10
     assert max_abs(C_ao_lo_symm_after_real - C_ao_lo) < 1e-10
-    
+
     C_ao_lo_R = Lat.k2R(C_ao_lo)
 
     mo_coeff = np.asarray(kmf.mo_coeff)
@@ -110,12 +110,12 @@ def test_k2R():
     mo_id = np.zeros_like(mo_coeff)
     mo_id[:, range(nmo), range(nmo)] = 1.0
     eri_7d_ref = gdf.ao2mo_7d(mo_id, kpts=kpts)
-    vj_ref, vk_ref = gdf.get_jk(dm_k) 
-    
+    vj_ref, vk_ref = gdf.get_jk(dm_k)
+
     eri_7d = get_eri_7d(cell, gdf)
     vj = get_j_from_eri_7d(eri_7d, dm_k)
     vk = get_k_from_eri_7d(eri_7d, dm_k)
-    
+
     diff_eri = max_abs(eri_7d - eri_7d_ref)
     diff_vj = max_abs(vj - vj_ref)
     diff_vk = max_abs(vk - vk_ref)
@@ -125,7 +125,7 @@ def test_k2R():
     assert(diff_eri < 1e-10)
     assert(diff_vj < 1e-10)
     assert(diff_vk < 1e-10)
-    
+
     hcore_R = Lat.k2R(hcore_k)
     hcore_R_T = Lat.transpose(hcore_R)
     hcore_R_T = Lat.transpose(hcore_R[None])
@@ -135,13 +135,13 @@ def test_k2R():
 
     # supercell calculation
     scell = Lat.bigcell
-    kmesh_sc = [1, 1, 1]  
+    kmesh_sc = [1, 1, 1]
     Lat_sc = lattice.Lattice(scell, kmesh_sc)
 
     mf = scf.KRHF(scell, exxdiv=exxdiv).density_fit()
     mf.conv_tol = 1e-12
     mf.kernel()
-    
+
     hcore_R_ref = mf.get_hcore()
     dm_R_ref = mf.make_rdm1()
     C_ao_lo_sc = make_basis.get_C_ao_lo_iao(Lat_sc, mf, minao='minao', full_return=False)
@@ -150,15 +150,15 @@ def test_k2R():
     diff_e = abs(kmf.e_tot - mf.e_tot/nkpts)
     print ("max diff energy: %s" %diff_e)
     assert diff_e < 1e-5
-    
+
     diff_dm = max_abs(dm_R_full - dm_R_ref)
     print ("max diff between kpts and gamma rdm: %s" %diff_dm)
     assert diff_dm < 1e-5
-    
+
     diff_hcore = max_abs(hcore_R_full - hcore_R_ref)
     print ("max diff between kpts and gamma hcore: %s" %diff_hcore)
-    assert diff_hcore < 1e-5 
-    
+    assert diff_hcore < 1e-5
+
     diff_C_ao_lo = max_abs(C_ao_lo_R - C_ao_lo_R_ref)
     print ("max diff between C_ao_lo_R and C_ao_lo_R_ref(sc): %s" %diff_C_ao_lo)
     assert diff_C_ao_lo < 1e-5
@@ -171,16 +171,16 @@ def test_k2R_H2():
     from libdmet.system import lattice
     from libdmet.utils.misc import max_abs
     from libdmet.routine.mfd import get_eri_7d
-    
+
     np.set_printoptions(3, linewidth=1000, suppress=True)
     cell = lattice.HChain()
     cell.basis = 'sto3g'
     cell.verbose = 4
     cell.precision = 1e-12
     cell.build(unit='Angstrom')
-   
+
     # lattice class
-    kmesh = [1, 1, 3]  
+    kmesh = [1, 1, 3]
     Lat = lattice.Lattice(cell, kmesh)
     nao = nscsites = Lat.nscsites
     kpts = Lat.kpts_abs
@@ -193,10 +193,10 @@ def test_k2R_H2():
     if not os.path.isfile(gdf_fname):
     #if True:
         gdf.build()
-    
+
     eri_7d_k = get_eri_7d(cell, gdf)
     eri_7d_R = Lat.k2R_H2(eri_7d_k)
-    
+
     # supercell reference
     gdf_sc_fname = 'gdf_sc_ints.h5'
     gdf_sc = df.GDF(Lat.bigcell, np.zeros((1, 3)))
@@ -204,7 +204,7 @@ def test_k2R_H2():
     if not os.path.isfile(gdf_sc_fname):
     #if True:
         gdf_sc.build()
-    
+
     # ERI R
     eri_sc = gdf_sc.get_eri(compact=False)\
             .reshape(nkpts, nao, nkpts, nao, nkpts, nao, nkpts, nao)
@@ -230,10 +230,10 @@ def test_diff_kmesh_odd():
     from libdmet.basis_transform import make_basis, eri_transform
     from libdmet.utils import logger as log
     from libdmet.utils.misc import max_abs
-     
+
     np.set_printoptions(4, linewidth=1000, suppress=True)
     log.verbose = "DEBUG2"
-    
+
     basis = '321G'
 
     cell_0 = gto.Cell()
@@ -246,13 +246,13 @@ def test_diff_kmesh_odd():
     cell_0.verbose = 5
     cell_0.precision = 1e-15
     cell_0.build(unit='Angstrom')
-    
+
     kmesh_0 = [2, 1, 6]
     Lat_0 = lattice.Lattice(cell_0, kmesh_0)
     kpts_0 = Lat_0.kpts
     nao_0 = Lat_0.nao
     nkpts_0 = Lat_0.nkpts
-    
+
     cell_1 = gto.Cell()
     cell_1.a    = '''  10.0    0.0    0.0
                         0.0    5.0    0.0
@@ -261,9 +261,9 @@ def test_diff_kmesh_odd():
     cell_1.atom = ''' H 0.0    0.0    0.0
                       H 0.0    0.0    1.5
                       H 0.0    0.0    3.0
-                      H 0.0    0.0    4.5 
+                      H 0.0    0.0    4.5
                       H 5.0    0.0    0.0
-                      H 5.0    0.0    1.5 
+                      H 5.0    0.0    1.5
                       H 5.0    0.0    3.0
                       H 5.0    0.0    4.5 '''
     cell_1.basis = basis
@@ -276,8 +276,8 @@ def test_diff_kmesh_odd():
     kpts_1 = Lat_1.kpts
     nao_1 = Lat_1.nao
     nkpts_1 = Lat_1.nkpts
-    
-    # Convert the mf objects from small cell @ large kmesh to 
+
+    # Convert the mf objects from small cell @ large kmesh to
     # supercell @ small kmesh
     exxdiv = None
     gdf_fname_0 = 'gdf_ints_0.h5'
@@ -305,7 +305,7 @@ def test_diff_kmesh_odd():
     # Then check smaller kmesh
     print ("\nReference small kmesh calculation")
     ew_1, ev_1, occ_1 = fold_kmf(ew_0, ev_0, occ_0, Lat_0, Lat_1, tol=1e-10)
-    
+
     gdf_fname_1 = 'gdf_ints_1.h5'
     gdf_1 = df.GDF(cell_1, kpts_1)
     gdf_1._cderi_to_save = gdf_fname_1
@@ -329,11 +329,11 @@ def test_diff_kmesh_odd():
     else:
         data = chkfile.load(chkfname_1, 'scf')
         kmf_1.__dict__.update(data)
-    
+
     diff_energy = (kmf_1.e_tot * nkpts_1) - (kmf_0.e_tot * nkpts_0)
     print ("Energy diff: ", diff_energy)
     assert diff_energy < 1e-9
-    
+
     # check fold_h1
     hcore_0 = kmf_0.get_hcore()
     hcore_1 = fold_h1(hcore_0, Lat_0, Lat_1)
@@ -341,7 +341,7 @@ def test_diff_kmesh_odd():
     diff_hcore = max_abs(hcore_1 - hcore_1_ref)
     print ("hcore difference: ", diff_hcore)
     assert diff_hcore < 1e-8
-    
+
     # check fold_rdm1
     rdm1_0 = kmf_0.make_rdm1()
     rdm1_1 = fold_h1(rdm1_0, Lat_0, Lat_1)
@@ -358,7 +358,7 @@ def test_diff_kmesh_odd():
     nval_0 = C_ao_iao_val.shape[-1]
     nvirt_0 = cell_0.nao_nr() - ncore_0 - nval_0
     Lat_0.set_val_virt_core(nval_0, nvirt_0, ncore_0)
-    
+
     C_ao_lo_1, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat_1,\
             kmf_1, minao='minao', full_return=True)
     C_ao_lo_R_1 = Lat_1.k2R(C_ao_lo_1)
@@ -366,12 +366,12 @@ def test_diff_kmesh_odd():
     nval_1 = C_ao_iao_val.shape[-1]
     nvirt_1 = cell_1.nao_nr() - ncore_1 - nval_1
     Lat_1.set_val_virt_core(nval_1, nvirt_1, ncore_1)
-    
+
     C_ao_lo_1_fold = fold_lo(C_ao_lo_0, Lat_0, Lat_1)
     diff_C_ao_lo = max_abs(C_ao_lo_1_fold - C_ao_lo_1)
     print ("C_ao_lo difference: ", diff_C_ao_lo)
     assert diff_C_ao_lo < 1e-7
-    
+
     C_ao_lo_sc_ref = Lat_0.expand_orb(Lat_0.k2R(C_ao_lo_0))
     C_ao_lo_sc_fold = Lat_1.expand_orb(Lat_1.k2R(C_ao_lo_1))
     assert max_abs(np.sort(C_ao_lo_sc_ref, kind='mergesort') - \
@@ -381,13 +381,13 @@ def test_diff_kmesh_odd():
     C_ao_LO = fold_lo(C_ao_lo_0, Lat_0, Lat_1, uc2sc=True)
     hcore_LO_R = Lat_1.k2R(make_basis.transform_h1_to_lo(hcore_1_ref, \
             C_ao_lo_1))
-    
+
     hcore_LO_k_fold = make_basis.transform_h1_to_lo(hcore_0, C_ao_LO)
     hcore_LO_R0_fold = hcore_LO_k_fold.sum(axis=0) / nkpts_0
     diff_hcore_R0 = max_abs(hcore_LO_R0_fold - hcore_LO_R[0])
     print ("hcore_LO_R0 diff: ", diff_hcore_R0)
     assert diff_hcore_R0 < 1e-8
-    
+
     eri_1_ref = eri_transform.get_unit_eri_fast(cell_1, gdf_1, C_ao_lo_1,
             symmetry=1, t_reversal_symm=True)
     eri_1 = eri_transform.get_unit_eri_fast(cell_0, gdf_0, C_ao_LO,
@@ -395,7 +395,7 @@ def test_diff_kmesh_odd():
     diff_int = max_abs(eri_1 - eri_1_ref)
     print ("diff integral transform: ", diff_int)
     assert diff_int < 1e-8
-    
+
     # unfold mo_coeff
     print ("Unfolding mo_coeff")
     mo_coeff_0 = np.asarray(kmf_0.mo_coeff)
@@ -405,7 +405,7 @@ def test_diff_kmesh_odd():
     print (mo_coeff_0)
     print ("mo_coeff_0 re")
     print (mo_coeff_0_re)
-    
+
     print ("mo weights")
     ovlp_0 = kmf_0.get_ovlp()
     weights = np.einsum('kpm, kpq, kqm -> km', mo_coeff_0_re.conj(), ovlp_0, mo_coeff_0_re).real
@@ -425,10 +425,10 @@ def test_diff_kmesh_even():
     from libdmet.basis_transform import make_basis, eri_transform
     from libdmet.utils import logger as log
     from libdmet.utils.misc import max_abs
-     
+
     np.set_printoptions(4, linewidth=1000, suppress=True)
     log.verbose = "DEBUG2"
-    
+
     basis = 'sto3g'
 
     cell_0 = gto.Cell()
@@ -441,13 +441,13 @@ def test_diff_kmesh_even():
     cell_0.verbose = 4
     cell_0.precision = 1e-12
     cell_0.build(unit='Angstrom')
-    
+
     kmesh_0 = [1, 1, 4]
     Lat_0 = lattice.Lattice(cell_0, kmesh_0)
     kpts_0 = Lat_0.kpts
     nao_0 = Lat_0.nao
     nkpts_0 = Lat_0.nkpts
-    
+
     cell_1 = gto.Cell()
     cell_1.a    = '''   3.0    0.0    0.0
                         0.0    3.0    0.0
@@ -466,7 +466,7 @@ def test_diff_kmesh_even():
     kpts_1 = Lat_1.kpts
     nao_1 = Lat_1.nao
     nkpts_1 = Lat_1.nkpts
-    
+
     cell_2 = gto.Cell()
     cell_2.a    = '''   3.0    0.0    0.0
                         0.0    3.0    0.0
@@ -474,10 +474,10 @@ def test_diff_kmesh_even():
     cell_2.atom = ''' H 0.0    0.0    0.0
                       H 0.0    0.0    1.5
                       H 0.0    0.0    3.0
-                      H 0.0    0.0    4.5 
+                      H 0.0    0.0    4.5
                       H 0.0    0.0    6.0
                       H 0.0    0.0    7.5
-                      H 0.0    0.0    9.0 
+                      H 0.0    0.0    9.0
                       H 0.0    0.0    10.5 '''
     cell_2.basis = basis
     cell_2.verbose = 4
@@ -489,16 +489,16 @@ def test_diff_kmesh_even():
     kpts_2 = Lat_2.kpts
     nao_2 = Lat_2.nao
     nkpts_2 = Lat_2.nkpts
-    
+
     idx_k_in_1 = find_idx_k_in_K(kpts_0, kpts_1, cell_1)
     print ("idx k for cell 1")
     print (idx_k_in_1)
-    
+
     R_vec_0 = get_R_vec(cell_0, kmesh_0)
     idx_R_in_1 = find_idx_R_vec(R_vec_0, kmesh_1, cell_1)
     print ("idx R for cell 1")
     print (idx_R_in_1)
-    
+
     idx_k_in_2 = find_idx_k_in_K(kpts_0, kpts_2, cell_2)
     print ("idx k for cell 2")
     print (idx_k_in_2)
@@ -510,7 +510,7 @@ def test_diff_kmesh_even():
     print (idx_R_in_2)
     assert (idx_R_in_2 == 0).all()
 
-    # Convert the mf objects from small cell @ large kmesh to 
+    # Convert the mf objects from small cell @ large kmesh to
     # supercell @ small kmesh
     exxdiv = None
     gdf_fname_0 = 'gdf_ints_0.h5'
@@ -533,7 +533,7 @@ def test_diff_kmesh_even():
     ew_g, ev_g, occ_g = k2gamma(ew_0, ev_0, occ_0, Lat_0.phase, \
             make_real=True, lattice=Lat_0, ovlp=kmf_0.get_ovlp())
 #    ew_2, ev_2, occ_2 = fold_kmf(ew_0, ev_0, occ_0, Lat_0, Lat_2, tol=1e-10)
-#    
+#
 #    gdf_fname_2 = 'gdf_ints_2.h5'
 #    gdf_2 = df.GDF(cell_2, kpts_2)
 #    gdf_2._cderi_to_save = gdf_fname_2
@@ -549,15 +549,15 @@ def test_diff_kmesh_even():
 #    assert max_abs(dm0 - dm0_fold) < 1e-10
 #    kmf_2.max_cycle = 1 # should be already converged
 #    kmf_2.kernel(dm0)
-#    
+#
 #    diff_energy = (kmf_2.e_tot * nkpts_2) - (kmf_0.e_tot * nkpts_0)
 #    print ("Energy diff: ", diff_energy)
 #    assert diff_energy < 1e-9
-    
+
     # Then check smaller kmesh
     print ("\nReference small kmesh calculation")
     ew_1, ev_1, occ_1 = fold_kmf(ew_0, ev_0, occ_0, Lat_0, Lat_1, tol=1e-10)
-    
+
     gdf_fname_1 = 'gdf_ints_1.h5'
     gdf_1 = df.GDF(cell_1, kpts_1)
     gdf_1._cderi_to_save = gdf_fname_1
@@ -574,11 +574,11 @@ def test_diff_kmesh_even():
     assert (nelec_1 - cell_1.nelectron) < 1e-10
     kmf_1.max_cycle = 1 # should be already converged
     kmf_1.kernel(dm0)
-    
+
     diff_energy = (kmf_1.e_tot * nkpts_1) - (kmf_0.e_tot * nkpts_0)
     print ("Energy diff: ", diff_energy)
     assert diff_energy < 1e-9
-    
+
     # check fold_h1
     hcore_0 = kmf_0.get_hcore()
     hcore_1 = fold_h1(hcore_0, Lat_0, Lat_1)
@@ -586,7 +586,7 @@ def test_diff_kmesh_even():
     diff_hcore = max_abs(hcore_1 - hcore_1_ref)
     print ("hcore difference: ", diff_hcore)
     assert diff_hcore < 1e-9
-    
+
     # check fold_rdm1
     rdm1_0 = kmf_0.make_rdm1()
     rdm1_1 = fold_h1(rdm1_0, Lat_0, Lat_1)
@@ -594,7 +594,7 @@ def test_diff_kmesh_even():
     diff_rdm1 = max_abs(rdm1_1 - rdm1_1_ref)
     print ("rdm1 difference: ", diff_rdm1)
     assert diff_rdm1 < 1e-7
-    
+
     # check fold C_ao_lo
     C_ao_lo_0, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat_0,\
             kmf_0, minao='minao', full_return=True)
@@ -603,7 +603,7 @@ def test_diff_kmesh_even():
     nval_0 = C_ao_iao_val.shape[-1]
     nvirt_0 = cell_0.nao_nr() - ncore_0 - nval_0
     Lat_0.set_val_virt_core(nval_0, nvirt_0, ncore_0)
-    
+
     C_ao_lo_1, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat_1,\
             kmf_1, minao='minao', full_return=True)
     C_ao_lo_R_1 = Lat_1.k2R(C_ao_lo_1)
@@ -611,31 +611,31 @@ def test_diff_kmesh_even():
     nval_1 = C_ao_iao_val.shape[-1]
     nvirt_1 = cell_1.nao_nr() - ncore_1 - nval_1
     Lat_1.set_val_virt_core(nval_1, nvirt_1, ncore_1)
-    
+
     C_ao_lo_1_fold = fold_lo(C_ao_lo_0, Lat_0, Lat_1)
     diff_C_ao_lo = (max_abs(C_ao_lo_1_fold - C_ao_lo_1))
     print ("C_ao_lo difference: ", diff_C_ao_lo)
     assert diff_C_ao_lo < 1e-7
-    
-    ## check fold C_ao_mo 
+
+    ## check fold C_ao_mo
     ## this will be different since MOs' phase is undetermined.
     #mo_coeff_0 = np.asarray(kmf_0.mo_coeff)
     #mo_coeff_1 = fold_h1(mo_coeff_0, Lat_0, Lat_1)
     #mo_coeff_1_ref = np.asarray(kmf_1.mo_coeff)
     #diff_mo_coeff = max_abs(mo_coeff_1 - mo_coeff_1_ref)
     #print ("mo_coeff difference: ", diff_mo_coeff)
-    
+
     # integral transform
     C_ao_LO = fold_lo(C_ao_lo_0, Lat_0, Lat_1, uc2sc=True)
     hcore_LO_R = Lat_1.k2R(make_basis.transform_h1_to_lo(hcore_1_ref, \
             C_ao_lo_1))
-    
+
     hcore_LO_k_fold = make_basis.transform_h1_to_lo(hcore_0, C_ao_LO)
     hcore_LO_R0_fold = hcore_LO_k_fold.sum(axis=0) / nkpts_0
     diff_hcore_R0 = max_abs(hcore_LO_R0_fold - hcore_LO_R[0])
     print ("hcore_LO_R0 diff: ", diff_hcore_R0)
     assert diff_hcore_R0 < 1e-8
-    
+
     eri_1_ref = eri_transform.get_unit_eri_fast(cell_1, gdf_1, C_ao_lo_1,
             symmetry=1, t_reversal_symm=True)
     eri_1 = eri_transform.get_unit_eri_fast(cell_0, gdf_0, C_ao_LO,
@@ -643,7 +643,7 @@ def test_diff_kmesh_even():
     diff_int = max_abs(eri_1 - eri_1_ref)
     print ("diff integral transform: ", diff_int)
     assert diff_int < 1e-8
-    
+
     # unfold mo_coeff
     print ("Unfolding mo_coeff")
     mo_coeff_0 = np.asarray(kmf_0.mo_coeff)
@@ -654,7 +654,7 @@ def test_diff_kmesh_even():
     print (mo_coeff_0)
     print ("mo_coeff_0 re")
     print (mo_coeff_0_re)
-    
+
     print ("mo weights")
     ovlp_0 = kmf_0.get_ovlp()
     weights = np.einsum('kpm, kpq, kqm -> km', mo_coeff_0_re.conj(), ovlp_0, mo_coeff_0_re).real
@@ -662,13 +662,13 @@ def test_diff_kmesh_even():
         # ZHC NOTE degeneracy will make the contributions not 1
         print (w)
         assert abs(np.sum(w) - ovlp_0.shape[-1]) < 1e-10
-    
+
     # we should compute the spectral weights
     from libdmet.utils import plot
     mo_energy_0 = np.asarray(kmf_0.mo_energy)
     mo_energy_1 = np.asarray(kmf_1.mo_energy)
     mo_energy_0_re = unfold_mo_energy(mo_energy_1, Lat_0, Lat_1)
-    
+
     #elist = []
     #mo_energy_sorted = np.sort(mo_energy_1.ravel())
     #for e in mo_energy_sorted:
@@ -681,7 +681,7 @@ def test_diff_kmesh_even():
                                    sigma=0.005, mo_coeff=mo_coeff_0_re,
                                    elist=None, ovlp=kmf_0.get_ovlp())
     pdos_k = pdos_k.sum(axis=1)
-    
+
     import matplotlib
     matplotlib.use('Agg')
     from matplotlib import pyplot as plt
@@ -690,17 +690,17 @@ def test_diff_kmesh_even():
     fig, ax = plt.subplots(figsize=(6, 6))
     kdis = np.arange(len(kpts_0))
     #kdis, kdis_sp = plot.get_kdis(kpts_0, kpts_sp=None)
-    
+
     #plt.imshow(pdos_k.T, cmap='Blues', aspect='auto', origin='lower', extent =
     #        [kdis.min(), kdis.max(), elist.min(),
     #         elist.max()],
     #        interpolation=None)
 
-    im = NonUniformImage(ax, interpolation=None, 
+    im = NonUniformImage(ax, interpolation=None,
                          extent=[
                          elist.min(),
-                         elist.max(), 
-                         kdis[0], #+ (kdis[1] - kdis[0]) * 0.5, 
+                         elist.max(),
+                         kdis[0], #+ (kdis[1] - kdis[0]) * 0.5,
                          kdis[-1]],
                          cmap='Blues',
                          origin='lower')
@@ -709,7 +709,7 @@ def test_diff_kmesh_even():
 
     print (kdis)
     plot.plot_bands(ax, kdis, mo_energy_0, linewidth=2)
-    
+
     plt.xlim(kdis.min(), kdis.max())
     plt.ylim(mo_energy_0.min(), mo_energy_0.max())
     #plt.show()
@@ -727,10 +727,10 @@ def test_diff_kmesh_integral():
     from libdmet.basis_transform import make_basis, eri_transform
     from libdmet.utils import logger as log
     from libdmet.utils.misc import max_abs
-     
+
     np.set_printoptions(4, linewidth=1000, suppress=True)
     log.verbose = "DEBUG2"
-    
+
     basis = '321g'
 
     cell_0 = gto.Cell()
@@ -743,13 +743,13 @@ def test_diff_kmesh_integral():
     cell_0.verbose = 4
     cell_0.precision = 1e-15
     cell_0.build(unit='Angstrom')
-    
+
     kmesh_0 = [1, 1, 6]
     Lat_0 = lattice.Lattice(cell_0, kmesh_0)
     kpts_0 = Lat_0.kpts
     nao_0 = Lat_0.nao
     nkpts_0 = Lat_0.nkpts
-    
+
     cell_1 = gto.Cell()
     cell_1.a    = '''   5.0    0.0    0.0
                         0.0    5.0    0.0
@@ -770,8 +770,8 @@ def test_diff_kmesh_integral():
     kpts_1 = Lat_1.kpts
     nao_1 = Lat_1.nao
     nkpts_1 = Lat_1.nkpts
-    
-    # Convert the mf objects from small cell @ large kmesh to 
+
+    # Convert the mf objects from small cell @ large kmesh to
     # supercell @ small kmesh
     exxdiv = None
     gdf_fname_0 = 'gdf_ints_0.h5'
@@ -790,11 +790,11 @@ def test_diff_kmesh_integral():
     ew_0 = kmf_0.mo_energy
     ev_0 = np.asarray(kmf_0.mo_coeff)
     occ_0 = kmf_0.mo_occ
-    
+
     # Then check smaller kmesh
     print ("\nReference small kmesh calculation")
     ew_1, ev_1, occ_1 = fold_kmf(ew_0, ev_0, occ_0, Lat_0, Lat_1, tol=1e-10)
-    
+
     gdf_fname_1 = 'gdf_ints_1.h5'
     gdf_1 = df.GDF(cell_1, kpts_1)
     gdf_1._cderi_to_save = gdf_fname_1
@@ -810,11 +810,11 @@ def test_diff_kmesh_integral():
     dm0 = kmf_1.make_rdm1(ev_1, occ_1)
     kmf_1.max_cycle = 1 # should be already converged
     kmf_1.kernel(dm0)
-    
+
     diff_energy = (kmf_1.e_tot * nkpts_1) - (kmf_0.e_tot * nkpts_0)
     print ("Energy diff: ", diff_energy)
     assert diff_energy < 1e-9
-    
+
     # check fold_h1
     hcore_0 = kmf_0.get_hcore()
     hcore_1 = fold_h1(hcore_0, Lat_0, Lat_1)
@@ -822,7 +822,7 @@ def test_diff_kmesh_integral():
     diff_hcore = max_abs(hcore_1 - hcore_1_ref)
     print ("hcore difference: ", diff_hcore)
     assert diff_hcore < 1e-8
-    
+
     # check fold_rdm1
     rdm1_0 = kmf_0.make_rdm1()
     rdm1_1 = fold_h1(rdm1_0, Lat_0, Lat_1)
@@ -830,7 +830,7 @@ def test_diff_kmesh_integral():
     diff_rdm1 = max_abs(rdm1_1 - rdm1_1_ref)
     print ("rdm1 difference: ", diff_rdm1)
     assert diff_rdm1 < 1e-7
-    
+
     # check fold C_ao_lo
     C_ao_lo_0, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat_0,\
             kmf_0, minao='minao', full_return=True)
@@ -838,22 +838,22 @@ def test_diff_kmesh_integral():
     nval_0 = C_ao_iao_val.shape[-1]
     nvirt_0 = cell_0.nao_nr() - ncore_0 - nval_0
     Lat_0.set_val_virt_core(nval_0, nvirt_0, ncore_0)
-    
+
     C_ao_lo_1, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat_1,\
             kmf_1, minao='minao', full_return=True)
     ncore_1 = 0
     nval_1 = C_ao_iao_val.shape[-1]
     nvirt_1 = cell_1.nao_nr() - ncore_1 - nval_1
     Lat_1.set_val_virt_core(nval_1, nvirt_1, ncore_1)
-    
+
     # integral transform
     eri_1_ref = eri_transform.get_unit_eri_fast(cell_1, gdf_1, C_ao_lo_1,
             symmetry=1)
-    
+
     C_ao_LO = fold_lo(C_ao_lo_0, Lat_0, Lat_1, uc2sc=True)
     eri_1 = eri_transform.get_unit_eri_fast(cell_0, gdf_0, C_ao_LO,
             symmetry=1)
-    
+
     diff_int = max_abs(eri_1 - eri_1_ref)
     print ("diff integral transform: ", diff_int)
     assert diff_int < 1e-8
@@ -871,10 +871,10 @@ def test_diff_kmesh_integral_2():
     from libdmet.basis_transform import make_basis, eri_transform
     from libdmet.utils import logger as log
     from libdmet.utils.misc import max_abs, mdot
-     
+
     np.set_printoptions(4, linewidth=1000, suppress=True)
     log.verbose = "DEBUG2"
-    
+
     basis = 'minao'
 
     cell_0 = gto.Cell()
@@ -887,13 +887,13 @@ def test_diff_kmesh_integral_2():
     cell_0.verbose = 4
     cell_0.precision = 1e-15
     cell_0.build(unit='Angstrom')
-    
+
     kmesh_0 = [1, 2, 4]
     Lat_0 = lattice.Lattice(cell_0, kmesh_0)
     kpts_0 = Lat_0.kpts
     nao_0 = Lat_0.nao
     nkpts_0 = Lat_0.nkpts
-    
+
     cell_1 = gto.Cell()
     cell_1.a    = '''   5.0    0.0    0.0
                         0.0    10.0    0.0
@@ -917,8 +917,8 @@ def test_diff_kmesh_integral_2():
     kpts_1 = Lat_1.kpts
     nao_1 = Lat_1.nao
     nkpts_1 = Lat_1.nkpts
-    
-    # Convert the mf objects from small cell @ large kmesh to 
+
+    # Convert the mf objects from small cell @ large kmesh to
     # supercell @ small kmesh
     exxdiv = None
     gdf_fname_0 = 'gdf_ints_0.h5'
@@ -947,7 +947,7 @@ def test_diff_kmesh_integral_2():
     # Then check smaller kmesh
     print ("\nReference small kmesh calculation")
     ew_1, ev_1, occ_1 = fold_kmf(ew_0, ev_0, occ_0, Lat_0, Lat_1, tol=1e-10)
-    
+
     gdf_fname_1 = 'gdf_ints_1.h5'
     gdf_1 = df.GDF(cell_1, kpts_1)
     gdf_1._cderi_to_save = gdf_fname_1
@@ -971,11 +971,11 @@ def test_diff_kmesh_integral_2():
     else:
         data = chkfile.load(chkfname_1, 'scf')
         kmf_1.__dict__.update(data)
-    
+
     diff_energy = (kmf_1.e_tot * nkpts_1) - (kmf_0.e_tot * nkpts_0)
     print ("Energy diff: ", diff_energy)
     assert diff_energy < 1e-9
-    
+
     # check fold_h1
     hcore_0 = kmf_0.get_hcore()
     hcore_1 = fold_h1(hcore_0, Lat_0, Lat_1)
@@ -983,7 +983,7 @@ def test_diff_kmesh_integral_2():
     diff_hcore = max_abs(hcore_1 - hcore_1_ref)
     print ("hcore difference: ", diff_hcore)
     assert diff_hcore < 1e-9
-    
+
     # check fold_rdm1
     rdm1_0 = kmf_0.make_rdm1()
     rdm1_1 = fold_h1(rdm1_0, Lat_0, Lat_1)
@@ -1000,7 +1000,7 @@ def test_diff_kmesh_integral_2():
     nval_0 = C_ao_iao_val.shape[-1]
     nvirt_0 = cell_0.nao_nr() - ncore_0 - nval_0
     Lat_0.set_val_virt_core(nval_0, nvirt_0, ncore_0)
-    
+
     C_ao_lo_1, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat_1,\
             kmf_1, minao='minao', full_return=True)
     C_ao_lo_R_1 = Lat_1.k2R(C_ao_lo_1)
@@ -1008,23 +1008,23 @@ def test_diff_kmesh_integral_2():
     nval_1 = C_ao_iao_val.shape[-1]
     nvirt_1 = cell_1.nao_nr() - ncore_1 - nval_1
     Lat_1.set_val_virt_core(nval_1, nvirt_1, ncore_1)
-    
+
     C_ao_lo_1_fold = fold_lo(C_ao_lo_0, Lat_0, Lat_1)
     diff_C_ao_lo = max_abs(C_ao_lo_1_fold - C_ao_lo_1)
     print ("C_ao_lo difference: ", diff_C_ao_lo)
     assert diff_C_ao_lo < 1e-7
-    
+
     # integral transform
     C_ao_LO = fold_lo(C_ao_lo_0, Lat_0, Lat_1, uc2sc=True)
     hcore_LO_R = Lat_1.k2R(make_basis.transform_h1_to_lo(hcore_1_ref, \
             C_ao_lo_1))
-    
+
     hcore_LO_k_fold = make_basis.transform_h1_to_lo(hcore_0, C_ao_LO)
     hcore_LO_R0_fold = hcore_LO_k_fold.sum(axis=0) / nkpts_0
     diff_hcore_R0 = max_abs(hcore_LO_R0_fold - hcore_LO_R[0])
     print ("hcore_LO_R0 diff: ", diff_hcore_R0)
     assert diff_hcore_R0 < 1e-8
-    
+
     eri_1_ref = eri_transform.get_unit_eri_fast(cell_1, gdf_1, C_ao_lo_1,
             symmetry=1, t_reversal_symm=True)
     eri_1 = eri_transform.get_unit_eri_fast(cell_0, gdf_0, C_ao_LO,
@@ -1044,7 +1044,7 @@ def test_symm_orb():
     from libdmet.system import lattice
     from libdmet.system import hamiltonian as ham
     from libdmet.dmet import Hubbard as dmet
-    
+
     log.verbose = "DEBUG1"
 
     x_dop  = 0.0
@@ -1072,7 +1072,7 @@ def test_symm_orb():
     # Hamiltonian
     nCu_tot = np.prod(LatSize) * 4 # 4 is number of Cu site per 2x2 cell
     nO_tot = np.prod(LatSize) * 8
-    nao_tot = nao * nkpts 
+    nao_tot = nao * nkpts
     nelec_half = np.prod(LatSize) * 20 # 20 electron per cell
     nelec_half_Cu = np.prod(LatSize) * 4
     nelec_half_O = np.prod(LatSize) * 16
@@ -1108,7 +1108,7 @@ def test_symm_orb():
     H1_k = Lat.getH1(kspace=True)
     H2_loc = Lat.getH2(kspace=False)
     vcor = dmet.vcor_zeros(restricted, bogoliubov, nscsites)
-    
+
     polar = 0.5
     # make AFM guess dm0
     fCu_a = Filling_Cu * (1.0 - polar)
@@ -1133,7 +1133,7 @@ def test_symm_orb():
     log.result("m_AFM = %s", m_AFM)
 
     veff = Lat.kmf_lo.get_veff()
-    veff_R = Lat.k2R(veff) 
+    veff_R = Lat.k2R(veff)
     #                  0      1      2      3
     vD = np.array([[ 0.0 , -0.01,  0.0,   0.01],
                    [-0.01,  0.0 ,  0.01 , 0.0 ],
@@ -1184,7 +1184,7 @@ def test_symm_orb():
                              Cu2_3d[0], py_idx[1], px_idx[1], \
                              Cu1_3d[1], px_idx[2], py_idx[2], \
                              Cu2_3d[1], py_idx[3], px_idx[3]))
-    
+
     symm_orb_tband = lattice.get_symm_orb(mol, tband_idx)
 
     vcor_irep = []
@@ -1199,12 +1199,12 @@ def test_symm_orb():
         vcor_irep_param.append(vcor_irep[-1][tril_idx])
 
     vcor_irep_param = np.hstack(vcor_irep_param)
-    
+
     vcor = dmet.VcorSymm(restricted, bogoliubov, nscsites, symm_orb_tband, idx_range=None, \
             bogo_res=False)
     vcor.update(vcor_irep_param)
     vcor_re = vcor.get()
-    
+
     print ("diff:", max_abs(vcor_re - vcor_mat))
     print (vcor.diag_indices())
     assert (max_abs(vcor_re - vcor_mat) < 1e-10)
@@ -1220,7 +1220,7 @@ def test_search_basis_id_sc():
                  0.0     0.0     10.0 '''
 
     cell.atom = '''
-          Cu 1.0  0.0  5. 
+          Cu 1.0  0.0  5.
           Cu 3.0  0.0  5.
           O  2.0 -2.0  5.
           O  2.0  0.0  5.
@@ -1234,18 +1234,18 @@ def test_search_basis_id_sc():
     kmesh = [2, 2, 1]
     Lat = lattice.Lattice(cell, kmesh)
     scell = Lat.bigcell
-    
+
     coords_target = np.array([
-       [0.25,    0.25,    0.50], 
-       [0.75,    0.75,    0.50], 
-       [0.50,    0.50,    0.50], 
-       [0.00,    0.50,    0.50], 
-       [0.50,    1.00,    0.50], 
+       [0.25,    0.25,    0.50],
+       [0.75,    0.75,    0.50],
+       [0.50,    0.50,    0.50],
+       [0.00,    0.50,    0.50],
+       [0.50,    1.00,    0.50],
        [0.00,    0.00,    0.50],
        [1.00,    1.00,    0.50],
        [0.50,    0.00,    0.50],
        [1.00,    0.50,    0.50]])
-    
+
     basis_idx = lattice.search_basis_id_sc(cell, scell, coords_target, \
             cell.ao_labels(), tol=1e-8)
     print (basis_idx)
@@ -1293,7 +1293,7 @@ def test_ws_band():
     kpts_new_scaled = np.zeros((nkpts_new, 3))
     kpts_new_scaled[:, -1] = kdis_new
     kpts_new = cell.get_abs_kpts(kpts_new_scaled)
-    
+
 
     C_ao_lo = make_basis.get_C_ao_lo_iao(Lat, kmf, minao='minao', full_return=False)
 
@@ -1342,7 +1342,7 @@ def test_ws_band():
     #plt.show()
 
     plt.savefig("ws_bands.png", dpi=200)
-    
+
 
 if __name__ == "__main__":
     test_ws_band()

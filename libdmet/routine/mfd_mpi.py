@@ -16,7 +16,7 @@ from libdmet.system.lattice import round_to_FBZ
 
 from libdmet.routine import ftsystem
 from libdmet.utils.misc import max_abs
-from libdmet.settings import IMAG_DISCARD_TOL 
+from libdmet.settings import IMAG_DISCARD_TOL
 from libdmet.utils import logger as log
 
 comm = mpi.comm
@@ -35,7 +35,7 @@ def get_kpairs_kidx(cell, kpts, tol=KPT_DIFF_TOL):
     kpts_scaled = cell.get_scaled_kpts(kpts)
     kpts_round = round_to_FBZ(kpts_scaled, tol=tol)
     weights = np.ones(nkpts, dtype=int)
-    
+
     kpairs = []
     for i, ki in enumerate(kpts_round):
         if weights[i] == 1:
@@ -69,30 +69,30 @@ def DiagGHF_symm(cell, GFock, vcor_mat, mu, kpairs, kidx):
         GFock_ibz = None
         GFock_ibz_seg = None
         nso, nao = comm.bcast(None)
-    
+
     # distribute irreduceble fock
     GFock_own = mpi.scatter_new(GFock_ibz_seg, data=GFock_ibz)
     nkpts_own = len(GFock_own)
-    
+
     ew = np.empty((nkpts_own, nso))
     ev = np.empty((nkpts_own, nso, nso), dtype=np.complex128)
 
     GFock_own[:, :nao, :nao] += vcor_mat[0]
     GFock_own[:, nao:, nao:] += vcor_mat[1]
     GFock_own[:, nao:, :nao] += vcor_mat[2].conj().T
-    
+
     if mu is not None:
         GFock_own[:, range(nao), range(nao)] -= mu
         GFock_own[:, range(nao, nso), range(nao, nso)] += mu
-    
+
     for i in range(nkpts_own):
         ew[i], ev[i] = la.eigh(GFock_own[i], overwrite_a=True,
                                check_finite=False, lower=True)
-    
+
     # gather ired fock
     ew = mpi.gather_new(ew)
     ev = mpi.gather_new(ev)
-    
+
     # reconstruct full fock
     if rank == 0:
         ew_full = np.empty((nkpts, nso))
@@ -119,7 +119,7 @@ def get_dw_dparam(cell, ew, ev, drho, dV_dparam, val, mu_quasi, beta, fix_mu, fi
     if rank == 0:
         nkpts, nso = ew.shape
         nao = nso // 2
-        
+
         ew_ibz = np.asarray(ew[kidx], order='C')
         ev_ibz = np.asarray(ev[kidx], order='C')
 
@@ -139,24 +139,24 @@ def get_dw_dparam(cell, ew, ev, drho, dV_dparam, val, mu_quasi, beta, fix_mu, fi
         nkpts, nso, nao, klocs = comm.bcast(None)
         drho = mpi.bcast(None)
         dV_dparam = mpi.bcast(None)
-    
+
     # distribute irreduceble ew, ev
     ew_own = mpi.scatter_new(ew_ibz_seg, data=ew_ibz)
     ev_own = mpi.scatter_new(ev_ibz_seg, data=ev_ibz)
     nkpts_own = len(ew_own)
 
-    dw_dparam = np.zeros((dV_dparam.shape[0],), dtype=dV_dparam.dtype) 
+    dw_dparam = np.zeros((dV_dparam.shape[0],), dtype=dV_dparam.dtype)
     start, end = klocs[rank]
     for k in range(nkpts_own):
         dw_dv = ftsystem.get_dw_dv(ew_own[k], ev_own[k], drho, mu_quasi, beta, fix_mu=fix_mu,
-                                   fit_idx=fit_idx, 
+                                   fit_idx=fit_idx,
                                    compact=(dV_dparam.ndim == 2))
         kp = kpairs[k+start]
         if len(kp) == 1:
             dw_dparam += dV_dparam.reshape(dV_dparam.shape[0], -1).dot(dw_dv.real.ravel())
         else:
             dw_dparam += dV_dparam.reshape(dV_dparam.shape[0], -1).dot(dw_dv.real.ravel()) * 2.0
-    
+
     dw_dparam /= (2.0 * val * np.sqrt(2.0) * nkpts)
     dw_dparam = mpi.reduce_inplace(dw_dparam)
     return dw_dparam

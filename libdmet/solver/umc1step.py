@@ -396,7 +396,7 @@ def gen_g_hop_big_cas(casscf, mo, u, casdm1s, casdm2s, eris):
             v_diag += lib.einsum('utuw, tppw -> up', casdm2s[2], eris.APPA)
             v_diag += lib.einsum('uuvw, vwpp -> up', casdm2s[2], eris.AAPP)
             v_diag += lib.einsum('vwuu, vwpp -> up', casdm2s[1], eris.aaPP)
-    
+
         h_diag[m][ncore[m]:nocc[m],:] += v_diag
         h_diag[m][:,ncore[m]:nocc[m]] += v_diag.T
     fpart1(0)
@@ -442,35 +442,35 @@ def gen_g_hop_big_cas(casscf, mo, u, casdm1s, casdm2s, eris):
         #x2a[ncore[0]:nocc[0]] += lib.einsum('upvr,vr->up', hdm2apAP, x1b[ncore[1]:nocc[1]])
         #x2b[ncore[1]:nocc[1]] += lib.einsum('vrup,vr->up', hdm2apAP, x1a[ncore[0]:nocc[0]])
         #x2b[ncore[1]:nocc[1]] += lib.einsum('upvr,vr->up', hdm2APAP, x1b[ncore[1]:nocc[1]])
-    
+
         # AA
         tmp = lib.einsum('tpqw, vq -> tpvw', eris.appa, x1a[ncore[0]:nocc[0]])
         x2a[ncore[0]:nocc[0]] += lib.einsum('tuvw, tpvw -> up', casdm2s[0], tmp)
         x2a[ncore[0]:nocc[0]] += lib.einsum('utvw, tpvw -> up', casdm2s[0], tmp)
         tmp = None
-        
+
         tmp = lib.einsum('twpq, vq -> twpv', eris.aapp, x1a[ncore[0]:nocc[0]])
         x2a[ncore[0]:nocc[0]] += lib.einsum('uvtw, twpv -> up', casdm2s[0], tmp)
         tmp = None
-        
+
         tmp = lib.einsum('twpq, vq -> twpv', eris.AApp, x1a[ncore[0]:nocc[0]])
         x2a[ncore[0]:nocc[0]] += lib.einsum('uvtw, twpv -> up', casdm2s[1], tmp)
         tmp = None
-        
+
         # BB
         tmp = lib.einsum('tpqw, vq -> tpvw', eris.APPA, x1b[ncore[1]:nocc[1]])
         x2b[ncore[1]:nocc[1]] += lib.einsum('tuvw, tpvw -> up', casdm2s[2], tmp)
         x2b[ncore[1]:nocc[1]] += lib.einsum('utvw, tpvw -> up', casdm2s[2], tmp)
         tmp = None
-        
+
         tmp = lib.einsum('twpq, vq -> twpv', eris.AAPP, x1b[ncore[1]:nocc[1]])
         x2b[ncore[1]:nocc[1]] += lib.einsum('uvtw, twpv -> up', casdm2s[2], tmp)
         tmp = None
-        
+
         tmp = lib.einsum('vwpq, uq -> vwpu', eris.aaPP, x1b[ncore[1]:nocc[1]])
         x2b[ncore[1]:nocc[1]] += lib.einsum('vwtu, vwpu -> tp', casdm2s[1], tmp)
         tmp = None
-        
+
         # AB
         tmp = lib.einsum('tpqw, vq -> tpvw', eris.apPA, x1b[ncore[1]:nocc[1]])
         x2a[ncore[0]:nocc[0]] += lib.einsum('tuvw, tpvw -> up', casdm2s[1], tmp)
@@ -481,7 +481,7 @@ def gen_g_hop_big_cas(casscf, mo, u, casdm1s, casdm2s, eris):
         x2b[ncore[1]:nocc[1]] += lib.einsum('tuvw, tuqw -> vq', casdm2s[1], tmp)
         x2b[ncore[1]:nocc[1]] += lib.einsum('utvw, tuqw -> vq', casdm2s[1], tmp)
         tmp = None
-        
+
         # part4, part5, part6
         if ncore[0] > 0 or ncore[1] > 0:
             va, vc = casscf.update_jk_in_ah(mo, (x1a,x1b), casdm1s, eris)
@@ -633,7 +633,7 @@ class UCASSCF(ucasci.UCASCI):
     natorb = getattr(__config__, 'mcscf_umc1step_UCASSCF_natorb', False)
     #canonicalization = getattr(__config__, 'mcscf_umc1step_UCASSCF_canonicalization', True)
     #sorting_mo_energy = getattr(__config__, 'mcscf_umc1step_UCASSCF_sorting_mo_energy', False)
-    
+
     # pyscf's eri's convention, aa, ab, bb
     eri_ab_mid = True
 
@@ -712,7 +712,7 @@ class UCASSCF(ucasci.UCASCI):
             self.fcisolver.dump_flags(self.verbose)
         except AttributeError:
             pass
-    
+
     def get_hcore(self, mol=None):
         # ZHC NOTE allow spin dependent hcore
         hcore = self._scf.get_hcore(mol)
@@ -792,7 +792,7 @@ class UCASSCF(ucasci.UCASCI):
         mask = np.zeros((nmo, nmo),dtype=bool)
         mask[ncore:nocc, :ncore] = True
         mask[nocc:, :nocc] = True
-        
+
         if self.internal_rotation_vo:
             # cas-v to cas-o
             nocc_cas = nelecas + ncore

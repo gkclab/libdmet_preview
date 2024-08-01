@@ -38,7 +38,7 @@ class Schedule(object):
         if sweep_per_M is None:
             sweep_per_M = self.sweep_per_M
         defaultM = [250, 400, 800, 1500, 2500, 3500, 5000]
-        log.debug(1, "Generate default schedule with startM = %d maxM = %d, maxiter = %d", 
+        log.debug(1, "Generate default schedule with startM = %d maxM = %d, maxiter = %d",
                   minM, maxM, self.maxiter)
 
         self.arrayM = [minM] + [M for M in defaultM if M > minM and M < maxM] + [maxM]
@@ -56,7 +56,7 @@ class Schedule(object):
 
         self.twodot_to_onedot = self.arraySweep[-1] + sweep_per_M
         if self.twodot_to_onedot + sweep_per_M > self.maxiter:
-            log.warning("only %d onedot iterations\nmodify maxiter to %d", 
+            log.warning("only %d onedot iterations\nmodify maxiter to %d",
                         self.maxiter - self.twodot_to_onedot, self.twodot_to_onedot + sweep_per_M)
             self.maxiter = self.twodot_to_onedot + sweep_per_M
 
@@ -79,7 +79,7 @@ class Schedule(object):
 
         self.twodot_to_onedot = self.arraySweep[-1] + 3
         if self.twodot_to_onedot + 3 > self.maxiter:
-            log.warning("only %d onedot iterations\nmodify maxiter to %d", 
+            log.warning("only %d onedot iterations\nmodify maxiter to %d",
                         self.maxiter - self.twodot_to_onedot, self.twodot_to_onedot + 3)
             self.maxiter = self.twodot_to_onedot + 3
 
@@ -115,7 +115,7 @@ class Schedule(object):
     def gen_custom(self, arrayM, arraySweep, arrayTol, arrayNoise, twodot_to_onedot=None):
         log.debug(1, "Generate custom schedule")
         nstep = len(arrayM)
-        log.eassert(len(arraySweep) == nstep and len(arrayTol) == nstep and 
+        log.eassert(len(arraySweep) == nstep and len(arrayTol) == nstep and
                     len(arrayNoise) == nstep, "The lengths of input arrays are not consistent.")
 
         self.arrayM, self.arraySweep, self.arrayTol, self.arrayNoise = \
@@ -135,7 +135,7 @@ class Schedule(object):
         log.debug(2, "maxiter          %d", self.maxiter)
 
         if self.arraySweep[-1] + 2 > self.maxiter:
-            log.warning("maxiter smaller than scheduled number of sweeps\nmodify maxiter to %d", 
+            log.warning("maxiter smaller than scheduled number of sweeps\nmodify maxiter to %d",
                         self.arraySweep[-1]+2)
             self.maxiter = self.arraySweep[-1] + 2
         self.initialized = True
@@ -164,7 +164,7 @@ class Schedule(object):
         log.eassert(self.initialized, "DMRG schedule has not been generated.")
         text = ["", "schedule"]
         nstep = len(self.arrayM)
-        text += ["%d %d %.0e %.0e" % (self.arraySweep[n], self.arrayM[n], 
+        text += ["%d %d %.0e %.0e" % (self.arraySweep[n], self.arrayM[n],
                  self.arrayTol[n], self.arrayNoise[n]) for n in range(nstep)]
         text.append("end")
         text.append("")
@@ -241,7 +241,7 @@ def read1pdm_bin(filename, norb, raw_data=False):
     with open(filename, 'rb') as f:
         temp_bin = f.read()[-onepdm_size:]
     temp = np.frombuffer(temp_bin, dtype=np.float64).reshape(norb*2, norb*2)
-    
+
     if raw_data:
         rdm1 = temp
     else:
@@ -297,25 +297,25 @@ class Block(object):
     # these should not be changed
     basicFiles = ["dmrg.conf.*", "FCIDUMP"]
     restartFiles = ["RestartReorder.dat", "Rotation*", "StateInfo*", "statefile*", "wave*"]
-    tempFiles = ["Spin*", "Overlap*", "dmrg.e", "spatial*", "onepdm.*", "twopdm.*", "pairmat.*", 
+    tempFiles = ["Spin*", "Overlap*", "dmrg.e", "spatial*", "onepdm.*", "twopdm.*", "pairmat.*",
                  "dmrg.out.*", "RI*"]
     #env_slurm = "SLURM_JOBID" in os.environ
     env_slurm = False
     name = "Block"
-    
+
     @property
     def mpipernode(self):
-        return ["mpirun", "--bind-to", "core", "--map-by", 
+        return ["mpirun", "--bind-to", "core", "--map-by",
                 "ppr:%s:node:pe=%s"%(self.nproc, self.nthread)]
-    
+
     def set_nproc(self, nproc, nnode=1):
         self.nproc = nproc
         self.nnode = nnode
         self.nthread = 1
         log.info("Block interface  running with %d nodes,"
-                 " %d processes per node, %d threads per process", 
+                 " %d processes per node, %d threads per process",
                  self.nnode, self.nproc, self.nthread)
-        log.info("Block running on nodes:\n%s", 
+        log.info("Block running on nodes:\n%s",
                  sub.check_output(self.mpipernode + ["hostname"])\
                  .decode('utf-8').replace("\n", "\t"))
 
@@ -340,7 +340,7 @@ class Block(object):
         self.tmpDir = mkdtemp(prefix=type(self).name, dir=tmp)
         log.info("%s working dir %s", type(self).name, self.tmpDir)
         if type(self).nnode > 1:
-            log.eassert(shared is not None, "when running on multiple nodes," 
+            log.eassert(shared is not None, "when running on multiple nodes,"
                         " a shared tmporary folder is required")
             sub.check_call(["mkdir", "-p", shared])
             self.tmpShared = mkdtemp(prefix=type(self).name, dir=shared)
@@ -350,7 +350,7 @@ class Block(object):
     def set_system(self, nelec, spin, spinAdapted, bogoliubov, spinRestricted):
         self.nelec = nelec
         self.spin = spin
-        log.fassert(not (spinAdapted and bogoliubov), 
+        log.fassert(not (spinAdapted and bogoliubov),
                     "Bogoliubov calculation with spin adaption is not implemented")
         self.spinAdapted = spinAdapted
         self.spinRestricted = spinRestricted
@@ -365,7 +365,7 @@ class Block(object):
             self.integral = args[0]
         elif len(args) == 4:
             # norb, H0, H1, H2
-            self.integral = integral.Integral(args[0], self.spinRestricted, 
+            self.integral = integral.Integral(args[0], self.spinRestricted,
                                               self.bogoliubov, *args[1:])
         else:
             log.error("input either an integral object, or (norb, H0, H1, H2)")
@@ -445,10 +445,10 @@ class Block(object):
 
         for f in files:
             if not self.use_global_scratch:
-                sub.check_call(self.mpipernode + ["cp", 
+                sub.check_call(self.mpipernode + ["cp",
                     os.path.join(self.tmpShared, f), self.tmpDir])
             else:
-                sub.check_call(["cp", 
+                sub.check_call(["cp",
                     os.path.join(self.tmpShared, f), self.tmpDir])
 
 
@@ -459,11 +459,11 @@ class Block(object):
         with open(outputfile, "w", buffering=1) as f:
             if type(self).env_slurm:
                 log.debug(1, "slurm environment, srun used.")
-                cmd = ["srun", os.path.join(type(self).execPath, "block.spin_adapted"), 
+                cmd = ["srun", os.path.join(type(self).execPath, "block.spin_adapted"),
                        os.path.join(self.tmpDir, "dmrg.conf.%03d" % self.count)]
             else:
                 log.debug(1, "normal environment, mpirun used.")
-                cmd = [*self.mpipernode, 
+                cmd = [*self.mpipernode,
                        os.path.join(type(self).execPath, "block.spin_adapted"),
                        os.path.join(self.tmpDir, "dmrg.conf.%03d" % self.count)]
             log.debug(1, " ".join(cmd))
@@ -480,12 +480,12 @@ class Block(object):
         log.debug(0, "Written to file %s", outputfile)
         with open(outputfile, "w", buffering=1) as f:
             if type(self).env_slurm:
-                cmd = ["srun", 
+                cmd = ["srun",
                        os.path.join(type(self).execPath, "OH"), os.path.join(self.tmpDir,
                        "dmrg.conf.%03d" % self.count)]
             else:
-                cmd = [*self.mpipernode, 
-                       os.path.join(type(self).execPath, "OH"), os.path.join(self.tmpDir, 
+                cmd = [*self.mpipernode,
+                       os.path.join(type(self).execPath, "OH"), os.path.join(self.tmpDir,
                        "dmrg.conf.%03d" % self.count)]
             log.debug(1, " ".join(cmd))
             sub.check_call(cmd, stdout=f)
@@ -596,7 +596,7 @@ class Block(object):
             self.write_conf(f)
             if onepdm:
                 f.write("onepdm\n")
-        
+
         intFile = os.path.join(startPath, self.intFormat)
         integral.dump(intFile, self.integral, type(self).intFormat)
         if type(self).nnode > 1:
@@ -635,7 +635,7 @@ class Block(object):
         return self.just_run(onepdm, dry_run = False)
 
     def extrapolate(self, Ms, onepdm=True):
-        log.eassert(self.sys_initialized and self.integral_initialized, 
+        log.eassert(self.sys_initialized and self.integral_initialized,
                     "components for optimization are not ready\nsys_init = %s\nint_init = %s",
                     self.sys_initialized, self.integral_initialized)
         results = []
@@ -692,12 +692,12 @@ class StackBlock(Block):
     """
     Interface to StackBlock
     """
-    
+
     execPath = settings.BLOCKPATH
     nproc = 1
     nnode = 1
     nthread = 28
-    
+
     dyn_corr_method = None
     use_general_spin = False
     big_site = False
@@ -708,15 +708,15 @@ class StackBlock(Block):
     # tempFiles
     tempFiles = ["node*/Block-*", "node0/dmrg.e", "node0/spatial*", "onepdm.*", "pairmat.*", "dmrg.out.*"]
     name = "StackBlock"
-    
+
     def set_nproc(self, nproc, nthread=28, nnode=1):
         self.nproc = nproc
         self.nnode = nnode
         self.nthread = nthread
         log.info("StackBlock interface  running with %d nodes,"
-                 " %d processes per node, %d threads per process", 
+                 " %d processes per node, %d threads per process",
                  self.nnode, self.nproc, self.nthread)
-        log.info("StackBlock running on nodes:\n%s", 
+        log.info("StackBlock running on nodes:\n%s",
                  sub.check_output(self.mpipernode + ["hostname"])\
                  .decode('utf-8').replace("\n", "\t"))
 
@@ -734,7 +734,7 @@ class StackBlock(Block):
         f.write("mem %s g\n"%(str(self.mem)))
 
     def callBlock(self):
-        sub.check_call(" ".join(["export", "OMP_NUM_THREADS=%d"%self.nthread]), 
+        sub.check_call(" ".join(["export", "OMP_NUM_THREADS=%d"%self.nthread]),
                        shell=True)
         return Block.callBlock(self)
 
@@ -793,7 +793,7 @@ class StackBlock(Block):
             return rho
 
     def twopdm(self, computed = False):
-        log.eassert(not self.bogoliubov, 
+        log.eassert(not self.bogoliubov,
                     "2pdm with non particle number conservation is not implemented in StackBlock")
         if not computed:
             log.debug(0, "Run %s with restart_twopdm", type(self).name)
@@ -874,7 +874,7 @@ class Block2(StackBlock):
     #intFormat = "FCIDUMP"
     intFormat = "HDF5"
     reorder = False
-    
+
     dyn_corr_method = None
     use_general_spin = False
     big_site = False
@@ -885,11 +885,11 @@ class Block2(StackBlock):
     integral_tol = 1e-12
     fp_cps_cutoff = 1e-16
     cutoff = None # SVD cutoff
-    
+
     # init guess
     occ = None
     cbias = 0.2
-    
+
     # single_prec
     single_prec = False
     integral_rescale = None
@@ -911,28 +911,28 @@ class Block2(StackBlock):
     #env_slurm = "SLURM_JOBID" in os.environ
     env_slurm = False
     name = "Block2"
-    
+
     @property
     def mpipernode(self):
-        return ["mpirun", "--bind-to", "core", "--map-by", 
+        return ["mpirun", "--bind-to", "core", "--map-by",
                 "ppr:%s:node:pe=%s"%(self.nproc, self.nthread)]
-    
+
     def set_nproc(self, nproc, nthread=28, nnode=1):
         self.nproc = nproc
         self.nnode = nnode
         self.nthread = nthread
         log.info("Block2 interface  running with %d nodes,"
-                 " %d processes per node, %d threads per process", 
+                 " %d processes per node, %d threads per process",
                  self.nnode, self.nproc, self.nthread)
-        log.info("Block2 running on nodes:\n%s", 
+        log.info("Block2 running on nodes:\n%s",
                  sub.check_output(self.mpipernode + ["hostname"])\
                  .decode('utf-8').replace("\n", "\t"))
-    
+
     def write_conf(self, f):
         # ZHC NOTE block2 does not use keyword hf_occ
         if isinstance(self.hf_occ, str) and self.hf_occ == 'integral':
             self.hf_occ = 'None'
-        
+
         if self.single_prec:
             f.write("single_prec\n")
             assert self.integral_rescale is not None
@@ -974,17 +974,17 @@ class Block2(StackBlock):
     def mps2ci_run(self, ref_str, tol=1e-5):
         self.mps2ci = True
         self.sample_tol = tol
-        self.sample_reference = "2 " + ref_str 
+        self.sample_reference = "2 " + ref_str
         if Block.reorder:
             reorderFile = os.path.join(self.tmpDir, "orbital_reorder.npy")
             reorder_orb = np.load(reorderFile)
             self.sample_phase = ""
             for idx in reorder_orb:
                 self.sample_phase += "%d " % idx
-            self.sample_reference = "2 " 
+            self.sample_reference = "2 "
             for i in range(len(ref_str)):
-                self.sample_reference += "%s" % ref_str[reorder_orb[i]] 
-        self.just_run(onepdm=False, dry_run=False) 
+                self.sample_reference += "%s" % ref_str[reorder_orb[i]]
+        self.just_run(onepdm=False, dry_run=False)
 
     def just_run(self, onepdm=True, dry_run=False):
         log.debug(0, "Run %s", type(self).name)
@@ -995,7 +995,7 @@ class Block2(StackBlock):
             self.write_conf(f)
             if onepdm:
                 f.write("onepdm\n")
-        
+
         intFile = os.path.join(startPath, self.intFormat)
         integral.dump(intFile, self.integral, type(self).intFormat)
 
@@ -1010,7 +1010,7 @@ class Block2(StackBlock):
                 return truncation, energy, None
         else:
             return None, None, None
-    
+
     def callBlock(self):
         outputfile = os.path.join(self.tmpDir, "dmrg.out.%03d" % self.count)
         log.info("%s call No. %d", self.name, self.count)
@@ -1020,19 +1020,19 @@ class Block2(StackBlock):
             if False:
                 log.debug(1, "slurm environment, srun used.")
                 cmd = ["srun", "python",
-                       os.path.join(self.execPath, "block2main"), 
+                       os.path.join(self.execPath, "block2main"),
                        os.path.join(self.tmpDir, "dmrg.conf.%03d" % self.count)]
             else:
                 log.debug(1, "normal environment, mpirun used.")
                 cmd = [*self.mpipernode, "python",
-                       os.path.join(self.execPath, "block2main"), 
+                       os.path.join(self.execPath, "block2main"),
                        os.path.join(self.tmpDir, "dmrg.conf.%03d" % self.count)]
             log.debug(1, " ".join(cmd))
             sub.check_call(cmd, stdout=f)
         bond_dims = np.load(os.path.join(self.tmpDir, "bond_dims.npy"))
         sweep_energies = np.load(os.path.join(self.tmpDir, "sweep_energies.npy"))[:, 0]
         discarded_weights = np.load(os.path.join(self.tmpDir, "discarded_weights.npy"))
-        
+
         log.result("%8s %20s %20s", "M", "discarded_weight", "energy")
         for M, delta, E in zip(bond_dims, discarded_weights, sweep_energies):
             log.result("%8d %20.10g %20.10g", M, delta, E)
@@ -1048,12 +1048,12 @@ class Block2(StackBlock):
             if False:
                 log.debug(1, "slurm environment, srun used.")
                 cmd = ["srun", "python",
-                       os.path.join(self.execPath, "block2main"), 
+                       os.path.join(self.execPath, "block2main"),
                        os.path.join(self.tmpDir, "dmrg.conf.%03d" % self.count)]
             else:
                 log.debug(1, "normal environment, mpirun used.")
                 cmd = [*self.mpipernode, "python",
-                       os.path.join(self.execPath, "block2main"), 
+                       os.path.join(self.execPath, "block2main"),
                        os.path.join(self.tmpDir, "dmrg.conf.%03d" % self.count)]
             log.debug(1, " ".join(cmd))
             sub.check_call(cmd, stdout=f)
@@ -1065,14 +1065,14 @@ class Block2(StackBlock):
             rho = np.load(os.path.join(self.tmpDir, "1pdm.npy"))
             rho = rho.sum(axis=0)[None] * 0.5
         if self.bogoliubov:
-            raise NotImplementedError 
+            raise NotImplementedError
         # save rdm1
         sub.check_call(["cp", os.path.join(self.tmpDir, "1pdm.npy"),
                         os.path.join(self.tmpDir, "1pdm_%03d.npy" % self.count)])
         return rho
 
     def twopdm(self, computed = False):
-        raise NotImplementedError 
+        raise NotImplementedError
 
     def evaluate(self, H0, H1, H2, op="unknown operator"):
         log.eassert(self.optimized, "No wavefunction available")
@@ -1083,10 +1083,10 @@ class Block2(StackBlock):
 
         sub.check_call(["cp", os.path.join(startPath, "dmrg.conf.%03d" % (self.count-1)),
                         os.path.join(startPath, "dmrg.conf.%03d" % self.count)])
-        
+
         with open(os.path.join(startPath, "dmrg.conf.%03d" % self.count), "r") as f:
             lines = f.readlines()
-        
+
         with open(os.path.join(startPath, "dmrg.conf.%03d" % self.count), "a") as f:
             for line in lines:
                 if "restart_oh" in line:
@@ -1097,7 +1097,7 @@ class Block2(StackBlock):
         intFile = os.path.join(startPath, self.intFormat)
         integral.dump(intFile, self.integral, self.intFormat)
         self.callOH()
-        
+
         h = np.load(os.path.join(self.tmpDir, "E_oh.npy"))
         log.debug(1, "operator evaluated: %20.12f" % h)
         return h

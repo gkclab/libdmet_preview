@@ -28,7 +28,7 @@ import pyscf.lib.logger as pyscflogger
 from libdmet.utils import logger as log
 from libdmet.solver import scf
 from libdmet.solver.scf import ao2mo_Ham, restore_Ham
-from libdmet.basis_transform.make_basis import (transform_rdm1_to_ao_mol, 
+from libdmet.basis_transform.make_basis import (transform_rdm1_to_ao_mol,
                                                 transform_rdm2_to_ao_mol)
 from libdmet.utils.misc import mdot
 
@@ -40,8 +40,8 @@ class SHCI(object):
     name = "SHCI"
     nnode = 1
 
-    def __init__(self, nproc=1, nnode=1, TmpDir="./tmp", SharedDir=None, 
-                 restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-8, 
+    def __init__(self, nproc=1, nnode=1, TmpDir="./tmp", SharedDir=None,
+                 restricted=False, Sz=0, bcs=False, ghf=False, tol=1e-8,
                  max_cycle=200, max_memory=40000, compact_rdm2=False,
                  scf_newton=False, mpiprefix=None, alpha=None, beta=np.inf,
                  **kwargs):
@@ -79,13 +79,13 @@ class SHCI(object):
         self.fcivec = None
         self.onepdm = None
         self.twopdm = None
-        self.compact_rdm2 = compact_rdm2 
+        self.compact_rdm2 = compact_rdm2
         self.optimized = False
         self.count = 0
 
     def run(self, Ham, nelec=None, guess=None, calc_rdm2=False, restart=False,
-            Mu=None, var_only=True, eps_vars=[2e-4, 1e-4, 5e-5], 
-            eps_vars_schedule=[2e-3, 1e-3, 5e-4], 
+            Mu=None, var_only=True, eps_vars=[2e-4, 1e-4, 5e-5],
+            eps_vars_schedule=[2e-3, 1e-3, 5e-4],
             get_green=False, w_green=None, n_green=None, **kwargs):
         """
         Main function of the solver.
@@ -117,7 +117,7 @@ class SHCI(object):
 
         if self.ghf:
             log.eassert(nelec_b == 0, "GHF SHCI need all particle alpha spin.")
-            self.scfsolver.set_system(nelec, 0, False, False, 
+            self.scfsolver.set_system(nelec, 0, False, False,
                                       max_memory=self.max_memory)
             self.scfsolver.set_integral(Ham)
             E_HF, rhoHF = self.scfsolver.GGHF(tol=min(1e-10, self.conv_tol*0.1),
@@ -131,7 +131,7 @@ class SHCI(object):
             self.scfsolver.set_integral(Ham)
             E_HF, rhoHF = self.scfsolver.HF(tol=min(1e-10, self.conv_tol*0.1),
                                             MaxIter=scf_max_cycle,
-                                            InitGuess=dm0, Mu=Mu, 
+                                            InitGuess=dm0, Mu=Mu,
                                             alpha=self.alpha,
                                             beta=self.beta)
 
@@ -149,7 +149,7 @@ class SHCI(object):
 
         log.debug(2, "SHCI solver: mean-field rdm1: \n%s",
                   self.scfsolver.mf.make_rdm1())
-        
+
         # ZHC NOTE directly write the integrals
         self.cisolver.cleanup(remove_wf=True)
         Ham = ao2mo_Ham(Ham, self.scfsolver.mf.mo_coeff)
@@ -159,7 +159,7 @@ class SHCI(object):
                  buffered_io=True)
         h1 = None
         h2 = None
-        
+
         #if Ham.restricted: # RHF-SHCI and GHF-SHCI
         #    h1 = Ham.H1["cd"][0]
         #    h2 = Ham.H2["ccdd"][0]
@@ -189,13 +189,13 @@ class SHCI(object):
         #        mo_coeff = self.scfsolver.mf.mo_coeff[0]
         #        Mu_mat = mdot(mo_coeff.conj().T, Mu_mat, mo_coeff)
         #        h1[0] += Mu_mat
-        #        
+        #
         #    # always convert to the convention of pyscf: aaaa, aabb, bbbb
         #    h2 = Ham.H2["ccdd"][[0, 2, 1]] # ZHC NOTE order
 
         self.cisolver.config["eps_vars"] = eps_vars
         self.cisolver.config["eps_vars_schedule"] = eps_vars_schedule
-        self.cisolver.config["var_only"] = var_only 
+        self.cisolver.config["var_only"] = var_only
         # Run Green's function
         if get_green:
             self.cisolver.config["get_green"] = get_green
@@ -204,7 +204,7 @@ class SHCI(object):
         E, self.fcivec = self.cisolver.kernel(h1, h2, Ham.norb, self.nelec,
                                               ci0=guess, ecore=Ham.H0, restart=False,
                                               **kwargs)
-        
+
         self.make_rdm1(Ham)
         # remove the contribution of Mu if exists
         if Mu is not None:
@@ -214,21 +214,21 @@ class SHCI(object):
                 E -= np.einsum('pq, qp', Mu_mat, self.onepdm_mo[0])
         if calc_rdm2:
             self.make_rdm2(Ham)
-        
+
         self.optimized = True
         self.E = E
         log.info("SHCI total energy: %s", self.E)
-        os.rename("%s/config.json"%self.cisolver.runtimedir, 
+        os.rename("%s/config.json"%self.cisolver.runtimedir,
                   "%s/config.json_%03d"%(self.cisolver.runtimedir, self.count))
-        os.rename("%s/result.json"%self.cisolver.runtimedir, 
+        os.rename("%s/result.json"%self.cisolver.runtimedir,
                   "%s/result.json_%03d"%(self.cisolver.runtimedir, self.count))
-        os.rename("%s/output.dat"%self.cisolver.runtimedir, 
+        os.rename("%s/output.dat"%self.cisolver.runtimedir,
                   "%s/output.dat_%03d"%(self.cisolver.runtimedir, self.count))
-        os.rename("%s/1rdm.csv"%self.cisolver.runtimedir, 
+        os.rename("%s/1rdm.csv"%self.cisolver.runtimedir,
                   "%s/1rdm.csv_%03d"%(self.cisolver.runtimedir, self.count))
         self.count += 1
         return self.onepdm, E
-    
+
     def run_dmet_ham(self, Ham, last_aabb=True, **kwargs):
         """
         Run scaled DMET Hamiltonian.
@@ -238,7 +238,7 @@ class SHCI(object):
         Ham = ao2mo_Ham(Ham, self.scfsolver.mf.mo_coeff, compact=True,
                         in_place=True)
         Ham = restore_Ham(Ham, 1, in_place=True)
-        
+
         # calculate rdm2 in aa, bb, ab order
         self.make_rdm2(Ham)
         if self.ghf:
@@ -248,7 +248,7 @@ class SHCI(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('pq, qp', h1, r1)
             E2 = np.einsum('pqrs, pqrs', h2, r2) * 0.5
         elif Ham.restricted:
@@ -258,7 +258,7 @@ class SHCI(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('pq, qp', h1[0], r1[0]) * 2.0
             E2 = np.einsum('pqrs, pqrs', h2[0], r2[0]) * 0.5
         else:
@@ -270,20 +270,20 @@ class SHCI(object):
             r2 = self.twopdm_mo
             assert h1.shape == r1.shape
             assert h2.shape == r2.shape
-            
+
             E1 = np.einsum('spq, sqp', h1, r1)
-            
+
             E2_aa = 0.5 * np.einsum('pqrs, pqrs', h2[0], r2[0])
             E2_bb = 0.5 * np.einsum('pqrs, pqrs', h2[1], r2[1])
             E2_ab = np.einsum('pqrs, pqrs', h2[2], r2[2])
             E2 = E2_aa + E2_bb + E2_ab
-        
+
         E = E1 + E2
         E += Ham.H0
-        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, " 
+        log.debug(0, "run DMET Hamiltonian:\nE0 = %20.12f, E1 = %20.12f, "
                   "E2 = %20.12f, E = %20.12f", Ham.H0, E1, E2, E)
         return E
-    
+
     def make_rdm1(self, Ham):
         log.debug(1, "SHCI solver: solve rdm1")
         self.onepdm_mo = self.cisolver.make_rdm1(None, Ham.norb, self.nelec)
@@ -291,37 +291,37 @@ class SHCI(object):
             pass
         elif Ham.restricted:
             self.onepdm_mo = (self.onepdm_mo * 0.5)[np.newaxis]
-        
+
         # rotate back to the AO basis
         log.debug(1, "SHCI solver: rotate rdm1 to AO")
-        self.onepdm = transform_rdm1_to_ao_mol(self.onepdm_mo, 
+        self.onepdm = transform_rdm1_to_ao_mol(self.onepdm_mo,
                                                self.scfsolver.mf.mo_coeff)
-    
+
     def make_rdm2(self, Ham, ao_repr=False):
         # ZHC NOTE I think there may be a bug in the rdm2 code of Arrow.
         log.debug(1, "SHCI solver: solve rdm2")
         _, self.twopdm_mo = self.cisolver.make_rdm12(None, Ham.norb, self.nelec)
-        
+
         if self.ghf:
             self.twopdm_mo = np.sum(self.twopdm_mo, axis=0)
         elif Ham.restricted:
             self.twopdm_mo = self.twopdm_mo[np.newaxis]
         else:
             raise NotImplementedError
-        
+
         if ao_repr:
             log.debug(1, "SHCI solver: rotate rdm2 to AO")
-            self.twopdm = transform_rdm2_to_ao_mol(self.twopdm_mo, 
+            self.twopdm = transform_rdm2_to_ao_mol(self.twopdm_mo,
                                                    self.scfsolver.mf.mo_coeff)
         else:
             self.twopdm = None
-        
+
         # ZHC NOTE change to aa, bb, ab
         if not Ham.restricted and not self.ghf:
             self.twopdm_mo = self.twopdm_mo[[0, 2, 1]]
             if self.twopdm is not None:
                 self.twopdm = self.twopdm[[0, 2, 1]]
-    
+
     def onepdm(self):
         return self.onepdm
 

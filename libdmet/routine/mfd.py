@@ -23,7 +23,7 @@ from pyscf.lib import logger as pyscflogger
 from libdmet.utils.misc import mdot, max_abs, add_spin_dim, Iterable
 from libdmet.system import fourier
 from libdmet.routine import ftsystem
-from libdmet.settings import IMAG_DISCARD_TOL 
+from libdmet.settings import IMAG_DISCARD_TOL
 from libdmet.routine.pbc_helper import *
 from libdmet.utils import logger as log
 
@@ -52,7 +52,7 @@ def DiagRHF_symm(Fock, vcor, lattice, **kwargs):
     nscsites = Fock.shape[-1]
     ew = np.empty((ncells, nscsites))
     ev = np.empty((ncells, nscsites, nscsites), dtype=np.complex128)
-    
+
     computed = set()
     for i in range(ncells):
         neg_i = lattice.cell_pos2idx(-lattice.cell_idx2pos(i))
@@ -90,7 +90,7 @@ def DiagUHF_symm(Fock, vcor, lattice, **kwargs):
     nscsites = Fock.shape[-1]
     ew = np.empty((2, ncells, nscsites))
     ev = np.empty((2, ncells, nscsites, nscsites), dtype=np.complex128)
-    
+
     computed = set()
     for i in range(ncells):
         neg_i = lattice.cell_pos2idx(-lattice.cell_idx2pos(i))
@@ -132,7 +132,7 @@ def DiagHF_scf(lattice, vcor, filling, restricted, mu0=None, beta=np.inf,
         nelec_per_cell = np.sum(nelec_per_cell)
         Sz = nelec[0] - nelec[1]
         fit_spin = True
-    else: 
+    else:
         # total number of electron
         nelec, nelec_per_cell = check_nelec(nao * nkpts * 2 * filling, nkpts)
         Sz = 0
@@ -147,7 +147,7 @@ def DiagHF_scf(lattice, vcor, filling, restricted, mu0=None, beta=np.inf,
     else:
         log.info("Unrestricted Hartree-Fock using pyscf")
         kmf = KUHF(cell, kpts, exxdiv=None)
-    
+
     if lattice.H2_format == "local":
         eri = lattice.getH2(kspace=False)
         def get_jk(cell=None, dm_kpts=None, hermi=1, kpts=None, kpts_band=None,
@@ -168,7 +168,7 @@ def DiagHF_scf(lattice, vcor, filling, restricted, mu0=None, beta=np.inf,
             return vj, vk
     else:
         raise NotImplementedError
-    
+
     hcore = lattice.getH1(kspace=True)
     if hcore.ndim == 3:
         if restricted:
@@ -189,7 +189,7 @@ def DiagHF_scf(lattice, vcor, filling, restricted, mu0=None, beta=np.inf,
     if cell.atom_charges().sum() == 0:
         kmf.energy_nuc = lambda *args: 0.0
     kmf.with_df.verbose = 3
-    
+
     # ***********************
     # smearing and finite T
     # ***********************
@@ -202,7 +202,7 @@ def DiagHF_scf(lattice, vcor, filling, restricted, mu0=None, beta=np.inf,
         else:
             # ZHC NOTE smearing_ here is able to treat tuple of mu.
             kmf = smearing_(kmf, sigma=1.0/beta, method='fermi', fit_spin=fit_spin)
-     
+
     # ***********************
     # initial guess and run
     # ***********************
@@ -224,7 +224,7 @@ def DiagHF_scf(lattice, vcor, filling, restricted, mu0=None, beta=np.inf,
     if not kmf.converged:
         log.warn("kmf is not converged!")
     lattice.kmf_lo = kmf
-    
+
     ew = np.asarray(kmf.mo_energy)
     ev = np.asarray(kmf.mo_coeff)
     if restricted:
@@ -232,7 +232,7 @@ def DiagHF_scf(lattice, vcor, filling, restricted, mu0=None, beta=np.inf,
         ev = ev[None]
     return ew, ev
 
-def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False, 
+def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False,
        scf=False, use_hcore=None, **kwargs):
     """
     RHF and UHF routine for lattice problem.
@@ -270,7 +270,7 @@ def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False,
         Fock  = lattice.getFock(kspace=True)
         FockT = lattice.getFock(kspace=False)
         H1T   = lattice.getH1(kspace=False)
-    
+
     # ***********************
     # diagonalization
     # ***********************
@@ -296,7 +296,7 @@ def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False,
             else:
                 eig_func = DiagUHF
             ew, ev = eig_func(Fock, vcor, lattice=lattice)
-    
+
     # ***********************
     # occupancy
     # ***********************
@@ -311,7 +311,7 @@ def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False,
                 mu0_a = ew_sorted[0][-1]
             else:
                 mu0_a = 0.5 * (ew_sorted[0][nelec[0] - 1] + ew_sorted[0][nelec[0]])
-            
+
             if nelec[1] <= 0: # 0 electron
                 mu0_b = ew_sorted[1][0]
             elif nelec[1] >= len(ew_sorted[1]): # all occupied
@@ -330,7 +330,7 @@ def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False,
                 mu0 = ew_sorted[-1]
             else:
                 mu0 = 0.5 * (ew_sorted[nelec - 1] + ew_sorted[nelec])
-    
+
     fix_mu = kwargs.get("fix_mu", False)
     tol_deg = kwargs.get("tol_deg", 1e-6)
     nfrac = kwargs.get("nfrac", None)
@@ -345,7 +345,7 @@ def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False,
             nvirt = ew.size//2 - (nelec//2 + nfrac)
     ewocc, mu, nerr = assignocc(ew, nelec, beta, mu0, fix_mu=fix_mu,
                                 thr_deg=tol_deg, ncore=ncore, nvirt=nvirt)
-     
+
     # ***********************
     # density matrix
     # ***********************
@@ -374,7 +374,7 @@ def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False,
             vcor_k = vcor_k.transpose(1, 0, 2, 3)
         else:
             vcorT = np.array([vcor.get(i, kspace=False) for i in range(lattice.ncells)])
-    
+
     if spin == 1:
         E0 = np.sum((FockT + H1T) * rhoT) + lattice.getH0()
         if vcor.islocal():
@@ -393,23 +393,23 @@ def HF(lattice, vcor, filling, restricted, mu0=None, beta=np.inf, ires=False,
                 E = E0 + 0.5 * np.einsum("skpq,skqp->", vcor_k, rho)
             else:
                 E = E0 + 0.5 * np.sum(vcorT[:, 0] * rhoT[0] + vcorT[:, 1] * rhoT[1])
-                
+
     if max_abs(E.imag) > IMAG_DISCARD_TOL:
         log.warn("E.imag = %e", E.imag)
     E = E.real
-    
+
     if ires:
         if isinstance(mu, Iterable):
             homo_idx_a = max(np.searchsorted(ew_sorted[0], mu[0], side='right') - 1, 0)
             lumo_idx_a = min(np.searchsorted(ew_sorted[0], mu[0], side='left'), len(ew_sorted[0]) - 1)
             homo_a = ew_sorted[0][homo_idx_a]
             lumo_a = ew_sorted[0][lumo_idx_a]
-            
+
             homo_idx_b = max(np.searchsorted(ew_sorted[1], mu[1], side='right') - 1, 0)
             lumo_idx_b = min(np.searchsorted(ew_sorted[1], mu[1], side='left'), len(ew_sorted[1]) - 1)
             homo_b = ew_sorted[1][homo_idx_b]
             lumo_b = ew_sorted[1][lumo_idx_b]
-            
+
             homo = (homo_a, homo_b)
             lumo = (lumo_a, lumo_b)
 
@@ -524,7 +524,7 @@ def HFB(lattice, vcor, restricted, mu=0.0, beta=np.inf, fix_mu=False,
     if beta == np.inf: # 0 T
         ewocc = 1 * (ew < mu_ref)
         nocc = np.sum(ewocc)
-        log.check(nocc*2 == ew.size, 
+        log.check(nocc*2 == ew.size,
                   "number of negative and positive modes are not equal, "
                   "the difference is %d, "
                   "this means total spin on lattice is nonzero",
@@ -546,18 +546,18 @@ def HFB(lattice, vcor, restricted, mu=0.0, beta=np.inf, fix_mu=False,
                   nocc*2 - ew.size)
         for k in range(GRho.shape[0]): # kpoints
             GRho[k] = (ev[k]*ewocc[k]).dot(ev[k].conj().T)
-    
+
     GRhoT = lattice.FFTtoT(GRho)
     if max_abs(GRhoT.imag) < IMAG_DISCARD_TOL:
         GRhoT = GRhoT.real
-    
+
     # ***********************
     # energy, homo, lumo
     # ***********************
     # make FockT and H1T has spin label
     FockT = add_spin_dim(FockT, 2)
     H1T = add_spin_dim(H1T, 2)
-    
+
     if vcor.islocal():
         vcorT = vcor.get(0, kspace=False)
     else:
@@ -601,7 +601,7 @@ def DiagGHF(GFock, vcor, mu, **kwargs):
     #GFock[:, :nao, nao:] += vcor_mat[2]
     #GFock[:, nao:, :nao]  = GFock[:, :nao, nao:].transpose(0, 2, 1).conj()
     GFock[:, nao:, :nao] += vcor_mat[2].conj().T
-    
+
     if mu is not None:
         GFock[:, range(nao), range(nao)] -= mu
         GFock[:, range(nao, nso), range(nao, nso)] += mu
@@ -623,11 +623,11 @@ def DiagGHF_symm(GFock, vcor, mu, lattice, **kwargs):
     #GFock[:, :nao, nao:] += vcor_mat[2]
     #GFock[:, nao:, :nao]  = GFock[:, :nao, nao:].transpose(0, 2, 1).conj()
     GFock[:, nao:, :nao] += vcor_mat[2].conj().T
-    
+
     if mu is not None:
         GFock[:, range(nao), range(nao)] -= mu
         GFock[:, range(nao, nso), range(nao, nso)] += mu
-    
+
     computed = set()
     for i in range(nkpts):
         neg_i = lattice.cell_pos2idx(-lattice.cell_idx2pos(i))
@@ -657,14 +657,14 @@ def DiagGHF_scf(lattice, vcor, filling, restricted, mu, mu0=None, beta=np.inf,
     nso   = nao * 2
     kpts  = lattice.kpts
     nkpts = lattice.nkpts
-    
+
     nelec = nso * nkpts * filling # actually nelec here is nquasi
     nelec, nelec_per_cell = check_nelec(nelec, nkpts)
 
     cell = lattice.cell
     cell.nelectron = nelec_per_cell
     kmf = KGHF(cell, kpts, exxdiv=None)
-    
+
     if lattice.H2_format == "spin local":
         eri = lattice.getH2(kspace=False)
         def get_jk(cell=None, dm_kpts=None, hermi=1, kpts=None, kpts_band=None,
@@ -676,7 +676,7 @@ def DiagGHF_scf(lattice, vcor, filling, restricted, mu, mu0=None, beta=np.inf,
             return vj, vk
     else:
         raise NotImplementedError
-    
+
     hcore = lattice.getH1(kspace=True).copy()
     ovlp  = lattice.get_ovlp(kspace=True)
     if vcor is not None:
@@ -706,11 +706,11 @@ def DiagGHF_scf(lattice, vcor, filling, restricted, mu, mu0=None, beta=np.inf,
     if beta < np.inf:
         if fix_mu:
             assert mu0 is not None
-            kmf = pbc.scf.addons.smearing_(kmf, sigma=1.0/beta, 
+            kmf = pbc.scf.addons.smearing_(kmf, sigma=1.0/beta,
                                            method='fermi', mu0=mu0)
         else:
             kmf = smearing_(kmf, sigma=1.0/beta, method='fermi')
-     
+
     # ***********************
     # initial guess and run
     # ***********************
@@ -727,17 +727,17 @@ def DiagGHF_scf(lattice, vcor, filling, restricted, mu, mu0=None, beta=np.inf,
     if not kmf.converged:
         log.warn("kmf is not converged!")
     lattice.kmf_lo = kmf
-    
+
     ew = np.asarray(kmf.mo_energy)
     ev = np.asarray(kmf.mo_coeff)
     return ew, ev
 
-def GHF(lattice, vcor, restricted, filling=0.5, mu=0.0, mu0=None, beta=np.inf, 
+def GHF(lattice, vcor, restricted, filling=0.5, mu=0.0, mu0=None, beta=np.inf,
         ires=False, scf=False, use_hcore=None, ph_trans=False, **kwargs):
     """
     GHF routine for lattice problem.
     Assume Fock shape (3, nkpts, nao, nao), aa, bb, ab order
-    
+
     Args:
         ires: more results, e.g. total energy, gap, ew, ev
     """
@@ -752,10 +752,10 @@ def GHF(lattice, vcor, restricted, filling=0.5, mu=0.0, mu0=None, beta=np.inf,
     else:
         H1 = lattice.getH1(kspace=True)
         Fock = lattice.getFock(kspace=True)
-    
+
     nkpts = lattice.nkpts
     nao   = lattice.nao
-    
+
     if H1.shape[-1] == nao and ph_trans:
         H1, GH0_from_H1 = transform_H1_k(H1)
         Fock, GH0_from_Fock = transform_H1_k(Fock)
@@ -767,7 +767,7 @@ def GHF(lattice, vcor, restricted, filling=0.5, mu=0.0, mu0=None, beta=np.inf,
     # diagonalization
     # ***********************
     if scf:
-        ew, ev = DiagGHF_scf(lattice, vcor, filling, restricted, mu, mu0=mu0, 
+        ew, ev = DiagGHF_scf(lattice, vcor, filling, restricted, mu, mu0=mu0,
                              beta=beta, ires=ires, **kwargs)
         GFock = lattice.kmf_lo.get_fock()
         # remove mu contribution
@@ -794,9 +794,9 @@ def GHF(lattice, vcor, restricted, filling=0.5, mu=0.0, mu0=None, beta=np.inf,
         GFock[:, nao:, nao:] += vcor.get(0, True)[1]
         GFock[:, :nao, nao:] += vcor.get(0, True)[2]
         GFock[:, nao:, :nao] += vcor.get(0, True)[2].conj().T
-    # GFock include vcor but not mu, will be used for energy evaluation 
-    GH1 = H_k2GH_k(H1) 
-    
+    # GFock include vcor but not mu, will be used for energy evaluation
+    GH1 = H_k2GH_k(H1)
+
     # ***********************
     # occupancy
     # ***********************
@@ -805,20 +805,20 @@ def GHF(lattice, vcor, restricted, filling=0.5, mu=0.0, mu0=None, beta=np.inf,
     ew_sorted = np.sort(ew, axis=None, kind='mergesort')
     fix_mu = kwargs.get("fix_mu", False)
     tol_deg = kwargs.get("tol_deg", 1e-6)
-    
+
     nfrac = kwargs.get("nfrac", None)
     if nfrac is None:
         ncore = nvirt = 0
     else:
         ncore = nelec - nfrac
         nvirt = ew.size - (nelec + nfrac)
-    
+
     if mu0 is None:
         mu0 = 0.5 * (ew_sorted[nelec-1] + ew_sorted[nelec])
     ewocc, mu_quasi, nerr = assignocc(ew, nelec, beta, mu0, fix_mu=fix_mu,
                                       thr_deg=tol_deg, ncore=ncore,
                                       nvirt=nvirt)
-    
+
     # ***********************
     # density matrix
     # ***********************
@@ -840,11 +840,11 @@ def GHF(lattice, vcor, restricted, filling=0.5, mu=0.0, mu0=None, beta=np.inf,
     for c in range(1, rhoTB.shape[0]):
         rhoTB[c] -= np.eye(rhoTB.shape[1])
     n = (np.trace(rhoTA[0]) + np.trace(rhoTB[0])).real
-    
+
     # energy
     E = (0.5 / nkpts) * np.einsum("kij, kji -> ", GFock + GH1, GRho,
                                   optimize=True).real + GH0
-    
+
     if ires:
         homo_idx = max(np.searchsorted(ew_sorted, mu_quasi, side='right') - 1, 0)
         lumo_idx = min(np.searchsorted(ew_sorted, mu_quasi, side='left'), len(ew_sorted) - 1)
@@ -879,17 +879,17 @@ def check_nelec(nelec, ncells=None, tol=1e-5):
     else:
         nelec_per_cell = nelec / float(ncells)
         if abs(nelec_per_cell - np.round(nelec_per_cell)) > tol:
-            log.warn("HF: nelec per cell (%.5f) is not an integer.", nelec_per_cell) 
+            log.warn("HF: nelec per cell (%.5f) is not an integer.", nelec_per_cell)
         else:
             nelec_per_cell = int(np.round(nelec_per_cell))
     return nelec, nelec_per_cell
 
-def assignocc(ew, nelec, beta, mu0=0.0, fix_mu=False, thr_deg=1e-6, Sz=None, 
+def assignocc(ew, nelec, beta, mu0=0.0, fix_mu=False, thr_deg=1e-6, Sz=None,
               fit_tol=1e-12, f_occ=ftsystem.fermi_smearing_occ, ncore=0,
               nvirt=0):
     """
     Assign the occupation number of a mean-field.
-    nelec is per spin for RHF, total for UHF. 
+    nelec is per spin for RHF, total for UHF.
     """
     ew = np.asarray(ew)
     if (Sz is None) and (not isinstance(nelec, Iterable)):
@@ -899,7 +899,7 @@ def assignocc(ew, nelec, beta, mu0=0.0, fix_mu=False, thr_deg=1e-6, Sz=None,
                 if fix_mu:
                     mu = mu0
                 else:
-                    mu = ftsystem.find_mu(nelec, ew_sorted, beta, mu0=mu0, 
+                    mu = ftsystem.find_mu(nelec, ew_sorted, beta, mu0=mu0,
                                           tol=fit_tol, f_occ=f_occ)
                 ewocc = f_occ(mu, ew, beta)
                 nerr = abs(np.sum(ewocc) - nelec)
@@ -911,7 +911,7 @@ def assignocc(ew, nelec, beta, mu0=0.0, fix_mu=False, thr_deg=1e-6, Sz=None,
                 if fix_mu:
                     mu = mu0
                 else:
-                    mu = ftsystem.find_mu(nelec, ew_sorted, beta, mu0=mu0, 
+                    mu = ftsystem.find_mu(nelec, ew_sorted, beta, mu0=mu0,
                                           tol=fit_tol, f_occ=f_occ, ncore=ncore,
                                           nvirt=nvirt)
                 ewocc = f_occ(mu, ew_sorted, beta, ncore=ncore, nvirt=nvirt)[idx_re]
@@ -919,7 +919,7 @@ def assignocc(ew, nelec, beta, mu0=0.0, fix_mu=False, thr_deg=1e-6, Sz=None,
                 nerr = abs(np.sum(ewocc) - nelec)
         else: # zero T
             ew_sorted = np.sort(ew, axis=None, kind='mergesort')
-            nelec = check_nelec(nelec, None)[0]   
+            nelec = check_nelec(nelec, None)[0]
             if np.sum(ew < mu0-thr_deg) <= nelec and np.sum(ew <= mu0 + thr_deg) >= nelec:
                 # we prefer not to change mu
                 mu = mu0
@@ -946,11 +946,11 @@ def assignocc(ew, nelec, beta, mu0=0.0, fix_mu=False, thr_deg=1e-6, Sz=None,
         ewocc = np.empty_like(ew)
         mu    = np.zeros((spin,))
         nerr  = np.zeros((spin,))
-        ewocc[0], mu[0], nerr[0] = assignocc(ew[0], nelec[0], beta, mu0[0], 
+        ewocc[0], mu[0], nerr[0] = assignocc(ew[0], nelec[0], beta, mu0[0],
                                              fix_mu=fix_mu, thr_deg=thr_deg,
                                              fit_tol=fit_tol, f_occ=f_occ,
                                              ncore=ncore, nvirt=nvirt)
-        ewocc[1], mu[1], nerr[1] = assignocc(ew[1], nelec[1], beta, mu0[1], 
+        ewocc[1], mu[1], nerr[1] = assignocc(ew[1], nelec[1], beta, mu0[1],
                                              fix_mu=fix_mu, thr_deg=thr_deg,
                                              fit_tol=fit_tol, f_occ=f_occ,
                                              ncore=ncore, nvirt=nvirt)

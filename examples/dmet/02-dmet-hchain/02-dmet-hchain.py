@@ -37,7 +37,7 @@ nkpts = Lat.nkpts
 exxdiv = None
 
 ### ************************************************************
-### DMET settings 
+### DMET settings
 ### ************************************************************
 
 # system
@@ -129,13 +129,13 @@ if load_frecord:
 
 for iter in range(MaxIter):
     log.section("\nDMET Iteration %d\n", iter)
-    
+
     log.section("\nsolving mean-field problem\n")
     log.result("Vcor =\n%s", vcor.get())
     log.result("Mu (guess) = %20.12f", Mu)
     rho, Mu, res = dmet.RHartreeFock(Lat, vcor, Filling, Mu, beta=beta, ires=True, symm=True)
     #Lat.update_Ham(rho*2.0, rdm1_lo_k=res["rho_k"]*2.0)
-    
+
     log.section("\nconstructing impurity problem\n")
     ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, int_bath=int_bath)
     ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
@@ -163,7 +163,7 @@ for iter in range(MaxIter):
     dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, \
             C_ao_lo, rho, Lat.getFock(kspace=False)], dtype=object)
     np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-    
+
     log.section("\nfitting correlation potential\n")
     vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
             vcor, beta, Filling, MaxIter1=emb_fit_iter,
@@ -177,19 +177,19 @@ for iter in range(MaxIter):
 
     dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
     dE = EnergyImp - E_old
-    E_old = EnergyImp 
-    
+    E_old = EnergyImp
+
     if iter >= diis_start:
         pvcor = adiis.update(vcor_new.param)
         dc.nDim = adiis.get_num_vec()
     else:
         pvcor = vcor_new.param
-    
+
     dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
     vcor.update(pvcor)
     log.result("trace of vcor: %s", \
             np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2), axis=1))
-    
+
     history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
     history.write_table()
 

@@ -55,7 +55,7 @@ class MPISolver(object):
 
         self.tmp_dir       = None
         self.tmp_shared    = None
-        
+
         self.env_slurm          = False
         self.use_global_scratch = False
         self.is_restart         = False
@@ -65,7 +65,7 @@ class MPISolver(object):
 
     @property
     def mpi_pernode(self):
-        return ["mpirun", "--bind-to", "core", "--map-by", 
+        return ["mpirun", "--bind-to", "core", "--map-by",
                 "ppr:%s:node:pe=%s"%(self.nproc, self.nthread)]
 
     def set_nproc(self, nproc, nnode=1):
@@ -75,7 +75,7 @@ class MPISolver(object):
         log.info("MPI4PySCF interface running with %d nodes,"
                  " %d processes per node, %d threads per process",
                  self.nnode, self.nproc, self.nthread)
-        log.info("MPI4PySCF running on nodes:\n%s", 
+        log.info("MPI4PySCF running on nodes:\n%s",
                  sub.check_output(self.mpi_pernode + ["hostname"])\
                  .decode('utf-8').replace("\n", "\t"))
 
@@ -120,33 +120,33 @@ class MPISolver(object):
 
         for f in files:
             if not self.use_global_scratch:
-                sub.check_call(self.mpi_pernode + ["cp", 
+                sub.check_call(self.mpi_pernode + ["cp",
                                os.path.join(self.tmp_shared, f), self.tmp_dir])
             else:
-                sub.check_call(["cp", 
+                sub.check_call(["cp",
                                 os.path.join(self.tmp_shared, f), self.tmp_dir])
 
 class GCCSD(MPISolver, cc.CCSD):
     """
     MPI4PySCF interface calls GCCSD solver
     """
-    def __init__(self, nproc=None, nnode=None, nthread=None, 
-                 restricted=False, bcs=False, ghf=True, Sz=0,    
+    def __init__(self, nproc=None, nnode=None, nthread=None,
+                 restricted=False, bcs=False, ghf=True, Sz=0,
                  tol=1e-7, tol_normt=1e-5, max_cycle=200,
                  level_shift=0.0, frozen=0, max_memory=40000,
                  scf_newton=True, diis_space=8, iterative_damping=1.0,
                  linear=False, ccd=False,
-                 approx_l=False, alpha=None, beta=np.inf, 
-                 tcc=False, ite=False, ovlp_tol=0.9, 
+                 approx_l=False, alpha=None, beta=np.inf,
+                 tcc=False, ite=False, ovlp_tol=0.9,
                  ao_repr=True, fcc_name='fcc', remove_h2=False):
-    
+
         cc.CCSD.__init__(self, restricted=restricted, Sz=Sz, bcs=bcs,
-                         ghf=ghf, tol=tol, tol_normt=tol_normt, 
+                         ghf=ghf, tol=tol, tol_normt=tol_normt,
                          max_cycle=max_cycle,
                          level_shift=level_shift,
                          frozen=frozen,
-                         max_memory=max_memory, 
-                         compact_rdm2=False, 
+                         max_memory=max_memory,
+                         compact_rdm2=False,
                          scf_newton=scf_newton,
                          diis_space=diis_space,
                          iterative_damping=iterative_damping,
@@ -158,12 +158,12 @@ class GCCSD(MPISolver, cc.CCSD):
                          ite=ite,
                          ovlp_tol=ovlp_tol
                          )
-        
+
         self.ccd = ccd
         self.ao_repr = ao_repr
         self.fcc_name = fcc_name
         self.scf_newton = scf_newton
-         
+
         self._restart       = None
         self._scf_max_cycle = None
         self._nelec         = None
@@ -173,11 +173,11 @@ class GCCSD(MPISolver, cc.CCSD):
         self._init_mpi_solver = False
 
         MPISolver.__init__(self, nproc=nproc, nnode=nnode, nthread=nthread)
-        
+
         self.env_slurm          = False
         self.use_global_scratch = False
         self.is_restart         = False
-        self.is_optimized       = self.optimized 
+        self.is_optimized       = self.optimized
         self.remove_h2 = remove_h2
 
         self.exec_path     = settings.MPI_GCCSD_PATH
@@ -186,7 +186,7 @@ class GCCSD(MPISolver, cc.CCSD):
         self.restart_files = []
         self.temp_files    = []
         self.name          = "mpi-gcc"
-        
+
         self.e_tot = None
         self.rdm1  = None
 
@@ -212,7 +212,7 @@ class GCCSD(MPISolver, cc.CCSD):
         log.info("MPI4PySCF CC solver: start")
         spin = Ham.H1["cd"].shape[0]
         if spin > 1:
-            log.eassert(not self.restricted, "MPI4PySCF solver: spin (%s) > 1 " 
+            log.eassert(not self.restricted, "MPI4PySCF solver: spin (%s) > 1 "
                         "requires unrestricted", spin)
 
         if nelec is None:
@@ -225,15 +225,15 @@ class GCCSD(MPISolver, cc.CCSD):
 
         nelec_a, nelec_b = (nelec + self.Sz) // 2, (nelec - self.Sz) // 2
 
-        log.eassert(nelec_a >= 0 and nelec_b >=0, "MPI4PySCF CC solver: " 
+        log.eassert(nelec_a >= 0 and nelec_b >=0, "MPI4PySCF CC solver: "
                     "nelec_a (%s), nelec_b (%s) should >= 0", nelec_a, nelec_b)
-        log.eassert(nelec_a + nelec_b == nelec, "MPI4PySCF CC solver: " 
-                    "nelec_a (%s) + nelec_b (%s) should == nelec (%s)", 
+        log.eassert(nelec_a + nelec_b == nelec, "MPI4PySCF CC solver: "
+                    "nelec_a (%s) + nelec_b (%s) should == nelec (%s)",
                     nelec_a, nelec_b, nelec)
-        
+
         self._nelec = nelec_a + nelec_b
         self._spin  = self.Sz
-        
+
         # customized mo_coeff
         if "mo_energy_custom" in kwargs:
             self._mo_energy_custom = kwargs["mo_energy_custom"]
@@ -254,7 +254,7 @@ class GCCSD(MPISolver, cc.CCSD):
         else:
             dm0_file = None
         self._dm0 = dm0_file
-        
+
         umat = kwargs.get("umat", None)
         if umat is not None:
             umat_file = os.path.join(start_path, "umat.npy")
@@ -262,7 +262,7 @@ class GCCSD(MPISolver, cc.CCSD):
         else:
             umat_file = None
         self._umat = umat_file
-        
+
         self._no_kernel = False
         self._calc_rdm2 = calc_rdm2
 
@@ -287,7 +287,7 @@ class GCCSD(MPISolver, cc.CCSD):
         frdm = h5py.File(gcc_dict["rdm_file"], 'r')
         self.rdm1 = np.asarray(frdm["rdm1"])
         frdm.close()
-        
+
         return self.rdm1, self.e_tot
 
     def _cc_inp(self, start_path):
@@ -328,11 +328,11 @@ class GCCSD(MPISolver, cc.CCSD):
                         'calc_rdm2'      : self._calc_rdm2,
                         'ao_repr'        : self.ao_repr,
                         'no_kernel'      : self._no_kernel,
-                        
-                        'e_file'         :e_file, 
-                        'rdm_file'      :rdm_file, 
+
+                        'e_file'         :e_file,
+                        'rdm_file'      :rdm_file,
                         }
-        
+
         log.debug(0, "MPI4PySCF GCCSD input dict:")
         for ii in cc_inp_dict:
             if isinstance(cc_inp_dict[ii], np.ndarray):
@@ -377,19 +377,19 @@ class MPIGCCDAsFCISolver(GCCSD):
         self.ao_repr = False
         self.approx_l = approx_l
         self.frozen = frozen
-        
+
         self.restart = restart
         self.fname = fname
         self.fcivec = fcivec
         self.fcc_name = fcc_name
         self.fix_fcivec = fix_fcivec
-        
+
         self.nnode = nnode
         self.nproc = nproc
         self.nthread = nthread
 
         MPISolver.__init__(self, nproc=nproc, nnode=nnode, nthread=nthread)
-        
+
         self.env_slurm          = False
         self.use_global_scratch = False
 
@@ -399,7 +399,7 @@ class MPIGCCDAsFCISolver(GCCSD):
         self.restart_files = []
         self.temp_files    = []
         self.name          = "mpi-gcc"
-        
+
         self.remove_h2 = remove_h2
         self._init_mpi_solver = False
         self.optimized = False
@@ -408,25 +408,25 @@ class MPIGCCDAsFCISolver(GCCSD):
     def kernel(self, h1, h2, norb, nelec, ci0=None, ecore=0, **kwargs):
         if self.ghf:
             from libdmet.solver import scf as scf_hp
-            
+
             # first get the start path
             if not self._init_mpi_solver:
                 self.create_tmp(tmp="./tmp", share_dir="")
-            
+
             start_path = self.tmp_dir
-            
+
             inp_file_name = "%s.inp.%03d" %(self.name, self.count)
             inp_file_path = os.path.join(start_path, inp_file_name)
-            
+
             # no scf is need
             self._no_kernel = True
-            self._dm0 = None 
+            self._dm0 = None
             self._scf_max_cycle = kwargs.get("scf_max_cycle", 100)
-            
+
             self._nelec = sum(nelec)
             self._spin  = 0
             self._calc_rdm2 = True
-            
+
             if self.restart and self.optimized:
                 if os.path.exists("%s_u.npy"%self.fname):
                     self._umat = np.load("%s_u.npy"%self.fname)
@@ -436,14 +436,14 @@ class MPIGCCDAsFCISolver(GCCSD):
             else:
                 self._umat = None
                 self._restart = False
-            
+
             # dump input
             gcc_dict = self._cc_inp(start_path)
             self._gcc_dict = gcc_dict
             import pickle as p
             with open(inp_file_path, "wb") as f:
                 p.dump(gcc_dict, f)
-            
+
             # dump integral
             Ham = integral.Integral(norb, True, False, ecore, {"cd": h1[None]},
                                     {"ccdd": h2[None]}, ovlp=None)
@@ -460,13 +460,13 @@ class MPIGCCDAsFCISolver(GCCSD):
             self.rdm1 = np.asarray(frdm["rdm1"])
             self.rdm2 = np.asarray(frdm["rdm2"])
             frdm.close()
-            
+
             if self.restart:
                 self.optimized = True
             return self.e_tot, self.fcivec
         else:
             raise NotImplementedError
-    
+
     def make_rdm1(self, fake_ci, norb, nelec):
         if self.rdm1 is None:
             frdm = h5py.File(self._gcc_dict["rdm_file"], 'r')
@@ -481,7 +481,7 @@ class MPIGCCDAsFCISolver(GCCSD):
             self.rdm2 = np.asarray(frdm["rdm2"])
             frdm.close()
         return self.rdm1, self.rdm2
-    
+
     def load_fcivec(self, fname):
         """
         need not to load here.

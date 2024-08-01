@@ -56,12 +56,12 @@ def test_imp_idx():
     Lat.set_val_virt_core(nval, nvirt, ncore)
 
     labels_all = get_labels(cell, minao)[0]
-    imp_idx = get_idx(labels_all, atom_num=[0]) 
+    imp_idx = get_idx(labels_all, atom_num=[0])
 
     exxdiv = None
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -103,10 +103,10 @@ def test_imp_idx():
     #imp_fit = True
     emb_fit_iter = 300 # embedding fitting
     full_fit_iter = 0
-    #emb_fit_iter = 0 
+    #emb_fit_iter = 0
     #full_fit_iter = 100 # full fitting
     ytol = 1e-8
-    gtol = 1e-4 
+    gtol = 1e-4
     CG_check = True
 
     # vcor initialization
@@ -180,7 +180,7 @@ def test_imp_idx():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -190,7 +190,7 @@ def test_imp_idx():
         log.section("\nconstructing impurity problem\n")
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=True, int_bath=int_bath, add_vcor=False)
         ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu, imp_idx=imp_idx)
-        basis_k = Lat.R2k_basis(basis) 
+        basis_k = Lat.R2k_basis(basis)
 
         log.section("\nsolving impurity problem\n")
         if iter < 3:
@@ -200,7 +200,7 @@ def test_imp_idx():
             restart = (dVcor_per_ele < 1e-3)
         solver_args = {"restart": restart, "nelec": (Lat.ncore+Lat.nval)*2, \
                 "dm0": dmet.foldRho_k(res["rho_k"], basis_k)*2.0}
-        
+
         rhoEmb, EnergyEmb, ImpHam, dmu = \
             dmet.SolveImpHam_with_fitting(Lat, Filling*0.5, ImpHam, basis, solver, \
             solver_args=solver_args, thrnelec=nelec_tol, \
@@ -228,23 +228,23 @@ def test_imp_idx():
 
         dVcor_per_ele = np.max(np.abs(vcor_new.param - vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = np.max(np.abs(pvcor - vcor.param))
         vcor.update(pvcor)
         log.result("Trace of vcor: %20.12f ", np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2)))
-        
+
         history.update(EnergyImp*nscsites/float(ncell_sc), err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter)
-        
+
         if dVcor_per_ele < u_tol and abs(dE) < E_tol and iter > iter_tol :
             conv = True
             break

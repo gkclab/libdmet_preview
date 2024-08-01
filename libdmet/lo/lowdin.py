@@ -22,13 +22,13 @@ ORTH_TOL = 1e-12
 def lowdin_k(mf_or_lattice, method='meta_lowdin', s=None, pre_orth_ao=lo.orth.REF_BASIS):
     """
     Meta Lowdin orbitals with k point sampling.
-    
+
     Args:
         kmf: kscf or lattice object
         method : str
             One of
             | lowdin : Symmetric orthogonalization
-            | meta-lowdin : Lowdin orth within core, valence, virtual space 
+            | meta-lowdin : Lowdin orth within core, valence, virtual space
                             separately (JCTC, 10, 3784)
             | NAO:
         s: overlap matrix, shape (nkpts, nao, nao)
@@ -102,7 +102,7 @@ def _vec_lowdin(c, s=1, f=None):
 
 def vec_lowdin(C, S, f=None):
     """
-    Lowdin orthogonalization for a set of orbitals with (spin and) kpts. 
+    Lowdin orthogonalization for a set of orbitals with (spin and) kpts.
     f is a factor array to scale C, i.e. C_pm (* f_m) * X_mi.
     """
     S = np.asarray(S)
@@ -154,10 +154,10 @@ def _orth_cano(c, s, tol=1e-12, f=None):
         else:
             res = np.dot(c * f, _cano(mdot(c.conj().T, s, c), tol=tol))
     return res
-    
+
 def orth_cano(C, S, tol=1e-12, f=None):
     """
-    Canonical orthogonalization for a set of orbitals with (spin and) kpts. 
+    Canonical orthogonalization for a set of orbitals with (spin and) kpts.
     tol is the tolerance to discard functions.
     """
     S = np.asarray(S)
@@ -189,7 +189,7 @@ def orth_cano(C, S, tol=1e-12, f=None):
                     f = f[s]
                 C_orth.append(_orth_cano(C[s], S, tol, f))
     return C_orth
-    
+
 # ****************************************************************************
 # Check functions
 # ****************************************************************************
@@ -387,15 +387,15 @@ def give_labels_to_lo(kmf, C_ao_lo, order=1, C_ao_lo_ref=None, labels_ref=None):
 
     ovlp = kmf.get_ovlp()
     C_ao_lo = np.asarray(C_ao_lo)
-    assert C_ao_lo.ndim == 3 
+    assert C_ao_lo.ndim == 3
     assert C_ao_ref.ndim == 3
     nkpts, nao, nlo = C_ao_lo.shape
     nref = C_ao_ref.shape[-1]
 
     C_ref_lo_ave = np.zeros((nref, nlo))
-    for k in range(nkpts): 
+    for k in range(nkpts):
         C_ref_lo_ave += abs(mdot(C_ao_ref[k].conj().T, ovlp[k], C_ao_lo[k]))
-    C_ref_lo_ave /= nkpts  
+    C_ref_lo_ave /= nkpts
     idx = np.argsort(C_ref_lo_ave, kind='mergesort', axis=0)[-order:][::-1]
 
     for j in range(idx.shape[-1]):

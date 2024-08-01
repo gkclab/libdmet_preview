@@ -63,16 +63,16 @@ def modified_cholesky_uhf(mat, max_error=1e-6):
     idx = np.argmax(diag)
     delta_max = diag[idx]
     Mapprox = np.zeros_like(diag)
-    
+
     chol_vecs = [[], []]
-    
+
     if idx < size:
         chol_vecs[0].append(mat[0][idx] / delta_max**0.5)
         chol_vecs[1].append(mat[2][idx] / delta_max**0.5)
     else:
         chol_vecs[0].append(mat[2].T[idx-size] / delta_max**0.5)
         chol_vecs[1].append(mat[1][idx-size] / delta_max**0.5)
-    
+
     max_cycle = size * 2 + 1
     for i in range(max_cycle):
         Mapprox[:size] += chol_vecs[0][i] * chol_vecs[0][i]
@@ -96,7 +96,7 @@ def modified_cholesky_uhf(mat, max_error=1e-6):
                 Rb += vecb[idx-size] * vecb
             chol_vecs[0].append((mat[2].T[idx-size] - Ra) / (delta_max)**0.5)
             chol_vecs[1].append((mat[1][idx-size] - Rb) / (delta_max)**0.5)
-        
+
         Ra = Rb = None
         if abs(delta_max) < max_error:
             break
@@ -171,8 +171,8 @@ class AOPairs():
 
         self.nao = nao
         self.n_aopairs = nao*nao
-        self.eri_diag = None   
-        self.sorted_ind = None 
+        self.eri_diag = None
+        self.sorted_ind = None
 
         self.data = None
 
@@ -261,7 +261,7 @@ class AOPairs():
         eri = eri.reshape(nao_l, nao, nao)
         for kl in kl_ind:
             k = kl[0]
-            l = kl[1] 
+            l = kl[1]
             out[:,ind] = eri[:,k,l]
             ind += 1
 
@@ -276,7 +276,7 @@ class cholesky():
         self.tau = tau
         self.sigma = sigma
         self.dimQ = dimQ
-        
+
         nao = self.eri.shape[0]
         self.ao_pairs = AOPairs(nao)
         self.ao_pairs.init_aopairs()
@@ -345,7 +345,7 @@ class cholesky():
                     Dq = ao_pair.eri_diag
                 Dq = float(Dq)
                 tmp.append((i, j, 0, Dq))
-            
+
             tmp1=np.asarray(tmp)[:,-1]
             sorted_q = np.argsort(-tmp1)
 
@@ -446,7 +446,7 @@ class cholesky():
 
 if __name__ == "__main__":
     from pyscf import gto, scf, ao2mo
-    
+
     mol = gto.M(
         atom = 'H 0 0 0; F 0 0 1.1',  # in Angstrom
         basis = 'ccpvdz',
@@ -460,10 +460,10 @@ if __name__ == "__main__":
     eri_s4 = ao2mo.restore(4, eri, norb)
     cderi_s4 = get_cderi_rhf(eri_s4, norb, tol=1e-8)
     print (cderi_s4.shape)
-    
+
     eri_re = np.einsum('Lpq, Lrs -> pqrs', cderi_s4, cderi_s4)
     eri_ref = ao2mo.restore(1, eri_s4, norb)
     diff = la.norm(eri_re - eri_ref)
     print ("diff", diff)
     assert diff < 1e-7
-    
+

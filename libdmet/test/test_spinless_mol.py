@@ -13,11 +13,11 @@ import pytest
 def test_spinless_mol():
     from pyscf import fci
 
-    from libdmet.system.integral import Integral 
+    from libdmet.system.integral import Integral
     from libdmet.solver import scf
     from libdmet.solver.fci import FCI
     from libdmet.routine.spinless_helper import \
-            transform_spinless_mol, Ham_compact2uhf, extractRdm 
+            transform_spinless_mol, Ham_compact2uhf, extractRdm
     from libdmet.utils.misc import max_abs, mdot
     from libdmet.utils import logger as log
 
@@ -35,30 +35,30 @@ def test_spinless_mol():
 
     h1_a = np.random.random((norb, norb))
     h1_a = h1_a + h1_a.conj().T
-    
+
     h1_b = np.random.random((norb, norb))
     h1_b = h1_b + h1_b.conj().T
-    
+
     D = np.zeros((norb, norb))
-    
+
     h1 = np.asarray((h1_a, h1_b))
 
     h2_aa = np.random.random((norb, norb, norb, norb))
     h2_aa = h2_aa + h2_aa.transpose(1,0,2,3)
     h2_aa = h2_aa + h2_aa.transpose(0,1,3,2)
     h2_aa = h2_aa + h2_aa.transpose(2,3,0,1)
-    
+
     h2_bb = np.random.random((norb, norb, norb, norb))
     h2_bb = h2_bb + h2_bb.transpose(1,0,2,3)
     h2_bb = h2_bb + h2_bb.transpose(0,1,3,2)
     h2_bb = h2_bb + h2_bb.transpose(2,3,0,1)
-     
+
     h2_ab = np.random.random((norb, norb, norb, norb))
     h2_ab = h2_ab + h2_ab.transpose(1,0,2,3)
     h2_ab = h2_ab + h2_ab.transpose(0,1,3,2)
     # 4-fold is enough
     #h2_ab = h2_ab + h2_ab.transpose(2,3,0,1)
-    
+
     h2 = np.asarray((h2_aa, h2_bb, h2_ab))
 
     # ********************************
@@ -98,7 +98,7 @@ def test_spinless_mol():
     Mu = 4.0
     rdm1_sl, e_sl = fci_sl.run(Ham_slu, nelec=norb, dm0=dm0, Mu=Mu)
 
-    rdm1_sla, rdm1_slb, rdm1_ba = extractRdm(rdm1_sl[0]) 
+    rdm1_sla, rdm1_slb, rdm1_ba = extractRdm(rdm1_sl[0])
 
     log.result("Spinless-FCI Energy: %s", e_sl)
     log.result("Spinless-FCI rdm1: \n%s", \
@@ -181,7 +181,7 @@ def test_spinless_mol():
     # GHF-FCI vs HFB-DMRG
     # D != 0
     # ********************************
-    # GHF-FCI using UIHF-FCI 
+    # GHF-FCI using UIHF-FCI
     log.note("GHF-FCI using UIHF-FCI")
     fci_slu = FCI(restricted=False, Sz=norb, bcs=False, \
             tol=1e-10, max_cycle=200, max_memory=40000)

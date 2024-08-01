@@ -10,7 +10,7 @@ from scipy import stats
 def extrapolate_M(fname, start=1, dw_tol=1e-4):
     lines, M_num = readlines_find('Sweep Energy', fname)
     M_lines = [lines[num] for num in M_num]
-    
+
     print ("%10s %20s %20s %5s"%("M", "discarded weight", "Energy", "Used"))
     dws = []
     Ms = []
@@ -38,7 +38,7 @@ def extrapolate_M(fname, start=1, dw_tol=1e-4):
                 break
             M_old = M_new
             n += 1
-    
+
     # if calc is not done
     if i == (len(M_lines)-2):
         Ms.append(M_new)
@@ -56,10 +56,10 @@ def extrapolate_M(fname, start=1, dw_tol=1e-4):
     print (E_ext - Es[-1])
     print ("r value")
     print (r_value)
-    
+
     if r_value < 0.9:
         print ("WARNING! r value is far from 1.0")
-    
+
     #fit = np.polyfit(dws, Es, 1)
     #fit_fn = np.poly1d(fit)
     #x = np.linspace(0, np.max(dws), 100)

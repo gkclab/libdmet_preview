@@ -17,7 +17,7 @@ def test_gso_uks():
 
     rho_uks = t_uks()
     rho_uks = spinless.transform_rdm1_local(rho_uks, compact=False)
-    
+
     print ("rdm1 diff compare to UHF SCF")
     print (max_abs(rho_gso - rho_uks))
     assert max_abs(rho_gso - rho_uks) < 1e-5
@@ -39,10 +39,10 @@ def t_gso():
     import libdmet.dmet.HubbardGSO as dmet
     from libdmet.routine import spinless
     from libdmet.utils import max_abs, mdot
-    
+
     log.verbose = "DEBUG2"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -63,7 +63,7 @@ def t_gso():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -110,7 +110,7 @@ def t_gso():
 
     # vcor initialization
     vcor = dmet.VcorLocal(restricted, bogoliubov, nscsites, ghf=True)
-    
+
     ### ************************************************************
     ### SCF Mean-field calculation
     ### ************************************************************
@@ -158,22 +158,22 @@ def t_gso():
     ### ************************************************************
     ### Pre-processing, LO and subspace partition
     ### ************************************************************
-    
+
     log.section("\nPre-process, orbital localization and subspace partition\n")
     kmf = Lat.symmetrize_kmf(kmf)
     C_ao_iao, C_ao_iao_val, C_ao_iao_virt, lo_labels = \
             make_basis.get_C_ao_lo_iao(Lat, kmf, minao='minao', full_return=True,
                                        return_labels=True)
     C_ao_iao = Lat.symmetrize_lo(C_ao_iao)
-    
+
     ncore = 0
     nval = C_ao_iao_val.shape[-1]
     nvirt = cell.nao_nr() - ncore - nval
     Lat.set_val_virt_core(nval, nvirt, ncore)
-    
+
     C_ao_lo = C_ao_iao
     Lat.set_Ham(kmf, gdf, C_ao_lo)
-    
+
     mo_coeff = kmf.mo_coeff
     # transform everything to LO
     hcore = kmf.get_hcore()
@@ -195,18 +195,18 @@ def t_gso():
                                                           compact=False,
                                                           hyb=hyb,
                                                           return_hf=True)
-    
+
     hcore_hf_add = (GV1_hf - GV1)
     GH1 += GV1
     GH0 += GV0
     #GH0 += e_nuc
     GRho_k = spinless.transform_rdm1_k(Lat.rdm1_lo_k)
-    
+
     # transform back to AO
     GH1_ao_k = make_basis.transform_h1_to_ao(GH1, C_sao_slo, ovlp_ghf)
     hcore_hf_add = make_basis.transform_h1_to_ao(hcore_hf_add, C_sao_slo, ovlp_ghf)
     GRho_ao_k = make_basis.transform_rdm1_to_ao(GRho_k, C_sao_slo)
-    
+
     cell.nelectron = GRho_k.shape[-1] // 2
     if hasattr(kmf, "_numint"):
         xc_code = getattr(kmf, "xc", None)
@@ -218,26 +218,26 @@ def t_gso():
     kmf.with_df._cderi = 'gdf_ints.h5'
     kmf.conv_tol = 1e-10
     kmf.max_cycle = 300
-    
+
     def get_hcore(cell=None, kpts=None):
         hcore_ori = np.array(GH1_ao_k, copy=True)
         ovlp = kmf.get_ovlp()
-        nkpts, nso, _ = hcore_ori.shape 
+        nkpts, nso, _ = hcore_ori.shape
         nao = nso // 2
         if getattr(kmf, "Mu", None) is not None:
             hcore_ori[:, :nao, :nao] -= ovlp[:, :nao, :nao] * kmf.Mu
             hcore_ori[:, nao:, nao:] += ovlp[:, nao:, nao:] * kmf.Mu
         return hcore_ori
-    
+
     kmf.get_hcore = get_hcore
     kmf.get_ovlp   = lambda *args: ovlp_ghf
     kmf.energy_nuc = lambda *args: GH0 + e_nuc
-    kmf.Mu = Mu 
+    kmf.Mu = Mu
     kmf.kernel(dm0=GRho_ao_k)
     kmf.get_hcore = lambda *args: GH1_ao_k
-    
+
     Lat.set_Ham(kmf, gdf, C_ao_lo, H0=GH0, hcore_hf_add=hcore_hf_add)
-    
+
     ### ************************************************************
     ### DMET procedure
     ### ************************************************************
@@ -252,7 +252,7 @@ def t_gso():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -266,9 +266,9 @@ def t_gso():
                                                   dft=True)
         ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
-        
+
         log.section("\nsolving impurity problem\n")
-        
+
         # first find proper mu
         dm0 = dmet.foldRho_k(res["rho_k"], basis_k)
         nelec_target = 0.0
@@ -276,16 +276,16 @@ def t_gso():
             dm = mdot(C, dm0, C.conj().T)
             norb = dm.shape[-1] // 2
             nelec_target += dm[range(norb), range(norb)].sum() - dm[range(norb, norb*2), range(norb, norb*2)].sum() + norb
-        
+
         dm0, E = myscf.run(ImpHam, nelec=ImpHam.H1["cd"].shape[-1]//2, dm0=dm0,
                            fit_mu=True, nelec_target=nelec_target, basis=basis, mu_elec=Mu)
         Mu_new = myscf.scfsolver.mf.mu_elec
-        
+
         # modify hamiltonian
         v_mu0 = myscf.scfsolver.mf.v_mu0
         v_mu = myscf.scfsolver.mf.v_mu
         ImpHam.H1["cd"] += (v_mu - v_mu0)
-        
+
         solver_args = {"nelec": dm0.shape[-1]//2, "dm0": dm0, "scf_max_cycle": 200}
 
         rhoEmb, EnergyEmb, ImpHam, dmu = \
@@ -294,7 +294,7 @@ def t_gso():
             delta=delta, step=step)
         dmet.SolveImpHam_with_fitting.save("./frecord")
         last_dmu += dmu
-        
+
         rhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(rhoEmb, EnergyEmb, Lat, basis, ImpHam, H1e, \
                 Mu_new, last_dmu=last_dmu, int_bath=int_bath, \
@@ -304,7 +304,7 @@ def t_gso():
         EnergyImp *= nscsites
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
-        
+
         return rhoImp
 
 def t_uks():
@@ -324,10 +324,10 @@ def t_uks():
     import libdmet.dmet.Hubbard as dmet
     from libdmet.routine import spinless
     from libdmet.utils import max_abs, mdot
-    
+
     log.verbose = "DEBUG2"
     np.set_printoptions(4, linewidth=1000, suppress=True)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -348,7 +348,7 @@ def t_uks():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -393,7 +393,7 @@ def t_uks():
 
     # vcor initialization
     vcor = dmet.VcorLocal(restricted, bogoliubov, nscsites, ghf=True)
-    
+
     ### ************************************************************
     ### SCF Mean-field calculation
     ### ************************************************************
@@ -441,22 +441,22 @@ def t_uks():
     ### ************************************************************
     ### Pre-processing, LO and subspace partition
     ### ************************************************************
-    
+
     log.section("\nPre-process, orbital localization and subspace partition\n")
     kmf = Lat.symmetrize_kmf(kmf)
     C_ao_iao, C_ao_iao_val, C_ao_iao_virt, lo_labels = \
             make_basis.get_C_ao_lo_iao(Lat, kmf, minao='minao', full_return=True,
                                        return_labels=True)
     C_ao_iao = Lat.symmetrize_lo(C_ao_iao)
-    
+
     ncore = 0
     nval = C_ao_iao_val.shape[-1]
     nvirt = cell.nao_nr() - ncore - nval
     Lat.set_val_virt_core(nval, nvirt, ncore)
-    
+
     C_ao_lo = C_ao_iao
     Lat.set_Ham(kmf, gdf, C_ao_lo)
-    
+
     ### ************************************************************
     ### DMET procedure
     ### ************************************************************
@@ -471,7 +471,7 @@ def t_uks():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         log.result("Mu (guess) = %20.12f", Mu)
@@ -483,7 +483,7 @@ def t_uks():
                                                   dft=True)
         ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
-        
+
         log.section("\nsolving impurity problem\n")
         solver_args = {"nelec": Lat.nval * 2, \
                 "dm0": dmet.foldRho_k(res["rho_k"], basis_k), "scf_max_cycle":
@@ -494,7 +494,7 @@ def t_uks():
             delta=delta, step=step)
         dmet.SolveImpHam_with_fitting.save("./frecord")
         last_dmu += dmu
-        
+
         rhoImp, EnergyImp, nelecImp = \
                 dmet.transformResults(rhoEmb, EnergyEmb, basis, ImpHam, H1e, \
                 lattice=Lat, last_dmu=last_dmu, int_bath=int_bath, \
@@ -504,7 +504,7 @@ def t_uks():
         EnergyImp *= nscsites
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
-        
+
         return rhoImp
 
 if __name__ == "__main__":

@@ -23,11 +23,11 @@ from pyscf.data.nist import HARTREE2EV
 
 from libdmet.basis_transform import make_basis
 from libdmet.lo import iao, lowdin_k
-from libdmet.utils import format_idx, mdot 
+from libdmet.utils import format_idx, mdot
 
 DIAG = False
 
-def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1, 
+def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
              kpts=None, kpts_band=None):
     """
     Coulomb + XC functional + Hubbard U terms.
@@ -55,7 +55,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     vxc = super(ks.__class__, ks).get_veff(cell=cell, dm=dm, dm_last=dm_last,
                                            vhf_last=vhf_last, hermi=hermi, kpts=kpts,
                                            kpts_band=kpts_band)
-    
+
     # V_U
     C_ao_lo = ks.C_ao_lo
     ovlp = ks.get_ovlp()
@@ -66,7 +66,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     for k in range(nkpts):
         C_inv = np.dot(C_ao_lo[k].conj().T, ovlp[k])
         rdm1_lo[k] = mdot(C_inv, dm[k], C_inv.conj().T)
-    
+
     is_ibz = hasattr(kpts, "kpts_ibz")
     if is_ibz:
         rdm1_lo_0 = kpts.dm_at_ref_cell(rdm1_lo)
@@ -88,7 +88,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                 S_k = ovlp[k]
                 C_k = C_ao_lo[k][:, idx]
                 P_k = rdm1_lo[k][U_mesh]
-                
+
                 SC = np.dot(S_k, C_k)
                 vxc[k] += mdot(SC, (np.eye(P_k.shape[-1]) - P_k)
                                * (val * 0.5), SC.conj().T)
@@ -110,7 +110,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     vxc = lib.tag_array(vxc, E_U=E_U)
     return vxc
 
-def get_veff_diag(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1, 
+def get_veff_diag(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
              kpts=None, kpts_band=None):
     """
     Coulomb + XC functional + Hubbard U terms.
@@ -138,7 +138,7 @@ def get_veff_diag(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     vxc = super(ks.__class__, ks).get_veff(cell=cell, dm=dm, dm_last=dm_last,
                                            vhf_last=vhf_last, hermi=hermi, kpts=kpts,
                                            kpts_band=kpts_band)
-    
+
     # V_U
     C_ao_lo = ks.C_ao_lo
     ovlp = ks.get_ovlp()
@@ -149,7 +149,7 @@ def get_veff_diag(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     for k in range(nkpts):
         C_inv = np.dot(C_ao_lo[k].conj().T, ovlp[k])
         rdm1_lo[k] = mdot(C_inv, dm[k], C_inv.conj().T)
-    
+
     is_ibz = hasattr(kpts, "kpts_ibz")
     if is_ibz:
         rdm1_lo_0 = kpts.dm_at_ref_cell(rdm1_lo)
@@ -171,7 +171,7 @@ def get_veff_diag(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                 S_k = ovlp[k]
                 C_k = C_ao_lo[k][:, idx]
                 P_k = rdm1_lo[k][U_mesh]
-                
+
                 SC = np.dot(S_k, C_k)
                 #vxc[k] += mdot(SC, (np.eye(P_k.shape[-1]) - P_k)
                 #               * (val * 0.5), SC.conj().T)
@@ -254,14 +254,14 @@ def make_minao_lo(ks, minao_ref, pmol=None):
     kpts = getattr(ks.kpts, "kpts_ibz", ks.kpts)
     nkpts = len(kpts)
     ovlp = ks.get_ovlp()
-    C_ao_minao, labels = iao.proj_ref_ao(cell, minao=minao_ref, 
-                                         kpts=kpts, pmol=pmol, 
+    C_ao_minao, labels = iao.proj_ref_ao(cell, minao=minao_ref,
+                                         kpts=kpts, pmol=pmol,
                                          return_labels=True)
     C_ao_minao = iao.vec_lowdin(C_ao_minao, ovlp)
     labels = np.asarray(labels)
-    
+
     C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
-    for idx, lab in zip(ks.U_idx, ks.U_lab):                    
+    for idx, lab in zip(ks.U_idx, ks.U_lab):
         idx_minao = [i for i, l in enumerate(labels) if l in lab]
         assert len(idx_minao) == len(idx)
         C_ao_sub = C_ao_minao[:, :, idx_minao]
@@ -301,29 +301,29 @@ class KRKSpU(krks.KRKS):
     RKSpU class adapted for PBCs with k-point sampling.
     """
     def __init__(self, cell, kpts=np.zeros((1,3)), xc='LDA,VWN',
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'), 
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
                  U_idx=[], U_val=[], C_ao_lo='minao', **kwargs):
         """
         DFT+U args:
-            U_idx: can be 
+            U_idx: can be
                    list of list: each sublist is a set of LO indices to add U.
-                   list of string: each string is one kind of LO orbitals, 
+                   list of string: each string is one kind of LO orbitals,
                                    e.g. ['Ni 3d', '1 O 2pz'], in this case,
                                    LO should be aranged as ao_labels order.
                    or a combination of these two.
             U_val: a list of effective U [in eV], i.e. U-J in Dudarev's DFT+U.
                    each U corresponds to one kind of LO orbitals, should have
                    the same length as U_idx.
-            C_ao_lo: LO coefficients, can be 
+            C_ao_lo: LO coefficients, can be
                      np.array, shape ((spin,), nkpts, nao, nlo),
                      string, in 'minao', 'meta-lowdin', 'lowdin'.
                      default is 'minao'.
-        
+
         Kwargs:
-            minao_ref: reference for minao orbitals, default is 'MINAO'. 
+            minao_ref: reference for minao orbitals, default is 'MINAO'.
             pmol: reference pmol for minao orbitals. default is None.
-            pre_orth_ao: can be 
-                         ANO: [default] using ANO as reference basis for constructing 
+            pre_orth_ao: can be
+                         ANO: [default] using ANO as reference basis for constructing
                                (meta)-Lowdin C_ao_lo
                          otherwise use identity (AO) as reference.
         """
@@ -334,11 +334,11 @@ class KRKSpU(krks.KRKS):
             super(self.__class__, self).__init__(cell, kpts)
             self.xc = xc
             self.exxdiv = exxdiv
-        
+
         set_U(self, U_idx, U_val)
-        
+
         lo_info = {"type": None, "minao_ref": None, "pmol": None, "pre_orth_ao": None}
-        if isinstance(C_ao_lo, str): 
+        if isinstance(C_ao_lo, str):
             if C_ao_lo == 'minao':
                 minao_ref = kwargs.get("minao_ref", "MINAO")
                 pmol = kwargs.get("pmol", None)
@@ -388,17 +388,17 @@ if __name__ == '__main__':
     cell.verbose = 7
     cell.build()
     kmesh = [2, 2, 2]
-    kpts = cell.make_kpts(kmesh, wrap_around=True) 
+    kpts = cell.make_kpts(kmesh, wrap_around=True)
     Lat = lattice.Lattice(cell, kmesh)
     #U_idx = ["2p", "2s"]
     #U_val = [5.0, 2.0]
     U_idx = ["1 C 2p"]
     U_val = [5.0]
-    
+
     mf = KRKSpU(cell, kpts, U_idx=U_idx, U_val=U_val, C_ao_lo='minao',
             minao_ref='gth-szv')
     #mf.C_ao_lo = make_lowdin(mf)
-    
+
     mf.conv_tol = 1e-10
     print (mf.U_idx)
     print (mf.U_val)

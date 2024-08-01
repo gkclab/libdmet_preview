@@ -77,7 +77,7 @@ def update_amps_ite(mycc, t1, t2, eris):
     tmp = einsum('imab, mj -> ijab', t2, Ftmp)
     t2new -= tmp - tmp.transpose(1,0,2,3)
     t2new += np.asarray(eris.oovv).conj()
-    
+
     Woooo = imd.cc_Woooo(t1, t2, eris)
     t2new += einsum('mnab, mnij -> ijab', tau, Woooo * 0.5)
     Woooo = None
@@ -99,19 +99,19 @@ def update_amps_ite(mycc, t1, t2, eris):
     t2new += (tmp - tmp.transpose(1,0,2,3))
     tmp = einsum('ma, ijmb -> ijab', t1, np.asarray(eris.ooov).conj())
     t2new -= (tmp - tmp.transpose(0,1,3,2))
-    
+
     # ZHC NOTE imaginary time evolution
     dt = mycc.dt
     eia = mo_e_o[:,None] - mo_e_v
     t1new *= (-dt)
     t1new += t1 * (1.0 + dt * eia)
-    
+
     eia *= dt
     t2new *= (-dt)
     for i in range(nocc):
         ejab = lib.direct_sum('a, jb -> jab', eia[i] + 1.0, eia)
         t2new[i] += t2[i] * ejab
-    
+
     return t1new, t2new
 
 def kernel_lambda_ite(mycc, eris=None, t1=None, t2=None, l1=None, l2=None,
@@ -132,12 +132,12 @@ def update_lambda_ite(mycc, t1, t2, l1, l2, eris, imds):
         mo_e_v = eris.mo_energy[nocc:] + mycc.level_shift
     v1 = imds.v1 - np.diag(mo_e_v)
     v2 = imds.v2 - np.diag(mo_e_o)
-    
+
     l1new = np.array(fov, copy=True)
 
     mba = einsum('klca, klcb -> ba', l2, t2) * .5
     mij = einsum('kicd, kjcd -> ij', l2, t2) * .5
-    
+
     oovv = np.asarray(eris.oovv)
     tau  = np.einsum('ia, jb -> ijab', t1, t1 * 2.0, optimize=True)
     tau += t2
@@ -199,13 +199,13 @@ def update_lambda_ite(mycc, t1, t2, l1, l2, eris, imds):
     #l1new /= eia
     #for i in range(nocc):
     #    l2new[i] /= lib.direct_sum('a, jb -> jab', eia[i], eia)
-    
+
     # ZHC NOTE imaginary time evolution
     dt = mycc.dt
     eia = lib.direct_sum('i-j->ij', mo_e_o, mo_e_v)
     l1new *= (-dt)
     l1new += l1 * (1.0 + dt * eia)
-    
+
     eijab = lib.direct_sum('ia, jb -> ijab', eia, eia)
     l2new *= (-dt)
     eijab *= dt
@@ -221,7 +221,7 @@ def init_amps_ghf(mycc, eris=None):
     """
     if eris is None:
         eris = mycc.ao2mo(mycc.mo_coeff)
-    
+
     nocc = mycc.nocc
     mo_e_o = eris.mo_energy[:nocc]
     mo_e_v = eris.mo_energy[nocc:] + mycc.level_shift
@@ -246,9 +246,9 @@ class GCCSDITE(gccsd.GCCSD):
         self._keys = self._keys.union(["dt", "ignore_level_shift"])
 
     update_amps = update_amps_ite
-    
+
     init_amps = init_amps_ghf
-    
+
     def solve_lambda(self, t1=None, t2=None, l1=None, l2=None, eris=None):
         if t1 is None: t1 = self.t1
         if t2 is None: t2 = self.t2
@@ -293,7 +293,7 @@ def update_amps_ite_rk(mycc, t1, t2, eris):
     tmp = einsum('imab, mj -> ijab', t2, Ftmp)
     t2new -= tmp - tmp.transpose(1,0,2,3)
     t2new += np.asarray(eris.oovv).conj()
-    
+
     Woooo = imd.cc_Woooo(t1, t2, eris)
     t2new += einsum('mnab, mnij -> ijab', tau, Woooo * 0.5)
     Woooo = None
@@ -331,25 +331,25 @@ def rk4(mycc, t1, t2, eris, h, order=4, fupdate=None):
         t1_, t2_ = t1 + dt11 * (h*0.5), t2 + dt21 * (h*0.5)
         dt1new = dt11
         dt2new = dt21
-        
+
         dt12, dt22 = fupdate(t1_, t2_, eris)
         t1_, t2_ = t1 + dt12 * (h*0.5), t2 + dt22 * (h*0.5)
         dt1new += (2.0 * dt12)
         dt2new += (2.0 * dt22)
         dt12 = dt22 = None
-        
+
         dt13, dt23 = fupdate(t1_, t2_, eris)
         t1_, t2_ = t1 + dt13 * h, t2 + dt23 * h
         dt1new += (2.0 * dt13)
         dt2new += (2.0 * dt23)
         dt13 = dt23 = None
-        
+
         dt14, dt24 = fupdate(t1_, t2_, eris)
         t1_ = t2_ = None
         dt1new += dt14
         dt2new += dt24
         dt14 = dt24 = None
-        
+
         dt1new *= (1.0 / 6.0)
         dt2new *= (1.0 / 6.0)
         return dt1new, dt2new
@@ -368,7 +368,7 @@ def kernel_rk(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
     eold = 0
     eccsd = mycc.energy(t1, t2, eris)
     log.info('Init E_corr(CCSD) = %.15g', eccsd)
-        
+
     conv = False
     for istep in range(max_cycle):
         dt = mycc.dt
@@ -401,12 +401,12 @@ def update_lambda_ite_rk(mycc, l1, l2, eris, t1, t2, imds):
     fov = eris.fock[:nocc,nocc:]
     v1 = imds.v1
     v2 = imds.v2
-    
+
     l1new = np.array(fov, copy=True)
 
     mba = einsum('klca, klcb -> ba', l2, t2) * .5
     mij = einsum('kicd, kjcd -> ij', l2, t2) * .5
-    
+
     oovv = np.asarray(eris.oovv)
     tau  = np.einsum('ia, jb -> ijab', t1, t1 * 2.0, optimize=True)
     tau += t2
@@ -463,7 +463,7 @@ def update_lambda_ite_rk(mycc, l1, l2, eris, t1, t2, imds):
     oovv = None
     l1new -= np.einsum('ik, ka -> ia', mij, tmp, optimize=True)
     l1new -= np.einsum('ca, ic -> ia', mba, tmp, optimize=True)
-    
+
     if getattr(mycc, "frozen_abab", False):
         mycc.remove_t2_abab(l2new)
 
@@ -529,7 +529,7 @@ class GCCSDITE_RK(gccsd.GCCSD):
         self.dt = dt
         self.ignore_level_shift = ignore_level_shift
         self._keys = self._keys.union(["dt", "ignore_level_shift"])
-    
+
     def ccsd_(self, t1=None, t2=None, eris=None):
         assert(self.mo_coeff is not None)
         assert(self.mo_occ is not None)
@@ -551,7 +551,7 @@ class GCCSDITE_RK(gccsd.GCCSD):
                           verbose=self.verbose)
         self._finalize()
         return self.e_corr, self.t1, self.t2
-    
+
     def ccsd(self, t1=None, t2=None, eris=None, mbpt2=False):
         '''Ground-state unrestricted (U)CCSD.
 
@@ -589,20 +589,20 @@ class GCCSDITE_RK(gccsd.GCCSD):
                                  tol=self.conv_tol_normt,
                                  verbose=self.verbose)
         return self.l1, self.l2
-    
+
     update_amps_ite_rk = update_amps_ite_rk
     rk4 = rk4
-    
+
     update_lambda_ite_rk = update_lambda_ite_rk
     rk4_lambda = rk4_lambda
-    
+
     init_amps = init_amps_ghf
 
 """
 Direct minimize CC residual.
 """
-    
-# ZHC NOTE define max_abs to reduce cost and allow termination of 1st iteration 
+
+# ZHC NOTE define max_abs to reduce cost and allow termination of 1st iteration
 def safe_max_abs(x):
     if np.isfinite(x).all():
         return max(np.max(x), abs(np.min(x)))
@@ -633,21 +633,21 @@ def kernel_minres(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
     cput1 = cput0 = (logger.process_clock(), logger.perf_counter())
     eccsd = mycc.energy(t1, t2, eris)
     log.info('Init E_corr(CCSD) = %.15g', eccsd)
-    
-    cycle = [0] 
-    x0 = mycc.amplitudes_to_vector(t1, t2) 
-    
+
+    cycle = [0]
+    x0 = mycc.amplitudes_to_vector(t1, t2)
+
     def f_res(x):
         t1, t2 = mycc.vector_to_amplitudes(x)
         eccsd = mycc.energy(t1, t2, eris)
         t1, t2 = mycc.update_amps_ite_rk(t1, t2, eris)
-        res = mycc.amplitudes_to_vector(t1, t2) 
+        res = mycc.amplitudes_to_vector(t1, t2)
         norm = max_abs(res)
         log.info("      cycle = %5d , E = %15.8g , norm(res) = %15.5g", cycle[0],
                  eccsd, norm)
         cycle[0] += 1
-        return res 
-    
+        return res
+
     if mycc.precond == 'finv':
         def mop(x):
             return mycc.precond_finv(x, eris)
@@ -663,10 +663,10 @@ def kernel_minres(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
         inner_m = mycc.inner_m
         outer_k = mycc.outer_k
         res = opt.root(f_res, x0, method='krylov',
-                       options={'fatol': tolnormt, 'tol_norm': safe_max_abs, 
+                       options={'fatol': tolnormt, 'tol_norm': safe_max_abs,
                                 'disp': True, 'maxiter': max_cycle // inner_m,
                                 'line_search': 'wolfe',
-                                'jac_options': {'rdiff': 1e-6, 'inner_maxiter': 100, 
+                                'jac_options': {'rdiff': 1e-6, 'inner_maxiter': 100,
                                                 'inner_inner_m': inner_m, 'inner_tol': tolnormt * 0.5,
                                                 'outer_k': outer_k, 'inner_M': M}
                                })
@@ -706,19 +706,19 @@ def __kernel_lambda_minres(mycc, eris=None, t1=None, t2=None, l1=None, l2=None,
     imds = fintermediates(mycc, t1, t2, eris)
     cput0 = log.timer('CCSD lambda initialization', *cput0)
 
-    cycle = [0] 
+    cycle = [0]
     def f_res(x):
         l1, l2 = mycc.vector_to_amplitudes(x)
         l1, l2 = fupdate(mycc, l1, l2, eris, t1, t2, imds)
-        res = mycc.amplitudes_to_vector(l1, l2) 
+        res = mycc.amplitudes_to_vector(l1, l2)
         norm = max_abs(res)
         log.info("      cycle = %5d , norm(res) = %15.5g", cycle[0], norm)
         cycle[0] += 1
-        return res 
+        return res
 
-    x0 = mycc.amplitudes_to_vector(l1, l2) 
+    x0 = mycc.amplitudes_to_vector(l1, l2)
     tolnormt = mycc.conv_tol_normt
-    
+
     if mycc.precond == 'finv':
         def mop(x):
             return mycc.precond_finv(x, eris)
@@ -729,15 +729,15 @@ def __kernel_lambda_minres(mycc, eris=None, t1=None, t2=None, l1=None, l2=None,
         M = spla.LinearOperator((x0.shape[-1], x0.shape[-1]), matvec=mop)
     else:
         M = None
-    
+
     if mycc.method == 'krylov':
         inner_m = mycc.inner_m
         outer_k = mycc.outer_k
         res = opt.root(f_res, x0, method='krylov',
-                       options={'fatol': tolnormt, 'tol_norm': safe_max_abs, 
+                       options={'fatol': tolnormt, 'tol_norm': safe_max_abs,
                                 'disp': True, 'maxiter': max_cycle // inner_m,
                                 'line_search': 'wolfe',
-                                'jac_options': {'rdiff': 1e-6, 'inner_maxiter': 100, 
+                                'jac_options': {'rdiff': 1e-6, 'inner_maxiter': 100,
                                                 'inner_inner_m': inner_m, 'inner_tol': tolnormt * 0.5,
                                                 'outer_k': outer_k, 'inner_M': M}
                                })
@@ -759,7 +759,7 @@ def kernel_lambda_minres(mycc, eris=None, t1=None, t2=None, l1=None, l2=None,
                                   verbose, make_intermediates, update_lambda_ite_rk)
 
 class GCCSD_KRYLOV(gccsd.GCCSD):
-    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, 
+    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None,
                  method='krylov', precond='finv', inner_m=10, outer_k=6,
                  frozen_abab=False, nocc_a=None, nvir_a=None):
         gccsd.GCCSD.__init__(self, mf, frozen, mo_coeff, mo_occ)
@@ -772,7 +772,7 @@ class GCCSD_KRYLOV(gccsd.GCCSD):
         self.nvir_a = nvir_a
         self._keys = self._keys.union(["method", "precond", "inner_m", "outer_k",
                                        "frozen_abab", "nocc_a", "nvir_a"])
-    
+
     def dump_flags(self, verbose=None):
         gccsd.GCCSD.dump_flags(self, verbose=verbose)
         logger.info(self, "method  = %s", self.method)
@@ -783,7 +783,7 @@ class GCCSD_KRYLOV(gccsd.GCCSD):
         logger.info(self, "nocc_a  = %s", self.nocc_a)
         logger.info(self, "nvir_a  = %s", self.nvir_a)
         return self
-    
+
     def ccsd_(self, t1=None, t2=None, eris=None):
         assert(self.mo_coeff is not None)
         assert(self.mo_occ is not None)
@@ -805,7 +805,7 @@ class GCCSD_KRYLOV(gccsd.GCCSD):
                               verbose=self.verbose)
         self._finalize()
         return self.e_corr, self.t1, self.t2
-    
+
     def ccsd(self, t1=None, t2=None, eris=None, mbpt2=False):
         '''Ground-state unrestricted (U)CCSD.
 
@@ -843,15 +843,15 @@ class GCCSD_KRYLOV(gccsd.GCCSD):
                                      tol=self.conv_tol_normt,
                                      verbose=self.verbose)
         return self.l1, self.l2
-    
+
     update_amps_ite_rk = update_amps_ite_rk
     update_lambda_ite_rk = update_lambda_ite_rk
-    
+
     precond_finv = precond_finv
     precond_diag = precond_diag
-    
+
     remove_t2_abab = remove_t2_abab
-    
+
     init_amps = init_amps_ghf
 
 if __name__ == '__main__':
@@ -864,7 +864,7 @@ if __name__ == '__main__':
     mol.build(verbose=4)
     mf = scf.UHF(mol).run()
     mf = scf.addons.convert_to_ghf(mf)
-    
+
     # Freeze 1s electrons
     frozen = [0,1,2,3]
     mycc = gccsd.GCCSD(mf, frozen=frozen)
@@ -885,11 +885,11 @@ if __name__ == '__main__':
     print(ecc - -0.3486987472235819)
     gcc.solve_lambda()
     rdm1 = gcc.make_rdm1(ao_repr=True)
-     
+
     print (np.linalg.norm(rdm1 - rdm1_ref))
 
     rdm1 = gcc.make_rdm1()
-    
+
     print (rdm1)
 
     mol = gto.Mole()
@@ -906,4 +906,4 @@ if __name__ == '__main__':
     mycc = GCCSDITE(mf)
     ecc, t1, t2 = mycc.kernel()
     print(ecc - -0.2133432712431435)
-    
+

@@ -2,7 +2,7 @@
 from libdmet.lo import lowdin
 from libdmet.lo.lowdin import \
         lowdin_k, orth_ao, vec_lowdin, check_orthonormal, check_orthogonal, \
-        check_span_same_space, check_positive_definite, give_labels_to_lo 
+        check_span_same_space, check_positive_definite, give_labels_to_lo
 
 from libdmet.lo import iao
 from libdmet.lo.iao import \

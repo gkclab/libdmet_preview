@@ -12,7 +12,7 @@ def test_ER():
     from libdmet.routine.localizer import Localizer as ER_jac
     from libdmet.solver import scf as scf_hp
     from libdmet.utils.misc import mdot
-    
+
     np.set_printoptions(3, linewidth=1000, suppress=True)
     mol = gto.Mole()
     mol.atom = '''
@@ -27,16 +27,16 @@ def test_ER():
     eri = mf._eri
     eri_s1 = ao2mo.restore(1, eri, mol.nao_nr())
     jk_func = scf_hp._get_jk
-    
+
     nmo = 5
     eri_mo = ao2mo.general(eri_s1, (mf.mo_coeff[:,:nmo], mf.mo_coeff[:,:nmo], \
             mf.mo_coeff[:,:nmo], mf.mo_coeff[:,:nmo]))
-    
+
     localizer2 = ER_jac(eri_mo)
     localizer2.optimize(thr=1e-12)
     f_jac = localizer2.getL()
     C_mo_lo = localizer2.coefs.T
-    
+
     localizer = ER(mol=None, eri=eri, jk_func=jk_func, \
             mo_coeff=mf.mo_coeff[:, :nmo])
     localizer.conv_tol = 1e-12
@@ -44,14 +44,14 @@ def test_ER():
     C_ao_lo = localizer.kernel()
     f_ciah = localizer.cost_function(np.eye(nmo))
     assert abs(f_ciah - f_jac) < 1e-10
-    
+
     localizer = ER(mol, mo_coeff=mf.mo_coeff[:, :nmo])
     localizer.conv_tol = 1e-12
     localizer.init_guess = 'scdm'
     C_ao_lo = localizer.kernel()
     f_ciah2 = localizer.cost_function(np.eye(nmo))
     assert abs(f_ciah2 - f_jac) < 1e-10
-    
+
     C_ao_lo, _ = ER_model(mf.mo_coeff[:, :nmo], eri, jk_func=jk_func, \
             num_rand=5, noise=1.0, guess=None, conv_tol=1e-12)
     C_mo_lo = mdot(mf.mo_coeff[:, :nmo].conj().T, mf.get_ovlp(), C_ao_lo)
@@ -62,12 +62,12 @@ def test_ER():
     nmo = 1
     eri_mo = ao2mo.general(eri_s1, (mf.mo_coeff[:,:nmo], mf.mo_coeff[:,:nmo], \
             mf.mo_coeff[:,:nmo], mf.mo_coeff[:,:nmo]))
-    
+
     localizer2 = ER_jac(eri_mo)
     localizer2.optimize(thr=1e-12)
     f_jac = localizer2.getL()
     C_mo_lo = localizer2.coefs.T
-    
+
     localizer = ER(mol=None, eri=eri, jk_func=jk_func, \
             mo_coeff=mf.mo_coeff[:, :nmo])
     localizer.conv_tol = 1e-12
@@ -82,7 +82,7 @@ def test_ER():
     C_ao_lo = localizer.kernel()
     f_ciah2 = localizer.cost_function(np.eye(nmo))
     assert abs(f_ciah2 - f_jac) < 1e-10
-    
+
     C_ao_lo, _ = ER_model(mf.mo_coeff[:, :nmo], eri, jk_func=jk_func, \
             num_rand=5, noise=1.0, guess=None, conv_tol=1e-12)
     C_mo_lo = mdot(mf.mo_coeff[:, :nmo].conj().T, mf.get_ovlp(), C_ao_lo)
@@ -108,7 +108,7 @@ def test_ER_2():
     err = loc.Int2e - np.einsum("pi,qj,rk,sl,ijkl->pqrs", R, R, R, R, s)
     log.check(np.allclose(err, 0), "Inconsistent coefficients and integrals,"
               " difference is %.2e", la.norm(err))
-    assert np.allclose(err, 0) 
+    assert np.allclose(err, 0)
 
 if __name__ == "__main__":
     test_ER_2()

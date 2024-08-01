@@ -65,7 +65,7 @@ class LatticePlot(object):
         if tight_layout:
             plt.tight_layout()
         plt.savefig(fname, dpi=dpi, *args)
-    
+
     def plot_lattice(self, figsize=(4.8, 4.8), **kwargs):
         """
         Create a canvas for the lattice.
@@ -98,13 +98,13 @@ class LatticePlot(object):
 
         plt.xlim(self.xleft, self.xright)
         plt.ylim(self.yleft, self.yright)
-        
+
         # facecolor
         ax.set_aspect('equal', adjustable='box')
         ax.set_facecolor(kwargs.get("facecolor", "white")) # background color
 
         # do not show tick and labels
-        ax.axes.get_xaxis().set_visible(kwargs.get("show_xticks", False)) 
+        ax.axes.get_xaxis().set_visible(kwargs.get("show_xticks", False))
         ax.axes.get_yaxis().set_visible(kwargs.get("show_yticks", False))
 
         if kwargs.get("noframe", False):
@@ -118,8 +118,8 @@ class LatticePlot(object):
             ax.spines['right'].set_linewidth(framewidth)
             ax.spines['top'].set_linewidth(framewidth)
             ax.spines['bottom'].set_linewidth(framewidth)
-    
-    def plot_atom(self, coord, rad, color, edgecolor='black', 
+
+    def plot_atom(self, coord, rad, color, edgecolor='black',
                   linewidth=None, **kwargs):
         """
         Plot a single atom.
@@ -135,7 +135,7 @@ class LatticePlot(object):
             linewidth = self.linewidth
         plt.scatter(coord[0], coord[1], c=color, s=np.sqrt(1000 * rad) * 20,
                     edgecolor=edgecolor, linewidths=linewidth, **kwargs)
-    
+
     def plot_spin(self, coord, m, factor=4.0, color='black', width=0.05,
                   head_width=0.16, head_length=0.13, **kwargs):
         """
@@ -156,14 +156,14 @@ class LatticePlot(object):
         plt.arrow(coord[0], coord[1], dx, dy, width=width,
                   head_width=head_width, head_length=head_length,
                   length_includes_head=False, color=color, **kwargs)
-    
+
     def plot_name(self, coord, name, fontsize=15, **kwargs):
         """
         Plot a name at coord.
         """
-        return plt.text(coord[0], coord[1], name, horizontalalignment='center', 
+        return plt.text(coord[0], coord[1], name, horizontalalignment='center',
                         verticalalignment='center', fontsize=fontsize, **kwargs)
-    
+
     plot_text = plot_name
 
     def plot_p_orb(self, coord, direct='up', phase=["+", "-"], width=0.4,
@@ -171,7 +171,7 @@ class LatticePlot(object):
                    color={"+": COLORS["red"], "-": COLORS["blue"]}, **kwargs):
         """
         Plot a p orbital at coord.
-        
+
         Args:
             color: dict, +: blue, -: red.
         """
@@ -205,7 +205,7 @@ class LatticePlot(object):
             angle = 0
         else:
             raise ValueError
-         
+
         ellipse1 = Ellipse(xy=coord0, width=width, height=height,
                            edgecolor=COLORS["gray"], fc=fc_list[0], lw=1.5, angle=angle)
         ellipse2 = Ellipse(xy=coord1, width=width, height=height,
@@ -223,7 +223,7 @@ class LatticePlot(object):
         else:
             self.plot_p_orb(coord, direct='up', phase=["-", "-"])
             self.plot_p_orb(coord, direct='left', phase=["+", "+"])
-    
+
     def plot_bond(self, coord0, coord1, val, color_list=None, zorder=None,
                   transparent=True, **kwargs):
         """
@@ -250,7 +250,7 @@ class LatticePlot(object):
             zorder = -int(val < 0)
         plt.plot(x, y, color=color_list[int(val < 0)], linestyle='-',
                  linewidth=abs(val)*1000, alpha=alpha, zorder=zorder, **kwargs)
-    
+
     """
     The following functions are for plotting a list of atoms, spins, pairings.
     """
@@ -261,10 +261,10 @@ class LatticePlot(object):
         Args:
             rad_list: a list of radius of atoms
             color_dic: dictionary of colors of species
-            coords: coordinates of atoms, if None will use the positions 
+            coords: coordinates of atoms, if None will use the positions
                     from lattice
             names: names of atoms, if None will use the names from lattice
-        
+
         Kwargs:
             edgecolor: black
             linewidth: self.linewidth
@@ -277,10 +277,10 @@ class LatticePlot(object):
         assert len(coords) == len(names)
         spec_names = np.unique(names)
         #assert len(spec_names) == len(color_dic)
-        
+
         for i, name in enumerate(names):
             self.plot_atom(coords[i], rad_list[i], color_dic[name], **kwargs)
-    
+
     def plot_spins(self, m_list, coords=None, **kwargs):
         """
         Plot all spins in the lattice.
@@ -292,10 +292,10 @@ class LatticePlot(object):
         if coords is None:
             coords = self.latt.sites
         assert len(coords) == len(m_list)
-        
+
         for i in range(len(m_list)):
             self.plot_spin(coords[i], m_list[i], **kwargs)
-    
+
     def plot_pairings(self, pair_dic, bond_max=np.inf, bond_min=0.0,
                       cross_boundary=True, cross_box=False, **kwargs):
         """
@@ -351,7 +351,7 @@ class LatticePlot(object):
 def plot_3band_order(res, pairing="Cu-Cu", transparent=True, **kwargs):
     """
     Plot order parameter of the 3band model in a 2x2 cluster.
-    
+
     Args:
         res: result dict from the get_3band_order
         pairing: "Cu-Cu", "O-O", "Cu-O"
@@ -359,7 +359,7 @@ def plot_3band_order(res, pairing="Cu-Cu", transparent=True, **kwargs):
     Returns:
         latt_plt: LatticePlot object.
     """
-    #        
+    #
     #        4O        15O2
     #         |          |
     #  14O2 - 3Cu - 5O - 6Cu - 7O
@@ -370,28 +370,28 @@ def plot_3band_order(res, pairing="Cu-Cu", transparent=True, **kwargs):
     #  (0,1)  |          |
     #        13O2       10O (3, 0)
     #                    |
-    
+
     from libdmet.system import lattice
     Lat = lattice.Square3BandSymm(1, 1, 1, 1)
-    
+
     O2_names = ["O2", "O2", "O2", "O2"]
     O2_coords = [[4.0, 1.0], [1.0, 0.0], [0.0, 3.0], [3.0, 4.0]]
     O2_charges = 2.0 - res["charge"][[1, 4, 7, 10]]
     O2_spins = res["m_AFM_O_list"][::2]
-    
+
     latt_plt = LatticePlot(Lat)
     latt_plt.plot_lattice(**kwargs)
-    
+
     # plot hole density
-    latt_plt.plot_atoms(rad_list=(2.0 - res["charge"]), 
+    latt_plt.plot_atoms(rad_list=(2.0 - res["charge"]),
                         color_dic={'Cu': COLORS['gold'], 'O': 'C3'})
     latt_plt.plot_atoms(rad_list=O2_charges, names=O2_names, coords=O2_coords,
                         color_dic={'O2': COLORS["red2"]}, edgecolor=COLORS["red-gray"])
-    
+
     # plot spin
     latt_plt.plot_spins(m_list=res["spin_density"])
     latt_plt.plot_spins(m_list=O2_spins, coords=O2_coords, color=COLORS["red-gray"])
-    
+
     # plot pairing
     if "m_Cu_Cu_dic" in res:
         if pairing == "Cu-Cu":
@@ -411,12 +411,12 @@ if __name__ == '__main__':
     import numpy as np
     from libdmet.utils import lattice_plot
     from libdmet.system import lattice
-    
+
     Lat = lattice.Square3BandSymm(1, 1, 1, 1)
 
     latt_plt = lattice_plot.LatticePlot(Lat)
     latt_plt.plot_lattice()
-    latt_plt.plot_atoms(rad_list=[1.0, 0.2, 0.2] * 4, 
+    latt_plt.plot_atoms(rad_list=[1.0, 0.2, 0.2] * 4,
                         color_dic={'Cu': 'gold', 'O': 'C3'})
     latt_plt.plot_spins(m_list=[0.3, 0.0, 0.0, -0.25, -0.0, -0.0001,
                         0.3, 0.0, 0.0, -0.35, 0.0, 0.0])
@@ -425,6 +425,6 @@ if __name__ == '__main__':
     latt_plt.plot_p_orb([3.0, 4.0], direct='left', phase=["+", "-"])
     latt_plt.plot_bond([1.0, 1.0], [2.0, 1.0], val=-0.01)
     latt_plt.plot_bond([1.0, 1.0], [1.0, 3.0], val=+0.02)
-    
+
     latt_plt.show()
     #latt_plt.savefig("latt.png")

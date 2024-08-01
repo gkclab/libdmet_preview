@@ -25,7 +25,7 @@ from libdmet.solver.gso_dmrgci import GSODmrgCI
 from libdmet.solver.scf_solver import SCFSolver
 from libdmet.solver.utccsd import UTCCSD
 
-__all__ = ["AFQMC", "DQMC", "Block", "StackBlock", "Block2", "DmrgCI", "CASSCF", "BCSDmrgCI", 
+__all__ = ["AFQMC", "DQMC", "Block", "StackBlock", "Block2", "DmrgCI", "CASSCF", "BCSDmrgCI",
            "FCI", "FCI_AO", "CCSD", "GSODmrgCI", "SCFSolver", "UTCCSD"]
 try:
     from libdmet.solver.shci import SHCI
@@ -34,11 +34,11 @@ except ImportError:
     log.info("ImportError in SHCI solver, settings.py should be set in pyscf")
 
 class Block(object):
-    def __init__(self, nproc, nnode=1, TmpDir="./tmp", SharedDir=None, 
-                 reorder=False, minM=250, maxM=None, tol=1e-6, spinAdapted=False, 
-                 bcs=False, ghf=False, maxiter_initial=35, maxiter_restart=15, 
+    def __init__(self, nproc, nnode=1, TmpDir="./tmp", SharedDir=None,
+                 reorder=False, minM=250, maxM=None, tol=1e-6, spinAdapted=False,
+                 bcs=False, ghf=False, maxiter_initial=35, maxiter_restart=15,
                  dmrg_dir=None, sweep_per_M=5):
-        log.eassert(nnode == 1 or SharedDir is not None, 
+        log.eassert(nnode == 1 or SharedDir is not None,
                     "Running on multiple nodes (nnod = %d), must specify shared directory",
                     nnode)
         self.cisolver = block.Block()
@@ -46,7 +46,7 @@ class Block(object):
         if dmrg_dir is None:
             self.cisolver.createTmp(tmp=TmpDir, shared=SharedDir)
         else:
-            self.cisolver.tmpDir = dmrg_dir 
+            self.cisolver.tmpDir = dmrg_dir
 
         block.Block.reorder = reorder
         self.schedule = block.Schedule(sweeptol=tol, sweep_per_M=sweep_per_M)
@@ -98,7 +98,7 @@ class Block(object):
 
         truncation, energy, onepdm = self.cisolver.optimize()
         return onepdm, energy
-    
+
     def run_dmet_ham(self, Ham, M=None, **kwargs):
         # ZHC NOTE FIXME
         # use another fold to run?
@@ -117,20 +117,20 @@ class Block(object):
         self.cisolver.cleanup()
 
 class StackBlock(Block):
-    def __init__(self, nproc, nthread=1, nnode=1, TmpDir="./tmp", 
-                 SharedDir=None, reorder=False, minM=250, maxM=None, tol=1e-6, 
-                 spinAdapted=False, bcs=False, ghf=False, mem=80, 
+    def __init__(self, nproc, nthread=1, nnode=1, TmpDir="./tmp",
+                 SharedDir=None, reorder=False, minM=250, maxM=None, tol=1e-6,
+                 spinAdapted=False, bcs=False, ghf=False, mem=80,
                  maxiter_initial=35, maxiter_restart=15, dmrg_dir=None,
                  sweep_per_M=5):
-        log.eassert(nnode == 1 or SharedDir is not None, 
-                    "Running on multiple nodes (nnod = %d)," 
+        log.eassert(nnode == 1 or SharedDir is not None,
+                    "Running on multiple nodes (nnod = %d),"
                     "must specify shared directory", nnode)
         self.cisolver = block.StackBlock()
         self.cisolver.set_nproc(nproc, nthread, nnode)
         if dmrg_dir is None:
             self.cisolver.createTmp(tmp=TmpDir, shared=SharedDir)
         else:
-            self.cisolver.tmpDir = dmrg_dir 
+            self.cisolver.tmpDir = dmrg_dir
         block.StackBlock.reorder = reorder
         self.schedule = block.Schedule(sweeptol=tol, sweep_per_M=sweep_per_M)
         if minM > maxM:
@@ -145,9 +145,9 @@ class StackBlock(Block):
         self.maxiter_restart = maxiter_restart
 
 class Block2(StackBlock):
-    def __init__(self, nproc, nthread=1, nnode=1, TmpDir="./tmp", 
-                 SharedDir=None, reorder=False, minM=250, maxM=None, tol=1e-6, 
-                 spinAdapted=False, bcs=False, ghf=False, mem=80, 
+    def __init__(self, nproc, nthread=1, nnode=1, TmpDir="./tmp",
+                 SharedDir=None, reorder=False, minM=250, maxM=None, tol=1e-6,
+                 spinAdapted=False, bcs=False, ghf=False, mem=80,
                  maxiter_initial=35, maxiter_restart=15, dmrg_dir=None,
                  use_general_spin=False, big_site=False, sweep_per_M=5):
         self.cisolver = block.Block2()
@@ -155,7 +155,7 @@ class Block2(StackBlock):
         if dmrg_dir is None:
             self.cisolver.createTmp(tmp=TmpDir, shared=SharedDir)
         else:
-            self.cisolver.tmpDir = dmrg_dir 
+            self.cisolver.tmpDir = dmrg_dir
         self.cisolver.reorder = reorder
         self.schedule = block.Schedule(sweeptol=tol, sweep_per_M=sweep_per_M)
         if minM > maxM:
@@ -200,7 +200,7 @@ class CASSCF(object):
 
     def __init__(self, ncas, nelecas=None, bogoliubov=False, MP2natorb=False,
                  spinAverage=False, fcisolver="FCI", settings={}):
-        log.eassert(ncas * 2 >= nelecas, 
+        log.eassert(ncas * 2 >= nelecas,
                     "CAS size not compatible with number of electrons")
         self.ncas = ncas
         self.nelecas = nelecas # alpha and beta
@@ -214,7 +214,7 @@ class CASSCF(object):
         # mcscf class: casscf.CASSCF or casscf.DMRGSCF
         self.settings = settings
         if fcisolver.upper() == "FCI":
-            log.eassert(not bogoliubov, 
+            log.eassert(not bogoliubov,
                         "FCI solver is not available for BCS calculations")
             self.solver_cls = casscf.CASSCF
         elif fcisolver.upper() == "DMRG":
@@ -242,12 +242,12 @@ class CASSCF(object):
         norbs = Ham.H1["cd"].shape[1]
         if nelec is None:
             nelec = Ham.norb
-        log.eassert(spin == 2, 
+        log.eassert(spin == 2,
                     "spin-restricted CASSCF solver is not implemented")
 
         nelecasAB = (self.nelecas//2, self.nelecas//2)
 
-        if self.mo_coef is None or not similar: 
+        if self.mo_coef is None or not similar:
             # not restart from previous orbitals
             log.debug(0, "Generate new orbitals using Hartree-Fock")
             core, cas, virt, _ = get_orbs(self, Ham, guess, nelec)
@@ -272,7 +272,7 @@ class CASSCF(object):
         # settings specified as static members
         self.apply_options(self.solver, CASSCF.settings)
 
-        E, _, _, self.mo_coef = self.solver.mc1step(mo_coeff=self.mo_coef, 
+        E, _, _, self.mo_coef = self.solver.mc1step(mo_coeff=self.mo_coef,
                                                     **mcscf_args)
         rho = np.asarray(self.solver.make_rdm1s())
 
@@ -304,14 +304,14 @@ class CASSCF(object):
 
         if self.solver is None:
             self.solver = self.solver_cls(self.scfsolver.mf, self.ncas, norbs,
-                                          Ham, nelecas=self.nelecas, 
+                                          Ham, nelecas=self.nelecas,
                                           **self.settings)
         else:
             self.solver.refresh(self.scfsolver.mf, self.ncas, norbs, Ham,
                                 nelecas=self.nelecas)
 
         self.apply_options(self.solver, CASSCF.settings)
-        E, _, _, self.mo_coef = self.solver.mc1step(mo_coeff=self.mo_coef, 
+        E, _, _, self.mo_coef = self.solver.mc1step(mo_coeff=self.mo_coef,
                                                     **mcscf_args)
 
         from libdmet.routine.bcs_helper import combineRdm

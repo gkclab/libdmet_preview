@@ -51,7 +51,7 @@ def read_integral(dirname, lattice, cutoff = None):
     if cutoff is None:
         nnonzero = lattice.ncells
     else:
-        log.error("Deprecated function, do you know why you're using it?")      
+        log.error("Deprecated function, do you know why you're using it?")
         nonzero = [np.asarray(x) for x in it.product(range(cutoff), \
                 repeat = lattice.dim)]
         nnonzero = len(nonzero)
@@ -189,7 +189,7 @@ def reportOccupation(lattice, rho, names = None):
         indices = range(nscsites)
     else:
         indices = [lattice.supercell.index(x) for x in names]
-    
+
     results = []
     lines = ["%-3s   ", "charge", "spin  "]
     atom = names[0].split("_")[0]
@@ -204,7 +204,7 @@ def reportOccupation(lattice, rho, names = None):
             results.append("\n".join(lines))
             lines = ["%-3s   ", "charge", "spin  "]
             atom = name.split("_")[0]
-            lines[0] = lines[0] % atom            
+            lines[0] = lines[0] % atom
 
         lines[0] += "%10s" % name.split("_")[1]
         lines[1] += "%10.5f" % charge[index]

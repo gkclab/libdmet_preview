@@ -33,7 +33,9 @@ Density Matrix Embedding Theory, [J. Chem. Theory Comput. 2020, 16, 1, 119-129.]
 Tianyu Zhu, Zhi-Hao Cui, Garnet Kin-Lic Chan, Efficient Formulation of Ab Initio Quantum Embedding in Periodic Systems: 
 Dynamical Mean-Field Theory, [J. Chem. Theory Comput. 2020, 16, 1, 141-153.](https://pubs.acs.org/doi/abs/10.1021/acs.jctc.9b00934)
 
-Quantum chemistry formulation for superconductivity:
+
+If you use the quantum chemistry formulation for superconductivity, please cite:
+
 Zhi-Hao Cui, Junjie Yang, Johannes Tölle, Hong-Zhou Ye, Huanchen Zhai, Raehyun Kim, Xing Zhang, Lin Lin, Timothy C. Berkelbach, Garnet Kin-Lic Chan, Ab initio quantum many-body description of superconducting trends in the cuprates, [arXiv preprint arXiv:2306.16561](https://arxiv.org/abs/2306.16561)
 
 

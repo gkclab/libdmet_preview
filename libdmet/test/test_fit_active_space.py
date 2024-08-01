@@ -28,7 +28,7 @@ def test_fit_active_space():
     log.verbose = "DEBUG1"
     np.set_printoptions(4, linewidth=1000, suppress=True)
     #np.set_printoptions(3, linewidth=1000, suppress=False)
-    
+
     ### ************************************************************
     ### System settings
     ### ************************************************************
@@ -49,7 +49,7 @@ def test_fit_active_space():
     #exxdiv = 'ewald'
 
     ### ************************************************************
-    ### DMET settings 
+    ### DMET settings
     ### ************************************************************
 
     # system
@@ -135,7 +135,7 @@ def test_fit_active_space():
     log.section("\nPre-process, orbital localization and subspace partition\n")
     C_ao_iao, C_ao_iao_val, C_ao_iao_virt = make_basis.get_C_ao_lo_iao(Lat, kmf, minao='minao', full_return=True)
     C_ao_iao = Lat.symmetrize_lo(C_ao_iao)
-    
+
     ncore = 0
     nval = C_ao_iao_val.shape[-1]
     nvirt = cell.nao_nr() - ncore - nval
@@ -143,7 +143,7 @@ def test_fit_active_space():
 
     C_ao_lo = C_ao_iao
     Lat.set_Ham(kmf, gdf, C_ao_lo)
-    
+
     nlo = C_ao_lo.shape[-1]
     ovlp = Lat.ovlp_ao_k
     fock_lo_k = Lat.fock_lo_k
@@ -152,11 +152,11 @@ def test_fit_active_space():
 
     act_idx = np.asarray([0])
     nact = len(act_idx)
-    
+
     P_act, nocc = slater.get_active_projector(act_idx, rdm1_lo_k, ovlp_lo_k)
     rdm1_P_ref = slater.make_rdm1_P(fock_lo_k, ovlp_lo_k, vcor, P_act, nocc, project_back=True)
     rdm1_Q = rdm1_lo_k - rdm1_P_ref
-    
+
     ### ************************************************************
     ### DMET procedure
     ### ************************************************************
@@ -171,7 +171,7 @@ def test_fit_active_space():
 
     for iter in range(MaxIter):
         log.section("\nDMET Iteration %d\n", iter)
-        
+
         log.section("\nsolving mean-field problem\n")
         log.result("Vcor =\n%s", vcor.get())
         #log.result("Mu (guess) = %20.12f", Mu)
@@ -184,7 +184,7 @@ def test_fit_active_space():
         ImpHam, H1e, basis = dmet.ConstructImpHam(Lat, rho, vcor, matching=True, int_bath=int_bath)
         ImpHam = dmet.apply_dmu(Lat, ImpHam, basis, last_dmu)
         basis_k = Lat.R2k_basis(basis)
-        
+
         # we may define the active band bath like this
         basis_act = slater.get_emb_basis(Lat, rho, imp_idx=[0], val_idx=[0])
         basis_act_k = Lat.R2k(basis_act)
@@ -214,11 +214,11 @@ def test_fit_active_space():
         log.result("last_dmu = %20.12f", last_dmu)
         log.result("E(DMET) = %20.12f", EnergyImp)
         solver.twopdm = None
-        
+
         dump_res_iter = np.array([Mu, last_dmu, vcor.param, rhoEmb, basis, rhoImp, \
                 C_ao_lo, rho, Lat.getFock(kspace=False)], dtype=object)
         np.save('./dmet_iter_%s.npy'%(iter), dump_res_iter, allow_pickle=True)
-        
+
         log.section("\nfitting correlation potential\n")
         vcor_new, err = dmet.FitVcor(rhoEmb, Lat, basis, \
                 vcor, beta, Filling, MaxIter1=emb_fit_iter, MaxIter2=full_fit_iter, method='CG', \
@@ -232,19 +232,19 @@ def test_fit_active_space():
 
         dVcor_per_ele = la.norm(vcor_new.param - vcor.param) / (len(vcor.param))
         dE = EnergyImp - E_old
-        E_old = EnergyImp 
-        
+        E_old = EnergyImp
+
         if iter >= diis_start:
             pvcor = adiis.update(vcor_new.param)
             dc.nDim = adiis.get_num_vec()
         else:
             pvcor = vcor_new.param
-        
+
         dVcor_per_ele = la.norm(pvcor - vcor.param) / (len(vcor.param))
         vcor.update(pvcor)
         log.result("trace of vcor: %s", \
                 np.sum(np.diagonal((vcor.get())[:2], 0, 1, 2), axis=1))
-        
+
         history.update(EnergyImp, err, nelecImp, dVcor_per_ele, dc)
         history.write_table()
 

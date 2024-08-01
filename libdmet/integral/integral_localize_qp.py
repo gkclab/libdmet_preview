@@ -103,7 +103,7 @@ def transform(v_A, v_B, u_A, u_B, w):
             1.0*np.tensordot(np.tensordot(val027, u_A, axes=(3,0)), u_A, axes=(2,0)) + \
             -1.0*np.tensordot(np.tensordot(val025, u_A, axes=(3,0)), u_A, axes=(2,0)) + \
             -1.0*val040
-    
+
     return np.asarray([H2wA_H2, H2wB_H2, H2wAB_H2])
     #return H0_H2, np.asarray([H1A_H2, H1B_H2]), H1D_H2[np.newaxis], \
     #        np.asarray([H2wA_H2, H2wB_H2, H2wAB_H2]), \

@@ -36,7 +36,7 @@ def make_intermediates(mycc, t1, t2, eris):
     fov = eris.fock[:nocc,nocc:]
     fvo = eris.fock[nocc:,:nocc]
     fvv = eris.fock[nocc:,nocc:]
-    
+
     class _IMDS: pass
     imds = _IMDS()
     imds.ftmp = lib.H5TmpFile()
@@ -54,7 +54,7 @@ def make_intermediates(mycc, t1, t2, eris):
     v2  = einsum('ikbc,jkbc->ij', eris.oovv, tau) * .5
     v2 += foo
 
-    woooo  = einsum('ijcd,klcd->ijkl', eris.oovv, tau) * 0.25 
+    woooo  = einsum('ijcd,klcd->ijkl', eris.oovv, tau) * 0.25
     woooo += numpy.asarray(eris.oooo) * 0.5
     imds.woooo[:] = woooo
     woooo = None
@@ -108,13 +108,13 @@ def update_lambda(mycc, t1, t2, l1, l2, eris, imds):
     mo_e_v = eris.mo_energy[nocc:] + mycc.level_shift
     v1 = imds.v1 - numpy.diag(mo_e_v)
     v2 = imds.v2 - numpy.diag(mo_e_o)
-    
+
     #l1new = numpy.array(fov, copy=True)
     l1new = numpy.zeros_like(l1)
 
     mba = einsum('klca, klcb -> ba', l2, t2) * .5
     mij = einsum('kicd, kjcd -> ij', l2, t2) * .5
-    
+
     oovv = numpy.asarray(eris.oovv)
     #tau  = numpy.einsum('ia, jb -> ijab', t1, t1 * 2.0, optimize=True)
     tau = t2

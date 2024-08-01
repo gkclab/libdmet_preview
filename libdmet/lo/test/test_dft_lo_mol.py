@@ -55,7 +55,7 @@ def get_veff_lo(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
     t0 = (logger.process_clock(), logger.perf_counter())
 
     ground_state = (isinstance(dm, np.ndarray) and dm.ndim == 2)
-    
+
     # ZHC NOTE
     dm_ao = make_basis.transform_rdm1_to_ao_mol(dm, ks.C_ao_lo)
 
@@ -204,7 +204,7 @@ def test_dft_lo_mol(xc='hf'):
     print ("nval:", nval)
     print (pmol_val.ao_labels())
     print ("nvirt:", nvirt)
-            
+
     C_ao_lo, C_ao_lo_val, C_ao_lo_virt, C_ao_lo_core = \
             make_basis.get_C_ao_lo_iao_mol(mf, pmol_val=pmol_val, \
             pmol_core=pmol_core, full_return=True)
@@ -255,7 +255,7 @@ def test_dft_lo_mol(xc='hf'):
 
     mf_lo = RKS_LO(mol)
     mf_lo.C_ao_lo = C_ao_lo_xcore
-    mf_lo.get_hcore = lambda *args: hcore_lo 
+    mf_lo.get_hcore = lambda *args: hcore_lo
     mf_lo.get_ovlp = lambda *args: ovlp_lo
     mf_lo._eri = eri_lo
     mf_lo.energy_nuc = lambda *args: mol.energy_nuc() + E_core

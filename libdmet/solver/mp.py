@@ -19,7 +19,7 @@ from pyscf import ao2mo, mp
 from pyscf import lib
 from pyscf.lib import logger
 from pyscf.mp.ump2 import _ChemistsERIs
-from pyscf.mp.gmp2 import _PhysicistsERIs 
+from pyscf.mp.gmp2 import _PhysicistsERIs
 
 from libdmet.system import integral
 from libdmet.utils import max_abs
@@ -120,10 +120,10 @@ def _make_eris_incore_ghf(mp, mo_coeff=None, ao2mofn=None, verbose=None):
             orbv = eris.mo_coeff[:, nocc:]
             eri = ao2mo.kernel(mp._scf._eri, (orbo, orbv, orbo, orbv))
             eri = eri.reshape(nocc, nvir, nocc, nvir)
-    
+
     eris.oovv = eri.transpose(0, 2, 1, 3) - eri.transpose(0, 2, 3, 1)
     return eris
-    
+
 class GGMP2(mp.gmp2.GMP2):
     def ao2mo(self, mo_coeff=None):
         if mo_coeff is None: mo_coeff = self.mo_coeff
@@ -157,12 +157,12 @@ class MP2AsFCISolver(object):
         self.diis_space = diis_space
         self.max_memory = max_memory
         self.verbose = verbose
-        
+
         self.restart = restart
         self.fname = fname
         self.fcivec = fcivec
         self.fix_fcivec = fix_fcivec
-        
+
     def kernel(self, h1, h2, norb, nelec, ci0=None, ecore=0, **kwargs):
         if self.ghf:
             from libdmet.solver import scf as scf_hp
@@ -175,10 +175,10 @@ class MP2AsFCISolver(object):
             scfsolver.set_system(nelec, 0, False, True,
                                  max_memory=self.max_memory)
             scfsolver.set_integral(Ham)
-            
+
             scfsolver.GGHF()
             fake_hf = scfsolver.mf
-            
+
             fake_hf.mo_coeff = np.eye(norb)
             fake_hf.mo_occ   = np.zeros(norb)
             fake_hf.mo_occ[:nelec] = 1
@@ -189,7 +189,7 @@ class MP2AsFCISolver(object):
             self.cisolver.conv_tol = self.conv_tol
             self.cisolver.conv_tol_normt = self.conv_tol_normt
             self.cisolver.diis_space = self.diis_space
-            
+
             if self.restart:
                 t2 = self.fcivec
                 if t2 is not None and os.path.exists("%s_u.npy"%self.fname):
@@ -198,7 +198,7 @@ class MP2AsFCISolver(object):
                     t2 = transform_t2_to_bo(t2, u_mat)
             else:
                 t2 = None
-            
+
             e_corr, t2 = self.cisolver.kernel(t2=t2)
             e_tot = self.cisolver.e_tot
             if self.restart:
@@ -214,7 +214,7 @@ class MP2AsFCISolver(object):
         dm1 = self.cisolver.make_rdm1(t2)
         dm2 = self.cisolver.make_rdm2(t2)
         return dm1, dm2
-        
+
     def load_fcivec(self, fname):
         log.debug(1, "MP2 solver: read previous t.")
         if not os.path.isfile(fname):
@@ -244,7 +244,7 @@ class MP2AsFCISolver(object):
 if __name__ == "__main__":
     from libdmet.solver.scf import SCF
     from libdmet.utils import logger as log
-    
+
     Int1e = -np.eye(8, k=1)
     Int1e[0, 7] = -1
     Int1e += Int1e.T
@@ -269,4 +269,4 @@ if __name__ == "__main__":
         ))
     log.result("HF density matrix:\n%s\n%s", rhoHF[0], rhoHF[1])
     E_MP2, rdm1_mp2 = myscf.MP2()
-    
+

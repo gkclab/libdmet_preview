@@ -10,10 +10,10 @@ def test_proj_CH4():
     """
     import os
     import numpy as np
-    
+
     from pyscf.lib import chkfile
     from pyscf.pbc import gto, scf, df
-    
+
     from libdmet.system import lattice
     from libdmet.lo import pywannier90
     from libdmet.utils import plot
@@ -63,7 +63,7 @@ def test_proj_CH4():
         kmf.max_cycle = 300
         kmf.chkfile = chkfname
         kmf.kernel()
-    
+
     num_wann = 9
     keywords = \
     '''
@@ -92,10 +92,10 @@ def test_proj_HChain():
     """
     import os
     import numpy as np
-    
+
     from pyscf.lib import chkfile
     from pyscf.pbc import gto, scf, df
-    
+
     from libdmet.system import lattice
     from libdmet.lo import pywannier90
     from libdmet.utils import plot
@@ -137,7 +137,7 @@ def test_proj_HChain():
         kmf.max_cycle = 300
         kmf.chkfile = chkfname
         kmf.kernel()
-    
+
     num_wann = 4
     keywords = \
     '''

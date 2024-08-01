@@ -87,13 +87,13 @@ def main(gcc_inp_file):
     scfsolver.set_integral(Ham)
 
     scf_conv_tol  = min(conv_tol*0.1, 1e-10)
-    
+
     e_hf, rdm1_hf = scfsolver.GGHF(tol=scf_conv_tol, MaxIter=scf_max_cycle,
                                    InitGuess=dm0,
                                    alpha=alpha,
                                    beta=beta)
     mf = scfsolver.mf
-        
+
     if alpha != 1.0:
         # ZHC NOTE alpha is adjusted to 1 after converge mf
         log.info("adjust mf.alpha to 1.0 for CC.")
@@ -102,7 +102,7 @@ def main(gcc_inp_file):
         mf.mo_coeff = np.eye(norb)
         mf.mo_occ   = np.zeros(norb)
         mf.mo_occ[:nelec] = 1
-        
+
     if mo_energy_custom is not None:
         mf.mo_energy = mo_energy_custom
     if mo_occ_custom is not None:
@@ -111,7 +111,7 @@ def main(gcc_inp_file):
         log.info("Use customized MO as reference.")
         mf.mo_coeff = mo_coeff_custom
         mf.e_tot = mf.energy_tot()
-    
+
     if ccd:
         drv = mpicc.GGCCD
     else:
@@ -142,25 +142,25 @@ def main(gcc_inp_file):
         else:
             raise ValueError
         mycc.nocc = nocc
-     
+
     if restart:
         mycc.restore_from_h5(fname=fcc_name, umat=umat)
-    
+
     e_gcc, t1_gcc, t2_gcc = mycc.kernel()
     l1_gcc, l2_gcc        = mycc.solve_lambda(approx_l=approx_l)
-    
+
     mycc.save_amps(fname=fcc_name)
-        
+
     if beta < np.inf:
         # ZHC NOTE modify the mo_occ since the frozen may need it in rdm
         log.info("adjust mf.mo_occ to integer for CC.")
         mycc.mo_occ = np.zeros_like(mycc.mo_occ)
         mycc.mo_occ[:nelec] = 1.0
-    
+
     rdm1_gcc = mycc.make_rdm1(ao_repr=ao_repr)
     if calc_rdm2:
         rdm2_gcc = mycc.make_rdm2(ao_repr=ao_repr)
-    
+
     np.save(e_file,       e_gcc)
     frdm = h5py.File(rdm_file, 'w')
     frdm["rdm1"] = np.asarray(rdm1_gcc)

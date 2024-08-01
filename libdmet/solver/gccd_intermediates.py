@@ -74,7 +74,7 @@ def Fvv(t1, t2, eris):
     return Fae
 
 def Foo(t1, t2, eris):
-    Fmi = cc_Foo(t1, t2, eris) 
+    Fmi = cc_Foo(t1, t2, eris)
     return Fmi
 
 def Fov(t1, t2, eris):

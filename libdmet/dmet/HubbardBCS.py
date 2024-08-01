@@ -33,7 +33,7 @@ def HartreeFockBogoliubov(Lat, v, filling, mu0, beta=np.inf, fix_mu=False, \
         log.info("after fitting, f(x) = %20.12f", fn_opt)
     rho, n, E, res = HFB(Lat, v, False, mu=mu, beta=beta, fix_mu=fix_mu, \
             ires=True, **kwargs)
-            
+
     rhoA, rhoB, kappaBA = extractRdm(rho[0])
     if filling is None:
         log.result("Local density matrix (mean-field): alpha, beta and pairing"
@@ -41,7 +41,7 @@ def HartreeFockBogoliubov(Lat, v, filling, mu0, beta=np.inf, fix_mu=False, \
         log.result("nelec per cell (mean-field) = %20.12f", n)
         log.result("Energy per cell (mean-field) = %20.12f", E)
         log.result("Gap (mean-field) = %20.12f" % res["gap"])
-    if kwargs.get("full_return", False): 
+    if kwargs.get("full_return", False):
         return rho, mu, res
     else:
         return rho, mu
@@ -73,7 +73,7 @@ def transformResults(GRhoEmb, E, lattice, basis, ImpHam, H_energy, \
 def transformResults_new(GRhoEmb, E, lattice, basis, ImpHam, H_energy, \
         last_dmu, mu, int_bath=False, **kwargs):
     log.warn("transformResults_new is being deprecated.\nUse transformResults instead.")
-    kwargs["last_dmu"] = last_dmu 
+    kwargs["last_dmu"] = last_dmu
     return transformResults(GRhoEmb, E, lattice, basis, ImpHam, H_energy, \
         mu, int_bath=int_bath, **kwargs)
 
@@ -114,16 +114,16 @@ def get_tiled_vcor(vcor_small, imp_size_small, imp_size_big, rand=0.0, U_Filling
     import itertools as it
     from libdmet.system.lattice import SquareLattice
     Lat = SquareLattice(*(imp_size_big + imp_size_small))
-    cell_dict = Lat.celldict 
-    nscsites_big = np.prod(imp_size_big) 
+    cell_dict = Lat.celldict
+    nscsites_big = np.prod(imp_size_big)
     num_cells = len(Lat.cells)
     sites = np.array(list(it.product(*map(range, imp_size_big))))
-    
+
     # compute idx of each small cell basis in the big cell
     cell_idx = [[] for i in range(num_cells)]
     for i, site_i in enumerate(sites):
         cell_idx[cell_dict[tuple(np.floor(site_i / imp_size_small).astype(int))]].append(i)
-    
+
     # assign the vcor_small to correct place of vcor_big
     vcor_mat_small = vcor_small.get()
     vcor_mat_big = np.zeros((3, nscsites_big, nscsites_big), dtype = vcor_mat_small.dtype)
@@ -140,7 +140,7 @@ def get_tiled_vcor(vcor_small, imp_size_small, imp_size_big, rand=0.0, U_Filling
         U, Filling = U_Filling
     else:
         U, Filling = 0.0, 0.5
-    
+
     vcor_big = AFInitGuess(imp_size_big, U, Filling, rand = 0.0)
     if U_Filling is not None:
         vcor_mat_big_default = vcor_big.get()
@@ -233,7 +233,7 @@ def transformResults_new_QC(GRhoEmb_list, E_list, lattice, basis_list, ImpHam_li
             GRhoImp_list.append(GRhoImp)
             Efrag_list.append(Efrag)
             nelec_list.append(nelec)
-    
+
     if Efrag is None:
         return nelec_list
     else:

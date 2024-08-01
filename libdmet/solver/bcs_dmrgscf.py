@@ -74,13 +74,13 @@ def gen_g_hop(casscf, mo, u, casdm1s, casdm2s, eris):
     log.eassert(ham.H2["cccc"] is None or la.norm(ham.H2["cccc"]) == 0, "")
     log.eassert(la.norm(ham.H2["ccdd"][0] - ham.H2["ccdd"][2]) < 1e-10, "")
     log.eassert(la.norm(ham.H2["ccdd"][1] - ham.H2["ccdd"][2]) < 1e-10, "")
-    
+
     (h_A, h_B), D = ham.H1["cd"], ham.H1["cc"][0]
     w = ham.H2["ccdd"][2]
     (rho_A, rho_B), kappaBA = dm1[0], -dm1[1].T
     (Gamma_aa, Gamma_bb, Gamma_ab), (Gamma_2a, Gamma_2b), Gamma_4 = dm2
 
-    from libdmet.casscf.g_hop_atomic import g_hop_atomic    
+    from libdmet.casscf.g_hop_atomic import g_hop_atomic
     gorb_atomic, h_diag_atomic, hop_atomic = g_hop_atomic(h_A, h_B, D, w, \
             rho_A, rho_B, kappaBA, Gamma_aa, Gamma_bb, Gamma_ab, Gamma_2a, \
             Gamma_2b, Gamma_4)
@@ -94,7 +94,7 @@ def gen_g_hop(casscf, mo, u, casdm1s, casdm2s, eris):
         hx = hop_atomic(*x_atomic)
         # transform back
         return casscf.pack_uniq_var(g_atomic_to_canonical(hx, mo))
-    
+
     def fhdiag(x, e):
         x_atomic = g_canonical_to_atomic(casscf.unpack_uniq_var(x), mo)
         hdiagd = [h-e for h in h_diag_atomic]

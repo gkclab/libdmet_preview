@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 '''
-Test ERI transformation from k-space to real space. 
+Test ERI transformation from k-space to real space.
 Analytical Fourier transform density fitting.
 '''
 
@@ -25,7 +25,7 @@ log.verbose = "DEBUG2"
 def _test_ERI(cell, mydf, kpts, C_ao_lo):
     # Fast ERI
     # Give a very small memory to force small blksize (for test only)
-    eri_k2gamma = eri_transform.get_emb_eri(cell, mydf, C_ao_lo=C_ao_lo, 
+    eri_k2gamma = eri_transform.get_emb_eri(cell, mydf, C_ao_lo=C_ao_lo,
                                             max_memory=2000, symmetry=1)
     eri_k2gamma = eri_k2gamma[0]
 
@@ -43,10 +43,10 @@ def _test_ERI(cell, mydf, kpts, C_ao_lo):
     assert max_abs(eri_scell-eri_k2gamma) < 1e-8
 
     # Fast 1st unit cell ERI (for DMFT)
-    eri_k2gamma = eri_transform.get_unit_eri(cell, mydf, C_ao_lo=C_ao_lo, 
+    eri_k2gamma = eri_transform.get_unit_eri(cell, mydf, C_ao_lo=C_ao_lo,
                                              symmetry=1)
     eri_k2gamma = eri_k2gamma[0]
-    print ('Fast 1st unit cell ERI compared to supcell', 
+    print ('Fast 1st unit cell ERI compared to supcell',
            max_abs(eri_scell[:nao,:nao,:nao,:nao]-eri_k2gamma))
     assert max_abs(eri_scell[:nao,:nao,:nao,:nao]-eri_k2gamma) < 1e-8
 
