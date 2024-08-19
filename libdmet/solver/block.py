@@ -1066,6 +1066,9 @@ class Block2(StackBlock):
             rho = rho.sum(axis=0)[None] * 0.5
         if self.bogoliubov:
             raise NotImplementedError
+        if self.use_general_spin:
+            if rho.ndim == 3:
+                rho = rho[0]
         # save rdm1
         sub.check_call(["cp", os.path.join(self.tmpDir, "1pdm.npy"),
                         os.path.join(self.tmpDir, "1pdm_%03d.npy" % self.count)])
