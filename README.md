@@ -8,14 +8,19 @@ A library of density matrix embedding theory (DMET) for lattice models and reali
 Installation
 ------------
 
-* Prerequisites
+* Prerequisites (will be automatically installed.)
     - [PySCF](https://github.com/pyscf/pyscf) 2.0 or higher.
 
-* Add libdmet top-level directory to your `PYTHONPATH` and you are all set!
-  e.g. if libdmet_preview is installed in `/opt`, your `PYTHONPATH` should be
 
-        export PYTHONPATH=/opt/libdmet_preview:$PYTHONPATH
-	
+* Either clone the repository and execute in the directory
+```
+pip install .
+```
+* or call
+```
+pip install git+https://github.com/gkclab/libdmet_preview.git@main
+```
+
 * Extensions
     - [Wannier90](https://github.com/wannier-developers/wannier90): optional, for wannier functions as local orbitals.
 	- [Block2](https://github.com/block-hczhai/block2-preview.git): optional, for DMRG solver.
@@ -27,10 +32,10 @@ Reference
 
 The following papers should be cited in publications utilizing the libDMET program package:
 
-Zhi-Hao Cui, Tianyu Zhu, Garnet Kin-Lic Chan, Efficient Implementation of Ab Initio Quantum Embedding in Periodic Systems: 
+Zhi-Hao Cui, Tianyu Zhu, Garnet Kin-Lic Chan, Efficient Implementation of Ab Initio Quantum Embedding in Periodic Systems:
 Density Matrix Embedding Theory, [J. Chem. Theory Comput. 2020, 16, 1, 119-129.](https://pubs.acs.org/doi/10.1021/acs.jctc.9b00933)
 
-Tianyu Zhu, Zhi-Hao Cui, Garnet Kin-Lic Chan, Efficient Formulation of Ab Initio Quantum Embedding in Periodic Systems: 
+Tianyu Zhu, Zhi-Hao Cui, Garnet Kin-Lic Chan, Efficient Formulation of Ab Initio Quantum Embedding in Periodic Systems:
 Dynamical Mean-Field Theory, [J. Chem. Theory Comput. 2020, 16, 1, 141-153.](https://pubs.acs.org/doi/abs/10.1021/acs.jctc.9b00934)
 
 
