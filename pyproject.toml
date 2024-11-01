@@ -9,7 +9,7 @@ packages = ["libdmet", "libdmet_solid"]
 [project]
 name = "libdmet"
 version = "0.5"
-dependencies = ["pyscf", "numpy", "scipy", "h5py"]
+dependencies = ["pyscf>=2.0", "numpy", "scipy", "h5py"]
 requires-python = ">= 3.1"
 authors = [
   {name = "Zhihao Cui", email = "zhcui0408@gmail.com"},

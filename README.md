@@ -8,8 +8,11 @@ A library of density matrix embedding theory (DMET) for lattice models and reali
 Installation
 ------------
 
-* Prerequisites (will be automatically installed.)
+* Prerequisites (will be automatically installed if not yet present.)
     - [PySCF](https://github.com/pyscf/pyscf) 2.0 or higher.
+    - [numpy](https://numpy.org/doc/stable/index.html)
+    - [scipy](https://scipy.org/)
+    - [h5py](https://www.h5py.org/)
 
 
 * Just call
