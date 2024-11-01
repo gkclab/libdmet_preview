@@ -12,13 +12,13 @@ Installation
     - [PySCF](https://github.com/pyscf/pyscf) 2.0 or higher.
 
 
-* Either clone the repository and execute in the directory
-```
-pip install .
-```
-* or call
+* Just call
 ```
 pip install git+https://github.com/gkclab/libdmet_preview.git@main
+```
+* or clone the repository and execute in its main directory
+```
+pip install .
 ```
 
 * Extensions
