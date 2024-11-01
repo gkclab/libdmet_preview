@@ -3,7 +3,8 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["libdmet", "libdmet_solid"]
+packages = ["libdmet", "libdmet_solid"]
+
 
 [project]
 name = "libdmet"
