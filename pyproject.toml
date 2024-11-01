@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["libdmet", "libdmet_solid"]
+
+[project]
+name = "libdmet"
+version = "0.5"
+dependencies = ["pyscf", "numpy", "scipy", "h5py"]
+requires-python = ">= 3.1"
+authors = [
+  {name = "Zhihao Cui", email = "zhcui0408@gmail.com"},
+]
+maintainers = [
+  {name = "Zhihao Cui", email = "zhcui0408@gmail.com"},
+]
+description = "A library of density matrix embedding theory (DMET) for lattice models and realistic solids."
+readme = "README.md"
+classifiers = [
+  # How mature is this project? Common values are
+  #   3 - Alpha
+  #   4 - Beta
+  #   5 - Production/Stable
+  "Development Status :: 4 - Beta",
+
+  # Indicate who your project is intended for
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Build Tools",
+
+  # Pick your license as you wish (see also "license" above)
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+
+  # Specify the Python versions you support here.
+  "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Repository = "https://github.com/gkclab/libdmet_preview"
+"Bug Tracker" = "https://github.com/gkclab/libdmet_preview/issues"
