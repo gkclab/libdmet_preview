@@ -287,14 +287,14 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
             C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
 
         if unit_eri: # unit ERI for DMFT
-            C_ao_eo = C_ao_lo / (nkpts**0.75)
+            C_ao_emb = C_ao_lo / (nkpts**0.75)
         else:
             phase = get_phase_R2k(cell, kpts)
-            C_ao_eo = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
+            C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
     else:
-        C_ao_eo = C_ao_eo[np.newaxis] / (nkpts**(0.75))
+        C_ao_emb = C_ao_eo[np.newaxis] / (nkpts**(0.75))
 
-    spin, _, _, nemb = C_ao_eo.shape
+    spin, _, _, nemb = C_ao_emb.shape
     nemb_pair = nemb * (nemb+1) // 2
     res_shape = (spin * (spin+1) // 2, nemb_pair, nemb_pair)
 
@@ -360,7 +360,7 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
                     lchunk = Lpq.shape[0]
                     step0, step1 = step1, step1 + lchunk
                     Lpq_beta = None
-                    Lij_loc = transform_ao_to_emb(Lpq, C_ao_eo, i, j, \
+                    Lij_loc = transform_ao_to_emb(Lpq, C_ao_emb, i, j, \
                               Lpq_beta=Lpq_beta).reshape(-1, nemb, nemb)
 
                     if t_reversal_symm and (not i_visited[jm]):
