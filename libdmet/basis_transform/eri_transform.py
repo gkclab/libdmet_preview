@@ -231,8 +231,11 @@ def sr_loop(gdf, kpti_kptj=np.zeros((2, 3)), max_memory=2000, compact=True,
 # GDF ERI construction
 # *****************************************************************************
 
+# OM Aug 3 2024: Change made to get_emb_eri_fast_gdf to allow input of C_ao_emb
+
 def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
                          kscaled_center=None, symmetry=4, max_memory=None,
+                         C_ao_emb = None,
                          kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None,
                          t_reversal_symm=True, incore=True, fout="H2.h5"):
     """
@@ -260,33 +263,37 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     # treat the possible drop of aux-basis at some kpts.
     naux = get_naoaux(mydf)
 
-    # If C_ao_lo and basis not given, this routine is k2gamma AO transformation
-    if C_ao_lo is None:
-        C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
-        C_ao_lo[:, range(nao), range(nao)] = 1.0 # identity matrix for each k
-
-    # add spin dimension for restricted C_ao_lo
-    if C_ao_lo.ndim == 3:
-        C_ao_lo = C_ao_lo[np.newaxis]
-
     # possible kpts shift
     kscaled = cell.get_scaled_kpts(kpts)
     if kscaled_center is not None:
         kscaled -= kscaled_center
 
-    # basis related
-    if basis is None:
-        basis = np.eye(nkpts * nao).reshape(1, nkpts, nao, nkpts * nao)
-    if basis.shape[0] < C_ao_lo.shape[0]:
-        basis = add_spin_dim(basis, C_ao_lo.shape[0])
-    if C_ao_lo.shape[0] < basis.shape[0]:
-        C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
+    if C_ao_emb is None:
+        # If C_ao_lo and basis not given, this routine is k2gamma AO transformation
+        if C_ao_lo is None:
+            C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
+            C_ao_lo[:, range(nao), range(nao)] = 1.0 # identity matrix for each k
 
-    if unit_eri: # unit ERI for DMFT
-        C_ao_emb = C_ao_lo / (nkpts**0.75)
+        # add spin dimension for restricted C_ao_lo
+        if C_ao_lo.ndim == 3:
+            C_ao_lo = C_ao_lo[np.newaxis]
+
+        # basis related
+        if basis is None:
+            basis = np.eye(nkpts * nao).reshape(1, nkpts, nao, nkpts * nao)
+        if basis.shape[0] < C_ao_lo.shape[0]:
+            basis = add_spin_dim(basis, C_ao_lo.shape[0])
+        if C_ao_lo.shape[0] < basis.shape[0]:
+            C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
+
+        if unit_eri: # unit ERI for DMFT
+            C_ao_emb = C_ao_lo / (nkpts**0.75)
+        else:
+            phase = get_phase_R2k(cell, kpts)
+            C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
     else:
-        phase = get_phase_R2k(cell, kpts)
-        C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
+        C_ao_emb = C_ao_emb[np.newaxis]/(nkpts*(0.75))
+
     spin, _, _, nemb = C_ao_emb.shape
     nemb_pair = nemb * (nemb+1) // 2
     res_shape = (spin * (spin+1) // 2, nemb_pair, nemb_pair)
