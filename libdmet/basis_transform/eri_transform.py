@@ -163,7 +163,10 @@ def get_naoaux(gdf):
     """
     assert gdf._cderi is not None
     with h5py.File(gdf._cderi, 'r') as f:
-        nkptij = len(f["j3c"])
+        try: # OM Aug 3 2024: change to accept "j3c-kptij"
+            nkptij = f["j3c-kptij"].shape[0]
+        except:
+            nkptij= len(f["j3c"])
     naux_k_list = []
     for k in range(nkptij):
         # gdf._cderi['j3c/k_id/seg_id']
