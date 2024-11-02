@@ -3,8 +3,11 @@
     build-backend = "setuptools.build_meta"
 
 
-[tool.setuptools]
-    packages = ["libdmet", "libdmet_solid"]
+# [tool.setuptools]
+#     packages = ["libdmet", "libdmet_solid"]
+[tool.setuptools.packages]
+    find = {namespaces = false, where = ["libdmet", "libdmet_solid"]}
+
 
 
 [project]
