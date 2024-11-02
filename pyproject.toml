@@ -3,10 +3,6 @@
     build-backend = "setuptools.build_meta"
 
 
-[tool.setuptools]
-    packages = ["libdmet", "libdmet_solid"]
-
-
 [project]
     name = "libdmet"
     version = "0.5"
