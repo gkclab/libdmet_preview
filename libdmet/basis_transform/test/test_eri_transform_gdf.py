@@ -5,17 +5,18 @@ Test ERI transformation from k-space to real space
 '''
 
 import numpy as np
-
-from pyscf.pbc.lib import chkfile
-from pyscf.pbc import scf, gto, df
-from pyscf import ao2mo
-
-from libdmet.system import lattice
-from libdmet.basis_transform import make_basis, eri_transform
-from libdmet.utils.misc import max_abs
-from libdmet.utils import logger as log
-
 import pytest
+from pyscf import ao2mo
+from pyscf.pbc import df, gto, scf
+from pyscf.pbc.lib import chkfile
+
+from libdmet.basis_transform import eri_transform, make_basis
+from libdmet.basis_transform.make_basis import multiply_basis
+from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf, get_basis_k
+from libdmet.system import lattice
+from libdmet.system.fourier import get_phase_R2k
+from libdmet.utils import logger as log
+from libdmet.utils.misc import max_abs, add_spin_dim
 
 np.set_printoptions(4, linewidth=1000, suppress=True)
 log.verbose = "DEBUG2"
@@ -23,9 +24,39 @@ log.verbose = "DEBUG2"
 def _test_ERI(cell, gdf, kpts, C_ao_lo):
     # Fast ERI
     # Give a very small memory to force small blksize (for test only)
+
     eri_k2gamma = eri_transform.get_emb_eri(cell, gdf, C_ao_lo=C_ao_lo, \
             max_memory=0.02, t_reversal_symm=True, symmetry=4)
     eri_k2gamma = eri_k2gamma[0]
+
+    def test_passing_C_ao_eo(C_ao_lo):
+        """Test if `get_emb_eri_fast_gdf` works
+        when passing a partially transformed `C_ao_eo` object of embedding orbitals
+        """
+        C_ao_lo = C_ao_lo.copy()
+        nkpts, nao = C_ao_lo.shape[:2]
+        assert C_ao_lo.ndim == 3
+        if C_ao_lo.ndim == 3:
+            C_ao_lo = C_ao_lo[np.newaxis]
+
+        basis = np.eye(nkpts * nao).reshape(1, nkpts, nao, nkpts * nao)
+        if basis.shape[0] < C_ao_lo.shape[0]:
+            basis = add_spin_dim(basis, C_ao_lo.shape[0])
+        if C_ao_lo.shape[0] < basis.shape[0]:
+            C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
+        phase = get_phase_R2k(cell, kpts)
+        C_ao_eo = multiply_basis(C_ao_lo, get_basis_k(basis, phase))[0, :, :, :]
+
+        direct_calc = get_emb_eri_fast_gdf(
+                cell, gdf,
+                C_ao_eo=C_ao_eo,
+                max_memory=0.02, t_reversal_symm=True, symmetry=4)[0]
+        assert max_abs(np.asarray(direct_calc) - eri_k2gamma) < 1e-14
+
+    test_passing_C_ao_eo(C_ao_lo)
+
+
+
 
     # outcore routine
     eri_transform.ERI_SLICE = 3
