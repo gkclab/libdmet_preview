@@ -9,7 +9,6 @@ Author:
 """
 
 import numpy as np
-import scipy.linalg as la
 from scipy import fft as scifft
 import h5py
 
@@ -26,7 +25,7 @@ from pyscf.ao2mo.incore import _conc_mos
 from pyscf.lib import logger
 
 from libdmet.basis_transform.make_basis import multiply_basis
-from libdmet.system.lattice import (get_phase, get_phase_R2k, round_to_FBZ, kpt_member)
+from libdmet.system.lattice import (get_phase_R2k, round_to_FBZ, kpt_member)
 from libdmet.utils.misc import mdot, max_abs, add_spin_dim
 from libdmet.utils import logger as log
 
@@ -293,6 +292,7 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
             C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
     else:
         assert C_ao_lo is None
+        assert (nkpts, nao) == C_ao_eo.shape[:2]
         C_ao_emb = C_ao_eo[np.newaxis] / (nkpts**(0.75))
 
     spin, _, _, nemb = C_ao_emb.shape
@@ -1537,8 +1537,6 @@ if __name__ == '__main__':
     import pyscf.pbc.scf as pscf
     from pyscf.pbc.lib import chkfile
     from libdmet.system import lattice
-    import libdmet.lo.pywannier90 as pywannier90
-    from libdmet.utils.misc import mdot
     np.set_printoptions(3, linewidth=1000)
 
     cell = pgto.Cell()
