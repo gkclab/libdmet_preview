@@ -292,6 +292,7 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
             phase = get_phase_R2k(cell, kpts)
             C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
     else:
+        assert C_ao_lo is None
         C_ao_emb = C_ao_eo[np.newaxis] / (nkpts**(0.75))
 
     spin, _, _, nemb = C_ao_emb.shape
