@@ -5,19 +5,14 @@ Test ERI transformation from k-space to real space
 '''
 
 import numpy as np
-import scipy.linalg as la
-import os, sys
 
-from pyscf import lib
 from pyscf.pbc.lib import chkfile
 from pyscf.pbc import scf, gto, df
 from pyscf import ao2mo
 
-from libdmet.lo import iao, pywannier90
 from libdmet.system import lattice
-from libdmet.basis_transform import make_basis
-from libdmet.basis_transform import eri_transform
-from libdmet.utils.misc import mdot, max_abs
+from libdmet.basis_transform import make_basis, eri_transform
+from libdmet.utils.misc import max_abs
 from libdmet.utils import logger as log
 
 import pytest
