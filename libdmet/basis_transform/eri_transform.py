@@ -26,7 +26,7 @@ from pyscf.lib import logger
 
 from libdmet.basis_transform.make_basis import multiply_basis
 from libdmet.system.lattice import (get_phase_R2k, round_to_FBZ, kpt_member)
-from libdmet.utils.misc import mdot, max_abs, add_spin_dim
+from libdmet.utils.misc import max_abs, add_spin_dim
 from libdmet.utils import logger as log
 
 ERI_IMAG_TOL = 1e-6

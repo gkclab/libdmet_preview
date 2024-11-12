@@ -14,7 +14,7 @@ from libdmet.basis_transform import eri_transform, make_basis
 from libdmet.basis_transform.make_basis import multiply_basis
 from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf, get_basis_k
 from libdmet.system import lattice
-from libdmet.system.fourier import get_phase_R2k
+from libdmet.system.fourier import get_phase_R2k, get_phase
 from libdmet.utils import logger as log
 from libdmet.utils.misc import max_abs, add_spin_dim
 
@@ -68,7 +68,7 @@ def _test_ERI(cell, gdf, kpts, C_ao_lo):
     assert diff_outcore < 1e-12
 
     # compared to supercell
-    scell, phase = eri_transform.get_phase(cell, kpts)
+    scell, phase = get_phase(cell, kpts)
     mydf_scell = df.GDF(scell)
     nao = cell.nao_nr()
     nkpts = len(kpts)
