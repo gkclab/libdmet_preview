@@ -9,7 +9,6 @@ Author:
 """
 
 import numpy as np
-import scipy.linalg as la
 from scipy import fft as scifft
 import h5py
 
@@ -26,8 +25,8 @@ from pyscf.ao2mo.incore import _conc_mos
 from pyscf.lib import logger
 
 from libdmet.basis_transform.make_basis import multiply_basis
-from libdmet.system.lattice import (get_phase, get_phase_R2k, round_to_FBZ, kpt_member)
-from libdmet.utils.misc import mdot, max_abs, add_spin_dim
+from libdmet.system.lattice import (get_phase_R2k, round_to_FBZ, kpt_member)
+from libdmet.utils.misc import max_abs, add_spin_dim
 from libdmet.utils import logger as log
 
 ERI_IMAG_TOL = 1e-6
@@ -163,7 +162,10 @@ def get_naoaux(gdf):
     """
     assert gdf._cderi is not None
     with h5py.File(gdf._cderi, 'r') as f:
-        nkptij = len(f["j3c"])
+        try: # OM Aug 3 2024: change to accept "j3c-kptij"
+            nkptij = f["j3c-kptij"].shape[0]
+        except KeyError:
+            nkptij= len(f["j3c"])
     naux_k_list = []
     for k in range(nkptij):
         # gdf._cderi['j3c/k_id/seg_id']
@@ -228,8 +230,11 @@ def sr_loop(gdf, kpti_kptj=np.zeros((2, 3)), max_memory=2000, compact=True,
 # GDF ERI construction
 # *****************************************************************************
 
+# OM Aug 3 2024: Change made to get_emb_eri_fast_gdf to allow input of C_ao_emb
+
 def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
                          kscaled_center=None, symmetry=4, max_memory=None,
+                         C_ao_eo=None,
                          kconserv_tol=KPT_DIFF_TOL, unit_eri=False, swap_idx=None,
                          t_reversal_symm=True, incore=True, fout="H2.h5"):
     """
@@ -257,33 +262,43 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
     # treat the possible drop of aux-basis at some kpts.
     naux = get_naoaux(mydf)
 
-    # If C_ao_lo and basis not given, this routine is k2gamma AO transformation
-    if C_ao_lo is None:
-        C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
-        C_ao_lo[:, range(nao), range(nao)] = 1.0 # identity matrix for each k
-
-    # add spin dimension for restricted C_ao_lo
-    if C_ao_lo.ndim == 3:
-        C_ao_lo = C_ao_lo[np.newaxis]
-
     # possible kpts shift
     kscaled = cell.get_scaled_kpts(kpts)
     if kscaled_center is not None:
         kscaled -= kscaled_center
 
-    # basis related
-    if basis is None:
-        basis = np.eye(nkpts * nao).reshape(1, nkpts, nao, nkpts * nao)
-    if basis.shape[0] < C_ao_lo.shape[0]:
-        basis = add_spin_dim(basis, C_ao_lo.shape[0])
-    if C_ao_lo.shape[0] < basis.shape[0]:
-        C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
+    if C_ao_eo is None:
+        # If C_ao_lo and basis not given, this routine is k2gamma AO transformation
+        if C_ao_lo is None:
+            C_ao_lo = np.zeros((nkpts, nao, nao), dtype=np.complex128)
+            C_ao_lo[:, range(nao), range(nao)] = 1.0 # identity matrix for each k
 
-    if unit_eri: # unit ERI for DMFT
-        C_ao_emb = C_ao_lo / (nkpts**0.75)
+        # add spin dimension for restricted C_ao_lo
+        if C_ao_lo.ndim == 3:
+            C_ao_lo = C_ao_lo[np.newaxis]
+
+        # basis related
+        if basis is None:
+            basis = np.eye(nkpts * nao).reshape(1, nkpts, nao, nkpts * nao)
+        if basis.shape[0] < C_ao_lo.shape[0]:
+            basis = add_spin_dim(basis, C_ao_lo.shape[0])
+        if C_ao_lo.shape[0] < basis.shape[0]:
+            C_ao_lo = add_spin_dim(C_ao_lo, basis.shape[0])
+
+        if unit_eri: # unit ERI for DMFT
+            C_ao_emb = C_ao_lo / (nkpts**0.75)
+        else:
+            phase = get_phase_R2k(cell, kpts)
+            C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
     else:
-        phase = get_phase_R2k(cell, kpts)
-        C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
+        if C_ao_lo is not None:
+            raise ValueError("Don't pass both `C_ao_lo` and `C_ao_eo`.")
+        C_ao_eo = np.asarray(C_ao_eo)
+        if C_ao_eo.ndim == 3:
+             C_ao_eo = C_ao_eo[np.newaxis]
+        assert (nkpts, nao) == C_ao_eo.shape[1:3]
+        C_ao_emb = C_ao_eo / (nkpts**(0.75))
+
     spin, _, _, nemb = C_ao_emb.shape
     nemb_pair = nemb * (nemb+1) // 2
     res_shape = (spin * (spin+1) // 2, nemb_pair, nemb_pair)
@@ -1526,8 +1541,6 @@ if __name__ == '__main__':
     import pyscf.pbc.scf as pscf
     from pyscf.pbc.lib import chkfile
     from libdmet.system import lattice
-    import libdmet.lo.pywannier90 as pywannier90
-    from libdmet.utils.misc import mdot
     np.set_printoptions(3, linewidth=1000)
 
     cell = pgto.Cell()
