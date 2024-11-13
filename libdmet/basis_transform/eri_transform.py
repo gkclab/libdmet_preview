@@ -291,9 +291,13 @@ def get_emb_eri_fast_gdf(cell, mydf, C_ao_lo=None, basis=None, feri=None,
             phase = get_phase_R2k(cell, kpts)
             C_ao_emb = multiply_basis(C_ao_lo, get_basis_k(basis, phase)) / (nkpts**(0.75))
     else:
-        assert C_ao_lo is None
-        assert (nkpts, nao) == C_ao_eo.shape[:2]
-        C_ao_emb = C_ao_eo[np.newaxis] / (nkpts**(0.75))
+        if C_ao_lo is not None:
+            raise ValueError("Don't pass both `C_ao_lo` and `C_ao_eo`.")
+        C_ao_eo = np.asarray(C_ao_eo)
+        if C_ao_eo.ndim == 3:
+             C_ao_eo = C_ao_eo[np.newaxis]
+        assert (nkpts, nao) == C_ao_eo.shape[1:3]
+        C_ao_emb = C_ao_eo / (nkpts**(0.75))
 
     spin, _, _, nemb = C_ao_emb.shape
     nemb_pair = nemb * (nemb+1) // 2
