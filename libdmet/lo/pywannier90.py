@@ -64,7 +64,7 @@ libwann_path = "/home/zhcui/program/wannier90/wannier90_dev/libwannier.so"
 try:
     libwann = lib.load_library(libwann_path)
 except OSError:
-    log.info("wannier90 library path not set or incorrectly.")
+    log.debug(2, "wannier90 library path not set or incorrectly.")
     libwann = None
 
 NUM_NNMAX = 12

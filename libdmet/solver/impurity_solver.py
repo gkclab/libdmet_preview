@@ -31,7 +31,7 @@ try:
     from libdmet.solver.shci import SHCI
     __all__.append("SHCI")
 except ImportError:
-    log.info("ImportError in SHCI solver, settings.py should be set in pyscf")
+    log.debug(2, "ImportError in SHCI solver, settings.py should be set in pyscf")
 
 class Block(object):
     def __init__(self, nproc, nnode=1, TmpDir="./tmp", SharedDir=None,
